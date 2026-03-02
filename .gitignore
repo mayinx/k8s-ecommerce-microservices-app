@@ -133,4 +133,4 @@ output-virtualbox-iso
 /graphs/*.json
 
 # Ignore private notes
-docs/_private/
+project-docs/_private/
