@@ -1,9 +1,9 @@
 # 🧱 Implementation Log — Phase 00 (Baseline): Local poke-around + repo mapping
 
 > ## 👤 About
-> This document is my personal implementation log ("build diary") for **Phase 00 (Baseline)**.  
+> This document is the implementation log ("build diary") for **Phase 00 (Baseline)**.  
 > It was written while setting up and validating the repo locally, to keep milestones, decisions, and commands reproducible.  
-> For a "TL;DR command checklist and quick setup guide", see: **[00-baseline/RUNBOOK.md](RUNBOOK.md)**.
+> For a "TL;DR command checklist and quick setup guide", see: **[00-compose-repo-baseline/RUNBOOK.md](RUNBOOK.md)**.
 
 ---
 
@@ -117,7 +117,7 @@ The project has a local compose setup under `deploy/docker-compose/` and several
     - `deploy/kubernetes/manifests-policy/`
 
 #### To decide (later)
-- Preferred Kubernetes deploy approach:  Helm vs manifests
+- Preferred Kubernetes deploy approach: Helm vs manifests
 
 ---
 
@@ -710,7 +710,7 @@ $ docker compose -f docker-compose.yml -f docker-compose.logging.yml down
   - `http://localhost:9100/` (node-exporter)
 
 #### Artifacts captured:
-  - Screenshots under `docs/00-baseline/evidence/`
+  - Screenshots under `docs/00-compose-repo-baseline/evidence/`
 
 ---
 
