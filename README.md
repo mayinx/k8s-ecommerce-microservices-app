@@ -1,3 +1,15 @@
+
+
+
+
+## Architecture Decision Records (ADRs)
+
+Project-wide standards and long-lived decisions are documented as ADRs in: `./adr/`  
+- Git workflow + commit standards: `adr/0001-git-workflow-and-commit-standards.md`
+- Documentation system + locations: `adr/0002-documentation-system-and-locations.md`
+
+-----------------
+
 [![Build Status](https://travis-ci.org/microservices-demo/microservices-demo.svg?branch=master)](https://travis-ci.org/microservices-demo/microservices-demo)
 
 Sock Shop : A Microservice Demo Application

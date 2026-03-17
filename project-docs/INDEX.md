@@ -12,8 +12,9 @@ Documentation is iterative and phase-aligned: baseline notes first, then milesto
 - [Phase 01 — Runbook (TL;DR)](./01-local-k3s-baseline/RUNBOOK.md)
 
 ## Future phases (placeholders; added when we reach them)
-- Phase 02: CI/CD system (build/test/push/deploy)
-- Phase 03: Target deployment on Proxmox (IaC)
-- Phase 04: Observability (monitoring/logging/alerting)
-- Phase 05: Security hardening (scanning, policies, secrets)
-- Phase 06: DR / rollback runbooks
+- Phase 02: Ingress baseline (Traefik routing to storefront + rollback)
+- Phase 03: CI/CD system (build/test/push/deploy)
+- Phase 04: Target deployment on Proxmox (IaC)
+- Phase 05: Observability (monitoring/logging/alerting)
+- Phase 06: Security hardening (scanning, policies, secrets)
+- Phase 07: DR / rollback runbooks

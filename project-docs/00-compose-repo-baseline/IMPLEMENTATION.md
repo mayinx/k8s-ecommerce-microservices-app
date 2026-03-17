@@ -1,4 +1,4 @@
-# 🧱 Implementation Log — Phase 00 (Baseline): Local poke-around + repo mapping
+# 🧱 Implementation Log — Phase 00 (Baseline): Local poke-around + repo mapping + compose repo baseline 
 
 > ## 👤 About
 > This document is the implementation log ("build diary") for **Phase 00 (Baseline)**.  
