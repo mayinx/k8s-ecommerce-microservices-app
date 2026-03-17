@@ -1,4 +1,4 @@
-# 🧱 Implementation Log — # Phase 01 (Local Cluster Baseline): Clean Sock Shop deploy on k3s (conflict-free)
+# 🧱 Implementation Log — Phase 01 (Local Cluster Baseline): Clean Sock Shop deploy on k3s (conflict-free)
 
 > ## 👤 About
 > This document is the implementation log ("build diary") for **Phase 01 (Local k3s Cluster Baseline)**.  
@@ -20,7 +20,6 @@
 - [**Sources**](#sources)
 
 ---
-
 
 ## Purpose / Goal 
 
@@ -60,10 +59,8 @@ Based on `deploy/kubernetes/README.md`:
 **Rationale:** Avoid a cluster-wide NodePort collision before applying upstream manifests. The Sock Shop storefront Service pins NodePort `30001`, so an existing Service using `30001` will block the deploy at `Service/front-end`.
 
 > **🧩 Info box — NodePort**  
-> NodePort is a **Kubernetes Service type** that **opens a fixed TCP port on the node** and **forwards traffic to the Service inside the cluster**.  
-It is used here because the upstream Sock Shop manifests expose the storefront via a fixed NodePort `30001`.  
-A namespace isolates resources (Deployments/Services/etc.) but **does not isolate NodePort numbers**: NodePort allocation is **cluster-wide**.  
-That is why a collision can happen even with a dedicated `sock-shop` namespace.
+> NodePort is a **Kubernetes Service type** that **opens a fixed TCP port on the node** and **forwards traffic to the Service inside the cluster**. It is used here because the upstream Sock Shop manifests expose the storefront via a fixed NodePort `30001`.  
+> The intended namespace creation (see Step 1) helps by separating concerns and isolating resources (Deployments/Services/etc.) - but namespaces **do not isolate NodePort numbers**: NodePort allocation is **cluster-wide**. That is why a collision can happen even with a dedicated `sock-shop` namespace.
 
 The upstream manifests define the Sock Shop storefront Service (`front-end`) with a fixed NodePort: 30001:
 
@@ -127,12 +124,14 @@ kubectl get svc -A -o wide | grep -E '(:30001/| 30001/|30001:)' || true
 > Alternative approach (not used in Phase 01): change Sock Shop’s NodePort to a free port via a local-only override.  
 > For Phase 01, the simplest reproducible baseline is: **free 30001** and deploy upstream manifests unchanged.
 
+---
 
 ## Step 1 — Create the `sock-shop` namespace (deployment boundary)
 
 **Rationale:** Deploying Sock Shop into its own dedicated namespace (`sock-shop`) keeps the capstone isolated from unrelated exercises and makes reset + reapply safe and predictable. 
 
-> **Note:** namespaces don’t prevent cluster-wide collisions (e.g., NodePort numbers), so we still need that preflight (s. above).
+> **🧩 Note:** 
+> Namespaces don’t prevent cluster-wide collisions (e.g., NodePort numbers), so we still need that preflight (s. above).
 
 Create the namespace (idempotent rerun safe - ok if it already exists):
 
@@ -235,6 +234,7 @@ user           ClusterIP   10.43.194.177   <none>        80/TCP              ---
 user-db        ClusterIP   10.43.144.36    <none>        27017/TCP           ---   name=user-db
 ~~~
 
+---
 
 ## Step 3 — Verify storefront reachability (baseline: NodePort)
 
@@ -258,7 +258,7 @@ FYI: In this setup here (single-node local k3s cluster) the access via localhost
 
 - `http://localhost:30001/`
 
-> **Note:** Why can the storefront be reached via `http://localhost:30001/`?
+> **🧩 Why can the storefront be reached via `http://localhost:30001/`?** 
 > On a single-node local k3s cluster, the “node” is this machine. NodePort opens a port on the node itself (the machien running k3s), so the storefront is reachable via both the node IP _and_ `localhost`:
 - `http://<NODE_INTERNAL_IP>:30001/` (LAN path)
 - `http://localhost:30001/` (loopback path)
