@@ -4,9 +4,10 @@
 
 ## Architecture Decision Records (ADRs)
 
-Project-wide standards and long-lived decisions are documented as ADRs in: `./adr/`  
+Project-wide standards and long-lived decisions will be documented as ADRs in: `./adr/`. Planned:  
 - Git workflow + commit standards: `adr/0001-git-workflow-and-commit-standards.md`
 - Documentation system + locations: `adr/0002-documentation-system-and-locations.md`
+- ...
 
 -----------------
 
