@@ -1,0 +1,96 @@
+# ADR-0001: Git conventions (workflow, branching, commit messages)
+
+Status: Accepted  
+Date: 2026-03-17
+
+## Problem / Issue
+
+Without explicit Git conventions, commit history and branch naming drift quickly. This reduces reviewability, makes automation harder (CI/CD, changelogs), and weakens defensibility of changes across phases.
+
+## Context
+
+This project applies professional engineering standards with consistent workflow and documentation conventions to keep changes reviewable, reproducible, and automation-friendly across phases.
+
+## Options considered
+
+1. No standard (direct commits to `main`, free-form messages)
+2. GitFlow-style (multiple long-lived branches, release branches)
+3. Trunk-based (solo-friendly) + Conventional Commits (short-lived branches) ✅
+
+## Decision
+### Workflow model (solo-friendly trunk-based)
+
+- Use `main` as the trunk and keep it runnable.
+- Use short-lived branches for each change.
+- Merge back frequently in small, reviewable increments.
+
+### Branch naming
+Use lowercase, hyphen-separated names:
+
+- `feat/<scope>-<topic>`
+- `fix/<scope>-<topic>`
+- `docs/<scope>-<topic>`
+- `chore/<scope>-<topic>`
+- `refactor/<scope>-<topic>`
+
+Examples:
+- `feat/ingress-traefik-storefront`
+- `docs/project-docs-phase02-runbook`
+- `fix/k8s-frontend-service`
+- `chore/repo-add-githooks`
+
+### Commit message format (Conventional Commits)
+Use: `<type>(<scope>): <short imperative description>`
+
+Types used:
+- `feat`, `fix`, `docs`, `refactor`, `chore`, `test`
+
+Scopes (keep stable and repo-relevant):
+- `readme`, `project-docs`, `adr`, `repo`
+- `k8s`, `ingress`, `ci`, `iac`, `monitoring`, `security`, `dr`
+- `app`, `api` (only when custom service code exists)
+
+Examples per type:
+
+docs:
+- `docs(readme): clarify Phase 02 ingress steps`
+- `docs(project-docs): add Phase 01 evidence snapshot commands`
+- `docs(adr): add git conventions ADR`
+
+feat:
+- `feat(ingress): add Traefik ingress for storefront host`
+- `feat(ci): add dev deploy job for k3s namespace`
+- `feat(monitoring): deploy Prometheus and Grafana manifests`
+
+fix:
+- `fix(k8s): correct front-end service selector`
+- `fix(ci): block image push when tests fail`
+- `fix(docs): correct storefront NodePort in Phase 01`
+
+refactor:
+- `refactor(project-docs): rename phase folders for consistent indexing`
+- `refactor(k8s): split ingress manifest into dedicated file`
+- `refactor(ci): simplify pipeline rules without changing stages`
+
+chore:
+- `chore(repo): add adr folder and README links`
+- `chore(deps): bump base image tag for runner`
+- `chore(tooling): add optional commit-msg hook`
+
+test:
+- `test(api): add unit tests for policy rules`
+- `test(e2e): add Cypress smoke test`
+- `test(ci): add pipeline job to run tests only`
+
+### Optional enforcement (commit-msg hook)
+Optionally enforce commit message format via a local `commit-msg` hook. Keep it optional to avoid blocking progress.
+
+## Consequences / Outcome
+- Commit history becomes consistently readable and easier to defend.
+- Branch intent is obvious at a glance.
+- Automation-friendly commit format is available without introducing heavy tooling.
+- A single-developer workflow stays lightweight while remaining professional.
+
+## References
+- [Conventional Commits spec - A specification for adding human and machine readable meaning to commit messages](https://www.conventionalcommits.org/en/v1.0.0/)
+- [Githooks Documentation (commit-msg)](https://git-scm.com/docs/githooks)
