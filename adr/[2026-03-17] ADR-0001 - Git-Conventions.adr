@@ -13,18 +13,67 @@ This project applies professional engineering standards with consistent workflow
 
 ## Options considered
 
-1. No standard (direct commits to `main`, free-form messages)
+1. No standard (direct commits to `main`/`master`, free-form messages)
 2. GitFlow-style (multiple long-lived branches, release branches)
 3. Trunk-based (solo-friendly) + Conventional Commits (short-lived branches) ✅
 
 ## Decision
+
 ### Workflow model (solo-friendly trunk-based)
 
 - Use `main` as the trunk and keep it runnable.
 - Use short-lived branches for each change.
 - Merge back frequently in small, reviewable increments.
 
+### Default branch name
+- Use the repository’s current default branch name (**currently `master` in this repo** - inherited from upstream).
+- Renaming to `main` is optional and can be done later if desired; if renamed, preserve history by renaming the branch (do not create a new unrelated branch).  
+  Reference (rename procedure): [GitLab Docs: Change the default branch name for a project](https://docs.gitlab.com/user/project/repository/branches/default/#change-the-default-branch-name-for-a-project)
+
+### Working on branches (solo-friendly, PR-based)
+
+1. Create a short-lived branch from the default branch (here `master`).
+~~~bash
+# schema
+git checkout -b <type>/<scope>-<topic>
+
+# example
+git checkout -b docs/adr-workflow-and-docs-system
+~~~
+
+2. Commit in small increments using Conventional Commits.
+~~~bash
+# Stage changes (typical)
+git add <files-or-folders>
+
+# Commit with Conventional Commits
+git commit -m "<type>(<scope>): <imperative description>"
+~~~
+
+3. Push the branch early (after the first commit) to back up work and allow CI to run.
+~~~bash
+# First push (sets upstream tracking)
+git push -u origin <type>/<scope>-<topic>
+
+# Subsequent pushes
+git push
+~~~
+
+4. On the remote: Merge back via a PR/MR targeting `master`.
+
+5. After the PR/MR merge, update the local default branch.
+~~~bash
+git checkout master
+git pull --ff-only
+~~~
+
+### Merge strategy (default)
+
+- Prefer **Squash and merge** for most feature branches (keeps the default branch history clean).
+- Use **Merge commit** when the individual commits are intentionally meaningful (e.g., ADR series, stepwise docs evolution).
+
 ### Branch naming
+
 Use lowercase, hyphen-separated names:
 
 - `feat/<scope>-<topic>`
