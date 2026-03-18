@@ -1,8 +1,9 @@
 # 🧱 Implementation Log — Phase 01 (Local Cluster Baseline): Clean Sock Shop deploy on k3s (conflict-free)
 
 > ## 👤 About
-> This document is the implementation log ("build diary") for **Phase 01 (Local k3s Cluster Baseline)**.  
-> For a "TL;DR command checklist and quick setup guide", see: **[01-local-k3s-baseline/RUNBOOK.md](RUNBOOK.md)**.
+> This document is the implementation log and detailed project build diary for **Phase 01 (Local k3s Cluster Baseline)**.  
+> It records the full implementation path including rationales, key observations, corrections, verification/validation steps, and evidence pointers so the work remains auditable and reproducible.  
+> For a shorter, reproducible "TL;DR command checklist and quick setup guide", see: **[01-local-k3s-baseline/RUNBOOK.md](RUNBOOK.md)**.
 
 ---
 

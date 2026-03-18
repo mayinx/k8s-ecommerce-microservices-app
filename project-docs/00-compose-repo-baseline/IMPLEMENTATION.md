@@ -1,9 +1,9 @@
 # 🧱 Implementation Log — Phase 00 (Baseline): Local poke-around + repo mapping + compose repo baseline 
 
 > ## 👤 About
-> This document is the implementation log ("build diary") for **Phase 00 (Baseline)**.  
-> It was written while setting up and validating the repo locally, to keep milestones, decisions, and commands reproducible.  
-> For a "TL;DR command checklist and quick setup guide", see: **[00-compose-repo-baseline/RUNBOOK.md](RUNBOOK.md)**.
+> This document is the implementation log and detailed project build diary for **Phase 00 (Compose Repo Baseline)**.  
+> It records the full implementation path including rationales, key observations, corrections, verification/validation steps, and evidence pointers so the work remains auditable and reproducible.  
+> For a shorter, reproducible "TL;DR command checklist and quick setup guide", see: **[00-compose-repo-baseline/RUNBOOK.md](RUNBOOK.md)**.
 
 ---
 

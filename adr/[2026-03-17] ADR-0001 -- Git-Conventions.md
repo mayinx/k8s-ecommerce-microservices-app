@@ -19,16 +19,49 @@ This project applies professional engineering standards with consistent workflow
 
 ## Decision
 
-### Workflow model (solo-friendly trunk-based)
+### Workflow model: trunk-based
 
-- Use `main` as the trunk and keep it runnable.
-- Use short-lived branches for each change.
+We use trunk-based development as a solo-frriendly approach to version control management.   where developers merge small, frequent updates into a central main branch (the "trunk") multiple times a day. It enables continuous integration (CI) and delivery (CD) by avoiding long-lived feature branches, reducing merge conflicts, and ensuring the code is always in a releasable state
+
+
+
+- Use the repository’s default branch as trunk (`master`) and keep it runnable 
+  - i.e. `master` must stay a reliable, unbroken reference point at all times
+  - no half-finished changes are permitted on `master`
+- Use short-lived branches for each change
+  - i.e. one of `feat`, `fix`, `docs`, `chore` or `refactor`
+
 - Merge back frequently in small, reviewable increments.
+  - only working short-lived branches are permitted to be merged with master    
 
-### Default branch name
-- Use the repository’s current default branch name (**currently `master` in this repo** - inherited from upstream).
-- Renaming to `main` is optional and can be done later if desired; if renamed, preserve history by renaming the branch (do not create a new unrelated branch).  
-  Reference (rename procedure): [GitLab Docs: Change the default branch name for a project](https://docs.gitlab.com/user/project/repository/branches/default/#change-the-default-branch-name-for-a-project)
+
+### Workflow model: trunk-based 
+
+This project utilizes trunk-based development: a widely used, flexible Git workflow built around a single long-lived core branch (the “trunk”) plus short-lived branches for focused changes. Work is done on a short-lived branch (e.g., a feature or docs update) and merged back into the "trunk" once it is complete and reviewable. This keeps updates small, frequent, and easy to audit.
+
+Trunk-based development is a common DevOps practice. It reduces long-lived divergence, keeps merge conflicts small, and aligns naturally with CI/CD because the trunk is kept in a consistently runnable/releasable state. 
+
+In this project, that translates into the following rules:
+
+- Use the repository’s default branch (`master`) as trunk and keep it runnable/relesable.
+  - `master` stays a reliable, unbroken, stable reference point at all times, ready to deploy.
+  - No half-finished changes are permitted on `master`.
+
+- Use short-lived branches for each change.
+  - branch prefixes: `feat`, `fix`, `docs`, `chore`, `refactor`
+  - keep branches narrow in scope (one topic per branch).
+
+- Merge back frequently in small, reviewable increments.
+  - merge only branches that are working and reviewable (no “WIP merge”).
+
+> Info: GitFlow was considered but not chosen because it introduces additional long-lived branches (`develop`/`release`/`hotfix`) and ceremony that doesn’t pay off for this solo, phase-driven project. Trunk-based keeps the workflow lightweight while still supporting reviewability and CI/CD via short-lived branches and PRs.
+
+Source: [Trunk-based development](https://www.atlassian.com/continuous-delivery/continuous-integration/trunk-based-development) 
+
+### Default branch name: `master`
+
+- Use the repository’s default branch name (`master` - inherited from upstream) - we keep it that way for the time beeing.
+- In case renaming to `main` comes up later: [GitLab Docs: Change the default branch name for a project](https://docs.gitlab.com/user/project/repository/branches/default/#change-the-default-branch-name-for-a-project)
 
 ### Working on branches (solo-friendly, PR-based)
 
@@ -59,7 +92,7 @@ git push -u origin <type>/<scope>-<topic>
 git push
 ~~~
 
-4. On the remote: Merge back via a PR/MR targeting `master`.
+4. On the remote: Merge back via a PR/MR targeting the default branch (`master`).
 
 5. After the PR/MR merge, update the local default branch.
 ~~~bash
