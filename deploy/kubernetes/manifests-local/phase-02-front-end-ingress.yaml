@@ -1,0 +1,31 @@
+# The API version for networking features. v1 is stable and standard.
+apiVersion: networking.k8s.io/v1
+# Tells Kubernetes this is an "Ingress" (the traffic routing rules)
+kind: Ingress
+metadata:
+  # The unique name of this specific routing rule set
+  name: front-end
+  # The namespace where the app (and this rule) lives. 
+  # This must match where your "front-end" service is deployed.
+  namespace: sock-shop
+spec:
+  # Crucial for k3s: Tells the cluster to use the Traefik router 
+  # to implement these rules.
+  ingressClassName: traefik
+  rules:
+    # The "Magic Link": When you type 'sockshop.local' in your browser,
+    # the router looks for this specific rule.
+    - host: sockshop.local
+      http:
+        paths:
+          # Catch-all path: This rule applies to EVERYTHING starting with "/"
+          - path: /
+            # Prefix means it matches /index.html, /cart, /images, etc.
+            pathType: Prefix
+            backend:
+              service:
+                # The internal K8s Service name to send the traffic to.
+                name: front-end
+                port:
+                  # The port the SERVICE is listening on (usually 80).
+                  number: 80
