@@ -224,7 +224,7 @@ The initial phases use Docker Compose and a local k3s cluster to establish a sta
 - Safety rule: Keep NodePort 30001 as the fallback entrypoint for quick rollback and troubleshooting.
   - Keeping NodePort as fallback will make the change low-risk and rollback-friendly (Ingress can be removed without breaking the already working baseline).
 
-- What Phase 02 proves: One minimal Ingress route (among several options in the repo), verified locally with evidence (curl Host-header test + browser screenshot) and a clean rollback (delete ingress).
+- What Phase 02 proves: One minimal but production-like Ingress route (among several options in the repo), verified locally with evidence (curl Host-header test + browser screenshot) and a clean rollback (delete ingress).
   
 
 ## (Further entries will be added to record technical choices)

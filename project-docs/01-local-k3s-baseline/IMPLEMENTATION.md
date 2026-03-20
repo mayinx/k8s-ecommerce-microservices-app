@@ -24,7 +24,25 @@
 
 ## Purpose / Goal 
 
-Establish a reproducible baseline deployment of Sock Shop on a local k3s cluster using the repo’s Kubernetes manifests (without modifying upstream manifest content).
+### Establish a Reproducible Cluster Baseline Deployment
+- The primary objective is to deploy a verified, clean installation of the Sock Shop microservices onto a local k3s cluster.
+- By utilizing the repository’s native Kubernetes manifests without modifying upstream content, we ensure a stable and reproducible infrastructure-as-code (IaC) baseline that serves as the foundation for all subsequent architectural enhancements.
+
+### Connectivity via ISO/OSI Layer 4 NodePort
+- In this initial phase, external access to the storefront is achieved using a **NodePort Service type**. This provides a **direct, low-level mapping** from a **specific port on the k3s node (`30001`)** to the internal `front-end` Service.
+- While NodePort uses non-standard port ranges, it is chosen for this phase because it is **independent of complex routing logic**. This makes it an ideal "smoke test" to verify that the microservices are communicating correctly before introducing advanced Layer 7 ingress rules.
+
+### Validation of Microservice Orchestration
+- Beyond simple connectivity, this phase proves that the k3s control plane can successfully manage the full application lifecycle: pulling images, scheduling pods, and maintaining internal ClusterIP communication between the various Sock Shop backends (catalogue, cart, etc.).
+- Success is defined by reaching the storefront via `http://<node-ip>:30001`, confirming a functional "Stage 0" environment.
+
+> **🧩 Info box — NodePort Service** 
+> A NodePort is a **Kubernetes Service type** that exposes an  application by opening a static TCP port (range 30000-32767) on every Node in the cluster. Any traffic sent to that port is automatically forwarded to the underlying Service.
+> NodePort operates at ISO/OSI Layer 4 (Transport). It routes traffic based on IP and Port but cannot "read" hostnames or URLs.
+> It is used here as a transparent, "no-frills" entry point. Since it bypasses complex routing logic, it serves as a primary diagnostic tool to verify that the front-end Pods are healthy and accessible before introducing Layer 7 Ingress rules (see Phase 02).
+> In this project, we **utilize the upstream default port '30001'** to maintain compatibility with the original Sock Shop manifests.
+
+---
 
 ## Definition of done (Phase 01)
 
@@ -57,11 +75,11 @@ Based on `deploy/kubernetes/README.md`:
 
 ## Step 0 — Preflight: NodePort collision check 
 
-**Rationale:** Avoid a cluster-wide NodePort collision before applying upstream manifests. The Sock Shop storefront Service pins NodePort `30001`, so an existing Service using `30001` will block the deploy at `Service/front-end`.
+**Rationale:** We need to avoid a cluster-wide NodePort collision before applying upstream manifests. The Sock Shop storefront Service (`front-end`) defines NodePort `30001` - any existing Service using `30001` will therefore block the deploy at `Service/front-end`. 
 
-> **🧩 Info box — NodePort**  
-> NodePort is a **Kubernetes Service type** that **opens a fixed TCP port on the node** and **forwards traffic to the Service inside the cluster**. It is used here because the upstream Sock Shop manifests expose the storefront via a fixed NodePort `30001`.  
-> The intended namespace creation (see Step 1) helps by separating concerns and isolating resources (Deployments/Services/etc.) - but namespaces **do not isolate NodePort numbers**: NodePort allocation is **cluster-wide**. That is why a collision can happen even with a dedicated `sock-shop` namespace.
+> **Info: Namespacing isn't sufficient enough to avoid NodePort-collision**
+> The intended namespace creation (see Step 1) helps by separating concerns and isolating resources (Deployments/Services/etc.) - but namespaces **do not isolate NodePort numbers**: NodePort allocation is **cluster-wide**; there can't exist two services in the entire cluster using the same port, no matter in what namespaces they live. That is why a collision can happen even with a dedicated `sock-shop` namespace.
+> FYI: This **lack of isolation** is another reason for transitioning to Ingress in Phase 02, which is "namespace-aware" 
 
 The upstream manifests define the Sock Shop storefront Service (`front-end`) with a fixed NodePort: 30001:
 
@@ -260,7 +278,7 @@ FYI: In this setup here (single-node local k3s cluster) the access via localhost
 - `http://localhost:30001/`
 
 > **🧩 Why can the storefront be reached via `http://localhost:30001/`?** 
-> On a single-node local k3s cluster, the “node” is this machine. NodePort opens a port on the node itself (the machien running k3s), so the storefront is reachable via both the node IP _and_ `localhost`:
+> On a single-node local k3s cluster, the “node” is this machine. NodePort opens a port on the node itself (the machine running k3s), so the storefront is reachable via both the node IP _and_ `localhost`:
 - `http://<NODE_INTERNAL_IP>:30001/` (LAN path)
 - `http://localhost:30001/` (loopback path)
 > On multi-node clusters or stricter networking, prefer `http://<NODE_INTERNAL_IP>:30001/`.
