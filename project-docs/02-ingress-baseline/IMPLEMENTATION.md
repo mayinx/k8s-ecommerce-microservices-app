@@ -152,24 +152,27 @@ This keeps the upstream defaults as is - and preserves the Phase 01 NodePort fal
 We place this new "local-only" ingress manifest file in `deploy/kubernetes/manifests-local/phase-02-front-end-ingress.yaml` with the following contents:
 
 ~~~yaml
+# deploy/kubernetes/manifests-local/phase-02-front-end-ingress.yaml
+
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
-  name: front-end
-  namespace: sock-shop
+  name: front-end                 # Ingress object name (identifies this HTTP routing rule inside the namespace)
+  namespace: sock-shop            # Creates the Ingress in the same namespace as the front-end Service (must match)
 spec:
-  ingressClassName: traefik
+  ingressClassName: traefik       # Identifies which Ingress controller should handle this resource (here: Traefik)
   rules:
-    - host: sockshop.local
+    - host: sockshop.local        # Host-based routing rule: matches only requests with the HTTP Host header "sockshop.local"
       http:
         paths:
-          - path: /
-            pathType: Prefix
+          - path: /               # Root path rule / catch-all: covers the application from "/" onward
+            pathType: Prefix      # Prefix match: matches any URL starting with the defiend path "/" (all sub-paths are routed here)
             backend:
               service:
-                name: front-end
+                name: front-end   # The target Service to forward traffic to: the existing front-end Service (defined in 10-front-end-svc.yaml)
                 port:
-                  number: 80
+                  number: 80      # The internal Service port (NOT the NodePort) to forward traffic to (Traefik -> Service:80 -> Pod:8079 per upstream svc)
+
 ~~~
 
 **Key points:**
@@ -209,49 +212,58 @@ The Ingress object was accepted by the API and bound correctly to Traefik.
 
 ---
 
-## Step 4 — Verify host-based routing before editing `/etc/hosts`
+## Step 4 — Verify host-based routing 
 
-**Rationale:** First test the new routing rule without touching local name resolution. This keeps the test surface narrow: the request is sent directly to `127.0.0.1`, while the required `Host` header is injected manually.
+Now we test the new routing rule both terminal based via curl and browser-based 
+
+This keeps the test surface narrow: the request is sent directly to `127.0.0.1`, while the required `Host` header is injected manually.
 
 ~~~bash
+# sent the request directly to `127.0.0.1` and provide the required `Host` header .
 curl -I -H 'Host: sockshop.local' http://127.0.0.1
 curl -s -H 'Host: sockshop.local' http://127.0.0.1 | head -n 10
 ~~~
 
+Opening a browser and entering `sockshop.local` in the adress bar produces a different result:
+
+![Screenshot of storefront attempt on port 80](evidence/[2026-03-19]-sockshop.local-Storefront-1_before-hosts-edit_not-found.png)
+*Figure 3: Storefront not reachable on http://sockshop.local due to a Non-Existent Domain Error (DNS_PROBE_FINISHED_NXDOMAIN)*
+
 **Observed result:**
 
-- `curl -I` returned **`HTTP/1.1 200 OK`**
-- the response headers included `X-Powered-By: Express`
-- the HTML output started with `<!DOCTYPE html>` and the Sock Shop storefront metadata
+- terminal based request via curl:
+  - `curl -I` returned **`HTTP/1.1 200 OK`**
+  - the response headers included `X-Powered-By: Express`
+  - the HTML output started with `<!DOCTYPE html>` and the Sock Shop storefront metadata
+- Browser: 
+  - A browser issued request to the same host produced a Non-Existent Domain Error (`DNS_PROBE_FINISHED_NXDOMAIN`)    
 
-**Why this worked before the browser path worked:**
+**Conclusion**
 
-The `curl` command manually provided **both** things Traefik needed:
+Looking at the curl results, it is obvious, that the ingress route itself is already working at this point - but only because the `curl`-command injected 'manually' all  required infromation needed by Traefik to successful route the request to the storefornt / fdron-end-service: 
 
 1. the destination IP / socket (`http://127.0.0.1`)
 2. the host name used for routing (`-H 'Host: sockshop.local'`)
+    
+Yet entering the hostname `sockshop.local` into a browser window doesn't have the same effect - since no infromation is available that would allow to resolve that host name to an IP address.
 
-At that point, the ingress route itself was already working. What the browser still lacked was **local name resolution** for `sockshop.local`.
-
-**Conclusion:**
-
-The ingress rule was technically correct before any `/etc/hosts` change was made.
+So what the browser still lacks is **local name resolution** for `sockshop.local`, which can be applied utilizing the `/etc/hosts` file:
 
 ---
 
-## Step 5 — Add local name resolution for browser use
+## Step 5 — Add local name resolution for browser use in `/etc/hosts`
 
 **Rationale:** A browser request to `http://sockshop.local/` needs the operating system to resolve `sockshop.local` to an IP address first. For this local single-node setup, a manual `/etc/hosts` entry is the simplest reproducible solution.
 
-Edit the hosts file manually:
+To edit the hosts file manually via nano f.i.:
 
 ~~~bash
 sudo nano /etc/hosts
 ~~~
 
-Add a local mapping for this phase:
+Now we add a local mapping to resolve `host sockshop.local` to `localhost` / `127.0.0.1` :
 
-~~~text
+~~~bash
 # --- K8S CAPSTONE PROJECT: SOCK SHOP ---
 # Routes local traffic to the Traefik Ingress Controller
 127.0.0.1   sockshop.local
@@ -266,6 +278,11 @@ getent hosts sockshop.local
 curl -I http://sockshop.local/
 curl -s http://sockshop.local/ | head -n 10
 ~~~
+
+Opening a browser and entering `sockshop.local` in the adress bar produces now the desired result:
+
+![Screenshot of storefront attempt on port 80](evidence/[2026-03-19]-sockshop.local-Storefront-2_after-hosts-edit_loaded.png)
+*Figure 3: Storefront now reachable on http://sockshop.local after `/etc/hosts`-edit*
 
 **Observed result:**
 
@@ -331,7 +348,7 @@ curl -s http://localhost:30001/ | head -n 5
 - Traefik was present and active as the k3s ingress controller
 - No other Ingress resources existed before applying the new rule
 - The new Ingress correctly routed `sockshop.local` to `front-end:80`
-- The routing path worked via manual Host-header curl before browser/DNS-style access was enabled
+- The routing path worked via manual Host-header `curl` before browser/DNS-style access was enabled
 - Browser access worked after adding a local `/etc/hosts` entry
 
 ### Evidence index
@@ -357,3 +374,9 @@ curl -s http://localhost:30001/ | head -n 5
 - Kubernetes documentation — Ingress controllers / `ingressClassName`: https://kubernetes.io/docs/concepts/services-networking/ingress-controllers/
 - K3s documentation — Networking services (Traefik + ServiceLB): https://docs.k3s.io/networking/networking-services
 - K3s documentation — Packaged components: https://docs.k3s.io/installation/packaged-components
+
+
+
+
+ 
+ 

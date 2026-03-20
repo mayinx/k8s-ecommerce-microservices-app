@@ -219,7 +219,7 @@ The initial phases use Docker Compose and a local k3s cluster to establish a sta
 
 - Goal: Add ingress as an additional production-like entrypoint entry point. Keep NodePort `30001` as a proven fallback.
   - Make the storefront reachable via a hostname through Traefik Ingress on port 80 (host-based routing), without breaking/removing the already working NodePort path.
-  - Host-based routing (e.g. `sockshop.local` / `sockshop.test`) will provide a stable, domain-like access path on `:80` and reduce “port juggling”.
+  - Host-based routing (e.g. `sockshop.local`) will provide a stable, domain-like access path on `:80` and reduce “port juggling”.
 
 - Safety rule: Keep NodePort 30001 as the fallback entrypoint for quick rollback and troubleshooting.
   - Keeping NodePort as fallback will make the change low-risk and rollback-friendly (Ingress can be removed without breaking the already working baseline).

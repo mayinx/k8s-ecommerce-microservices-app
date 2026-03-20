@@ -1,31 +1,29 @@
-# The API version for networking features. v1 is stable and standard.
+# deploy/kubernetes/manifests-local/phase-02-front-end-ingress.yaml
+
+# Purpose:
+# Local-only Phase 02 Ingress baseline for the Sock Shop storefront.
+# Adds a host-based Traefik route for http://sockshop.local/ -> front-end Service:80
+# without changing the existing NodePort fallback on port 30001.
+#
+# Why this file exists:
+# This manifest provides a more production-like HTTP entrypoint for local k3s testing
+# without replacing or modifying the existing front-end Service
+
 apiVersion: networking.k8s.io/v1
-# Tells Kubernetes this is an "Ingress" (the traffic routing rules)
 kind: Ingress
 metadata:
-  # The unique name of this specific routing rule set
-  name: front-end
-  # The namespace where the app (and this rule) lives. 
-  # This must match where your "front-end" service is deployed.
-  namespace: sock-shop
+  name: front-end                 # Ingress object name (identifies this HTTP routing rule inside the namespace)
+  namespace: sock-shop            # Creates the Ingress in the same namespace as the front-end Service (must match)
 spec:
-  # Crucial for k3s: Tells the cluster to use the Traefik router 
-  # to implement these rules.
-  ingressClassName: traefik
+  ingressClassName: traefik       # Identifies which Ingress controller should handle this resource (here: Traefik)
   rules:
-    # The "Magic Link": When you type 'sockshop.local' in your browser,
-    # the router looks for this specific rule.
-    - host: sockshop.local
+    - host: sockshop.local        # Host-based routing rule: matches only requests with the HTTP Host header "sockshop.local"
       http:
         paths:
-          # Catch-all path: This rule applies to EVERYTHING starting with "/"
-          - path: /
-            # Prefix means it matches /index.html, /cart, /images, etc.
-            pathType: Prefix
+          - path: /               # Root path rule / catch-all: covers the application from "/" onward
+            pathType: Prefix      # Prefix match: matches any URL starting with the defiend path "/" (all sub-paths are routed here)
             backend:
               service:
-                # The internal K8s Service name to send the traffic to.
-                name: front-end
+                name: front-end   # The target Service to forward traffic to: the existing front-end Service (defined in 10-front-end-svc.yaml)
                 port:
-                  # The port the SERVICE is listening on (usually 80).
-                  number: 80
+                  number: 80      # The internal Service port (NOT the NodePort) to forward traffic to (Traefik -> Service:80 -> Pod:8079 per upstream svc)
