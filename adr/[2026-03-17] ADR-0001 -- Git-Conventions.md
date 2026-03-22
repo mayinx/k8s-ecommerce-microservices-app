@@ -5,11 +5,24 @@ Date: 2026-03-17
 
 ## Problem / Issue
 
-Without explicit Git conventions, commit history and branch naming drift quickly. This reduces reviewability, makes automation harder (CI/CD, changelogs), and weakens defensibility of changes across phases.
+Without explicit Git conventions, the repo’s change process can drift quickly when it comes to: 
+
+- (1) **branch strategy/workflow**: Without a proven branch strategy + git workflow contributors might default to long-lived branches or even direct commits 
+
+- (2) **commit semantics + conventions**: Commit Messages could become inconsistent and hard to interpret without solid commit standards  
+
+- (3) **merge discipline / quality gate**: Without clear merge rules and quality standards, work can be merged before it is verified (WIP-Branches, failing checks), causing the default branch to become unstable
+
+This reduces reviewability, increases merge risk/conflicts and makes automation harder (CI/CD pipelines, changelogs).
 
 ## Context
 
 This project applies professional engineering standards with consistent workflow and documentation conventions to keep changes reviewable, reproducible, and automation-friendly across phases.
+
+- This project is developed phase-by-phase and will introduce CI/CD and automated checks in later phases.
+- The workflow must therefore a) be professional and battle tested, b) keep changes reviewable, reproducible, and automation-friendly + c) stay lightweight for a solo developer   
+- A clear branch/merge model plus a consistent commit message standard are required
+- Goal: Anchor the default branch as reliable reference point for feature branches and pipelines.
 
 ## Options considered
 
@@ -19,40 +32,28 @@ This project applies professional engineering standards with consistent workflow
 
 ## Decision
 
-### Workflow model: trunk-based
-
-We use trunk-based development as a solo-frriendly approach to version control management.   where developers merge small, frequent updates into a central main branch (the "trunk") multiple times a day. It enables continuous integration (CI) and delivery (CD) by avoiding long-lived feature branches, reducing merge conflicts, and ensuring the code is always in a releasable state
-
-
-
-- Use the repository’s default branch as trunk (`master`) and keep it runnable 
-  - i.e. `master` must stay a reliable, unbroken reference point at all times
-  - no half-finished changes are permitted on `master`
-- Use short-lived branches for each change
-  - i.e. one of `feat`, `fix`, `docs`, `chore` or `refactor`
-
-- Merge back frequently in small, reviewable increments.
-  - only working short-lived branches are permitted to be merged with master    
-
-
 ### Workflow model: trunk-based 
 
-This project utilizes trunk-based development: a widely used, flexible Git workflow built around a single long-lived core branch (the “trunk”) plus short-lived branches for focused changes. Work is done on a short-lived branch (e.g., a feature or docs update) and merged back into the "trunk" once it is complete and reviewable. This keeps updates small, frequent, and easy to audit.
+This project utilizes trunk-based development: a widely used, flexible Git workflow built around a single long-lived core branch (the “trunk”) - and short-lived branches for focused changes. 
+
+Work is done on a short-lived branch (e.g. a feature or docs update) and merged back into the "trunk" once it is complete and reviewable. This keeps updates small, frequent, and easy to audit.
 
 Trunk-based development is a common DevOps practice. It reduces long-lived divergence, keeps merge conflicts small, and aligns naturally with CI/CD because the trunk is kept in a consistently runnable/releasable state. 
 
-In this project, that translates into the following rules:
+**Guidelines:**
 
-- Use the repository’s default branch (`master`) as trunk and keep it runnable/relesable.
+In this project, this translates into the following rules:
+
+- **Use the repository’s default branch (in our case `master`) as trunk and keep it runnable/relesable.**
   - `master` stays a reliable, unbroken, stable reference point at all times, ready to deploy.
   - No half-finished changes are permitted on `master`.
 
-- Use short-lived branches for each change.
+- **Use short-lived branches for each change.**
   - branch prefixes: `feat`, `fix`, `docs`, `chore`, `refactor`
   - keep branches narrow in scope (one topic per branch).
 
-- Merge back frequently in small, reviewable increments.
-  - merge only branches that are working and reviewable (no “WIP merge”).
+-** Merge back frequently in small, working + reviewable increments.**
+  - merge only branches that are working and reviewable (no “WIP merge”!).
 
 > Info: GitFlow was considered but not chosen because it introduces additional long-lived branches (`develop`/`release`/`hotfix`) and ceremony that doesn’t pay off for this solo, phase-driven project. Trunk-based keeps the workflow lightweight while still supporting reviewability and CI/CD via short-lived branches and PRs.
 
@@ -60,10 +61,12 @@ Source: [Trunk-based development](https://www.atlassian.com/continuous-delivery/
 
 ### Default branch name: `master`
 
-- Use the repository’s default branch name (`master` - inherited from upstream) - we keep it that way for the time beeing.
+- Thsi project uses `master` (inherited from upstream) as the repository’s default branch name - we keep it that way for the time beeing.
 - In case renaming to `main` comes up later: [GitLab Docs: Change the default branch name for a project](https://docs.gitlab.com/user/project/repository/branches/default/#change-the-default-branch-name-for-a-project)
 
-### Working on branches (solo-friendly, PR-based)
+### Branching Workflow 
+
+The following proven branching workflow is PR-based, uncomplicated + "solo-friendly": 
 
 1. Create a short-lived branch from the default branch (here `master`).
 ~~~bash
@@ -100,7 +103,9 @@ git checkout master
 git pull --ff-only
 ~~~
 
-### Merge strategy (default)
+### Merge strategy  
+
+When merging a MR/PR back into master:  
 
 - Prefer **Squash and merge** for most feature branches (keeps the default branch history clean).
 - Use **Merge commit** when the individual commits are intentionally meaningful (e.g., ADR series, stepwise docs evolution).
@@ -122,6 +127,7 @@ Examples:
 - `chore/repo-add-githooks`
 
 ### Commit message format (Conventional Commits)
+
 Use: `<type>(<scope>): <short imperative description>`
 
 Types used:
@@ -164,15 +170,23 @@ test:
 - `test(e2e): add Cypress smoke test`
 - `test(ci): add pipeline job to run tests only`
 
-### Optional enforcement (commit-msg hook)
-Optionally enforce commit message format via a local `commit-msg` hook. Keep it optional to avoid blocking progress.
+### Perspective: Optional enforcement (commit-msg hook)
+
+To enfore the format of commit messages, a local `commit-msg` hook could be introduced - or husky. This will be invbestiagted later on to avoid blocking the project progress in this early stage.
 
 ## Consequences / Outcome
-- Commit history becomes consistently readable and easier to defend.
-- Branch intent is obvious at a glance.
-- Automation-friendly commit format is available without introducing heavy tooling.
-- A single-developer workflow stays lightweight while remaining professional.
+
+Using a trunk-based workflow along with Conventional Commits + short-lived branches results in a number of benefits:
+
+- The workflow is professional and proven - while staying lightweight and solo-friendfly at the same time.
+- The commit history becomes consistently readable.
+- The intent of a branch or a commit is obvious at a glance.
+- An automation-friendly commit format is available without introducing heavy tooling.
+- CI/CD benefits: smaller, frequent merges keep the default branch close to deployable, so pipelines run on a stable reference and failures are easier to isolate.
+- Review + rollback benefits: changes are scoped (short-lived branches + clear commit intent), making reviews faster and rollbacks less risky when a pipeline or deploy fails.
 
 ## References
+- [Trunk-based development](https://www.atlassian.com/continuous-delivery/continuous-integration/trunk-based-development) 
 - [Conventional Commits spec - A specification for adding human and machine readable meaning to commit messages](https://www.conventionalcommits.org/en/v1.0.0/)
 - [Githooks Documentation (commit-msg)](https://git-scm.com/docs/githooks)
+- [GitLab Docs: Change the default branch name for a project](https://docs.gitlab.com/user/project/repository/branches/default/#change-the-default-branch-name-for-a-project)

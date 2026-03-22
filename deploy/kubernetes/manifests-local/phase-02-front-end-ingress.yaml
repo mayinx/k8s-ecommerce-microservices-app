@@ -1,0 +1,29 @@
+# deploy/kubernetes/manifests-local/phase-02-front-end-ingress.yaml
+
+# Purpose:
+# Local-only Phase 02 Ingress baseline for the Sock Shop storefront.
+# Adds a host-based Traefik route for http://sockshop.local/ -> front-end Service:80
+# without changing the existing NodePort fallback on port 30001.
+#
+# Why this file exists:
+# This manifest provides a more production-like HTTP entrypoint for local k3s testing
+# without replacing or modifying the existing front-end Service
+
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: front-end                 # Ingress object name (identifies this HTTP routing rule inside the namespace)
+  namespace: sock-shop            # Creates the Ingress in the same namespace as the front-end Service (must match)
+spec:
+  ingressClassName: traefik       # Identifies which Ingress controller should handle this resource (here: Traefik)
+  rules:
+    - host: sockshop.local        # Host-based routing rule: matches only requests with the HTTP Host header "sockshop.local"
+      http:
+        paths:
+          - path: /               # Root path rule / catch-all: covers the application from "/" onward
+            pathType: Prefix      # Prefix match: matches any URL starting with the defined path "/" (all sub-paths are routed here)
+            backend:
+              service:
+                name: front-end   # The target Service to forward traffic to: the existing front-end Service (defined in 10-front-end-svc.yaml)
+                port:
+                  number: 80      # The internal Service port (NOT the NodePort) to forward traffic to (Traefik -> Service:80 -> Pod:8079 per upstream svc)

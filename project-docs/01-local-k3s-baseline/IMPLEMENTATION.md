@@ -1,9 +1,9 @@
-# 🧱 Implementation Log — Phase 01 (Local Cluster Baseline): Clean Sock Shop deploy on k3s (conflict-free)
+# 🧱 Implementation Log — Phase 01 (Local Cluster Baseline): Clean port-based Sock Shop deploy on k3s (NodePort, conflict-free)
 
 > ## 👤 About
 > This document is the implementation log and detailed project build diary for **Phase 01 (Local k3s Cluster Baseline)**.  
 > It records the full implementation path including rationales, key observations, corrections, verification/validation steps, and evidence pointers so the work remains auditable and reproducible.  
-> For a shorter, reproducible "TL;DR command checklist and quick setup guide", see: **[01-local-k3s-baseline/RUNBOOK.md](RUNBOOK.md)**.
+> For a shorter, reproducible **TL;DR command checklist / rerun guide**, see: **[01-local-k3s-baseline/RUNBOOK.md](RUNBOOK.md)**.
 
 ---
 
@@ -15,8 +15,8 @@
 - [**Step 0 — Preflight: NodePort collision check**](#step-0--preflight-nodeport-collision-check)
 - [**Step 1 — Create the `sock-shop` namespace (deployment boundary)**](#step-1--create-the-sock-shop-namespace-deployment-boundary)
 - [**Step 2 — Deploy Sock Shop (upstream manifests)**](#step-2--deploy-sock-shop-upstream-manifests)
-- [**Step 3 — Verify storefront reachability (baseline: NodePort)**](#step-3--verify-storefront-reachability-baseline-nodeport)
-- [**Step 4 — Cleanup**](#step-4--clean-shutdown--cleanup)
+- [**Step 3 — Verify storefront reachability (port-based: NodePort)**](#step-3--verify-storefront-reachability-port-based-nodeport)
+- [**Step 4 — Cleanup**](#step-4--cleanup)
 - [**Baseline observations and evidence (Phase 01)**](#baseline-observations-and-evidence-phase-01)
 - [**Sources**](#sources)
 
@@ -24,7 +24,27 @@
 
 ## Purpose / Goal 
 
-Establish a reproducible baseline deployment of Sock Shop on a local k3s cluster using the repo’s Kubernetes manifests (without modifying upstream manifest content).
+### Establish a port-based local cluster deployment
+- The primary objective is to deploy a verified, clean installation of the Sock Shop microservices onto a local k3s cluster.
+- By utilizing the repository’s native Kubernetes manifests without modifying upstream content, we ensure a stable and reproducible infrastructure-as-code (IaC) baseline that serves as the foundation for all subsequent architectural enhancements.
+
+### Port-based connectivity via ISO/OSI Layer 4 NodePort
+- In this initial phase, external access to the storefront is achieved using a **NodePort Service type**. 
+- This provides a **direct, port-based Layer-4 mapping** from a **specific port on the k3s node (`30001`)** to the internal `front-end` Service.
+- While NodePort uses non-standard port ranges, it is chosen for this phase because it is **independent of complex host-based routing logic**. This makes it an ideal **"smoke test" to verify that the microservices are communicating correctly** before introducing advanced Layer 7 ingress rules in Phase 02.
+
+### Validation of microservice management via k3s
+- Beyond simple **connectivity**, this phase proves that the **k3s control plane can successfully manage the full application lifecycle**: pulling images, scheduling pods, and maintaining internal ClusterIP communication between the various Sock Shop backends (catalogue, cart, etc.).
+- Success is defined by **reaching the storefront via the port-based NodePort entrypoint `http://<node-ip>:30001`**, confirming a functional "Stage 0" environment.
+
+---
+> **🧩 Info box — NodePort Service** 
+> A NodePort is a **Kubernetes Service type** that exposes an  application by opening a static TCP port (range 30000-32767) on every Node in the cluster. Any traffic sent to that port is automatically forwarded to the underlying Service.
+> NodePort operates at ISO/OSI Layer 4 (Transport). It routes traffic based on IP and Port but cannot "read" hostnames or URLs.
+> It is used here as a transparent, port-based, "no-frills" entry point: It bypasses complex routing logic and can be used as a first check to verify that the front-end Pods are healthy and accessible before introducing host-based Layer 7 Ingress routing in Phase 02.
+> In this project, we **utilize the upstream default port '30001'** to maintain compatibility with the original Sock Shop manifests.
+
+---
 
 ## Definition of done (Phase 01)
 
@@ -57,11 +77,11 @@ Based on `deploy/kubernetes/README.md`:
 
 ## Step 0 — Preflight: NodePort collision check 
 
-**Rationale:** Avoid a cluster-wide NodePort collision before applying upstream manifests. The Sock Shop storefront Service pins NodePort `30001`, so an existing Service using `30001` will block the deploy at `Service/front-end`.
+**Rationale:** We need to avoid a cluster-wide NodePort collision before applying upstream manifests. The Sock Shop storefront Service (`front-end`) defines NodePort `30001` - any existing Service using `30001` will therefore block the deploy at `Service/front-end`. 
 
-> **🧩 Info box — NodePort**  
-> NodePort is a **Kubernetes Service type** that **opens a fixed TCP port on the node** and **forwards traffic to the Service inside the cluster**. It is used here because the upstream Sock Shop manifests expose the storefront via a fixed NodePort `30001`.  
-> The intended namespace creation (see Step 1) helps by separating concerns and isolating resources (Deployments/Services/etc.) - but namespaces **do not isolate NodePort numbers**: NodePort allocation is **cluster-wide**. That is why a collision can happen even with a dedicated `sock-shop` namespace.
+> **Info: Namespacing isn't sufficient enough to avoid NodePort-collision**
+> The intended namespace creation (see Step 1) helps by separating concerns and isolating resources (Deployments/Services/etc.) - but namespaces **do not isolate NodePort numbers**: NodePort allocation is **cluster-wide**; there can't exist two services in the entire cluster using the same port, no matter in what namespaces they live. That is why a collision can happen even with a dedicated `sock-shop` namespace.
+> FYI: This **lack of isolation** is another reason for transitioning to Ingress in Phase 02, which is "namespace-aware" 
 
 The upstream manifests define the Sock Shop storefront Service (`front-end`) with a fixed NodePort: 30001:
 
@@ -237,7 +257,7 @@ user-db        ClusterIP   10.43.144.36    <none>        27017/TCP           ---
 
 ---
 
-## Step 3 — Verify storefront reachability (baseline: NodePort)
+## Step 3 — Verify storefront reachability (port-based: NodePort)
 
 Determine node IP (needed for NodePort access):
 
@@ -260,7 +280,7 @@ FYI: In this setup here (single-node local k3s cluster) the access via localhost
 - `http://localhost:30001/`
 
 > **🧩 Why can the storefront be reached via `http://localhost:30001/`?** 
-> On a single-node local k3s cluster, the “node” is this machine. NodePort opens a port on the node itself (the machien running k3s), so the storefront is reachable via both the node IP _and_ `localhost`:
+> On a single-node local k3s cluster, the “node” is this machine. NodePort opens a port on the node itself (the machine running k3s), so the storefront is reachable via both the node IP _and_ `localhost`:
 - `http://<NODE_INTERNAL_IP>:30001/` (LAN path)
 - `http://localhost:30001/` (loopback path)
 > On multi-node clusters or stricter networking, prefer `http://<NODE_INTERNAL_IP>:30001/`.
@@ -274,7 +294,7 @@ The browser loads the Sock Shop storefront UI:
 
 ---
 
-## Step 4 — Clean shutdown / cleanup
+## Step 4 — Cleanup
 
 **Rationale:** Leave the cluster in a known state. A scoped cleanup enables clean reruns without touching unrelated exercises.
 
