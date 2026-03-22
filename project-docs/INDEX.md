@@ -7,14 +7,18 @@ Documentation is iterative and phase-aligned: baseline notes first, then milesto
 - [Phase 00 — Runbook (TL;DR)](./00-compose-repo-baseline/RUNBOOK.md)
 - [Decision log (ADR-lite)](./DECISIONS.md)
 
-## Phase 01: Local k3s cluster baseline (clean Sock Shop deploy, conflict-free)
+## Phase 01: Local k3s cluster baseline (port-based Sock Shop deploy, conflict-free)
 - [Phase 01 — Implementation Log](./01-local-k3s-baseline/IMPLEMENTATION.md)
 - [Phase 01 — Runbook (TL;DR)](./01-local-k3s-baseline/RUNBOOK.md)
 
+## Phase 02: Ingress baseline (host-based Traefik routing to storefront + rollback)
+- [Phase 02 — Implementation Log](./02-ingress-baseline/IMPLEMENTATION.md)
+- [Phase 02 — Runbook (TL;DR)](./02-ingress-baseline/RUNBOOK.md)
+
 ## Future phases (placeholders; added when we reach them)
-- Phase 02: Ingress baseline (Traefik routing to storefront + rollback)
 - Phase 03: CI/CD system (build/test/push/deploy)
 - Phase 04: Target deployment on Proxmox (IaC)
 - Phase 05: Observability (monitoring/logging/alerting)
 - Phase 06: Security hardening (scanning, policies, secrets)
 - Phase 07: DR / rollback runbooks
+
