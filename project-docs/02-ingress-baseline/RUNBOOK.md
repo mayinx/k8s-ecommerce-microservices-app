@@ -19,7 +19,6 @@
 **- [Step 5 — Add local name resolution for browser use](#step-5--add-local-name-resolution-for-browser-use)**  
 **- [Cleanup / rollback](#cleanup--rollback)**  
 **- [Useful proof commands (reduced set)](#useful-proof-commands-reduced-set)**  
-**- [Sources](#sources)**
 
 ---
 
@@ -240,7 +239,7 @@ Evidence to capture:
 
 **Captured evidence files:**
 - **`[2026-03-19]-sockshop.local-Storefront-1_before-hosts-edit_not-found.png`**
-- **`[2026-03-19]-sockshop.local-Storefront-2_after-hosts-edit_found.png`**
+- **`[2026-03-19]-sockshop.local-Storefront-2_after-hosts-edit_loaded.png`**
 
 ---
 

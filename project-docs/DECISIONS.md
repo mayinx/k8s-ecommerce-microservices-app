@@ -145,7 +145,7 @@ The initial phases use Docker Compose and a local k3s cluster to establish a sta
 ## Phase 01 — Local cluster baseline (k3s) => Deploy baseline app on local k3s cluster (NodePort) and prove it runs.
 
 **Quick recap (Phase 01)**  
-- Phase 01 established a **clean, reproducible Sock Shop deployment on the local k3s cluster** using the repository’s upstream Kubernetes manifests located in `deploy/kubernetes/manifests/`. 
+- Phase 01 established a **clean, reproducible port-based Sock Shop baseline on the local k3s cluster** using the repository’s upstream Kubernetes manifests located in `deploy/kubernetes/manifests/`.
 - The main obstacle was a **NodePort collision**: the upstream `front-end` Service uses a fixed NodePort (`30001`), and NodePorts are allocated **cluster-wide**, so an unrelated lab Service can block creation even when Sock Shop is deployed into its own namespace.
   - In this environment, the collision was caused by a previous lab deployment: the `wordpress` Service in namespace `datascientest` was already using NodePort `30001` (`80:30001/TCP`). 
   - To keep Phase 01 fully aligned with upstream (no YAML patching), the chosen approach was to **free NodePort `30001` first**, then apply the manifests unchanged. 
@@ -166,10 +166,9 @@ The initial phases use Docker Compose and a local k3s cluster to establish a sta
     - no hostname on :80 
     - no domain-style routing 
     - and: NodePort allocation is cluster-wide → collisions can happen in a shared lab cluster.
-- Phase 02 will add a production-like entrypoint via Traefik Ingress while keeping NodePort `30001` as a proven fallback:
+- Phase 02 will add a more production-like, host-based entrypoint via Traefik Ingress while keeping port-based/NodePort `30001` as a proven fallback:
   - Host-based routing (e.g. `sockshop.local` / `sockshop.test`) will provide a stable, domain-like access path on `:80` and reduce “port juggling”.
   - Keeping NodePort as fallback will make the change low-risk and rollback-friendly (Ingress can be removed without breaking the already working baseline).
-
 ---
 
 ### Decision (P01-D01): deploy path = upstream manifests (not Helm yet)
@@ -215,16 +214,59 @@ The initial phases use Docker Compose and a local k3s cluster to establish a sta
 
 ---
 
-## Phase 02 — Ingress baseline (planned): add a production-like entrypoint without breaking the NodePort fallback
+## Phase 02 — Ingress baseline: host-based Traefik routing to the Sock Shop storefront
 
-- Goal: Add ingress as an additional production-like entrypoint entry point. Keep NodePort `30001` as a proven fallback.
-  - Make the storefront reachable via a hostname through Traefik Ingress on port 80 (host-based routing), without breaking/removing the already working NodePort path.
-  - Host-based routing (e.g. `sockshop.local`) will provide a stable, domain-like access path on `:80` and reduce “port juggling”.
+**Quick recap (Phase 02)**  
+- Phase 02 added a more **production-like, host-based storefront entrypoint** on the local k3s cluster by introducing a **Traefik Ingress** for `http://sockshop.local/`, while keeping the already proven **port-based NodePort `30001`** path intact as fallback.  
+- This was done by adding **one dedicated local-only ingress manifest** at `deploy/kubernetes/manifests-local/phase-02-front-end-ingress.yaml` (instead of patching the upstream Sock Shop Service manifests).  
+- The purpose of this new manifest was **to create a Kubernetes Ingress resource** that tells Traefik: 
+  -**Requests for host `sockshop.local` on path `/`** should be routed to the Sock Shop **`front-end` Service on port `80`**.  
+- Keeping this routing rule in a separate local-only manifest preserved the upstream defaults, avoided unnecessary changes to the existing `front-end` Service, and left the Phase 01 NodePort fallback fully intact.
 
-- Safety rule: Keep NodePort 30001 as the fallback entrypoint for quick rollback and troubleshooting.
-  - Keeping NodePort as fallback will make the change low-risk and rollback-friendly (Ingress can be removed without breaking the already working baseline).
+**Proof Steps**  
+- The first proof step was a **manual Host-header `curl` test**:
+  - `curl -I -H 'Host: sockshop.local' http://127.0.0.1`
+  - This showed that **Traefik already routed requests correctly to the `front-end` Service** before any browser-side hostname resolution existed.
+- A browser test with the same hostname (`http://sockshop.local/`) still failed at that point with `DNS_PROBE_FINISHED_NXDOMAIN`, which showed that the routing rule itself worked, but local hostname resolution was still missing.
+- The second proof step was **adding a local `/etc/hosts` mapping**:
+  - `127.0.0.1 sockshop.local`
+  - After that, the same hostname worked in the browser via `http://sockshop.local/`.
 
-- What Phase 02 proves: One minimal but production-like Ingress route (among several options in the repo), verified locally with evidence (curl Host-header test + browser screenshot) and a clean rollback (delete ingress).
-  
+**Primary evidence (Phase 02)**  
+- Browser screenshot before local hostname mapping: `project-docs/02-ingress-baseline/evidence/[2026-03-19]-sockshop.local-Storefront-1_before-hosts-edit_not-found.png`  
+- Browser screenshot after local hostname mapping: `project-docs/02-ingress-baseline/evidence/[2026-03-19]-sockshop.local-Storefront-2_after-hosts-edit_loaded.png`
+
+**Further details**  
+- Implementation log: `project-docs/02-ingress-baseline/IMPLEMENTATION.md`  
+- Runbook: `project-docs/02-ingress-baseline/RUNBOOK.md`
+
+**Conclusion + Next steps**  
+- Phase 02 proved that the storefront can be reached through a **host-based ingress route on port `80`**, while the **port-based NodePort `30001`** path remains available as a known-good fallback.
+- This gives the project a more production-like local entrypoint and prepares the path for later environment work (CI/CD, production exposure, and eventual service-type hardening).
+- **Note (security):** In a later production-style target environment, the **`front-end` Service should move from `NodePort` to `ClusterIP`**, so traffic is governed only through the ingress layer.
+
+---
+
+### Decision (P02-D01): primary local storefront entrypoint = host-based Traefik Ingress, with NodePort retained as fallback
+- **Decision:** Use a host-based Traefik Ingress (`sockshop.local`) as the primary local storefront entrypoint for Phase 02, while keeping NodePort `30001` unchanged as a proven fallback / rollback path.
+- **Context / problem:** Phase 01’s NodePort baseline worked, but it remained port-based, less production-like, and less suitable as a long-term “front door” for a storefront. The next capability needed to add a domain-style entrypoint on standard HTTP port `80` without breaking the already working baseline.
+- **Options considered:**
+  - Keep NodePort `30001` as the only storefront entrypoint
+  - Use host-based Traefik Ingress for the storefront ✅
+  - Use port-forward / temporary-only access
+- **Chosen option + why:** Host-based Traefik Ingress provides a domain-like entrypoint on standard HTTP port `80`, matches real deployment patterns better, and still preserves the known NodePort fallback for low-risk rollback and troubleshooting.
+- **Verification / evidence:**  
+  - Showing the created Ingress resource and its bound address via `kubectl get ingress -n sock-shop -o wide` produced
+    - `front-end`, class `traefik`, host `sockshop.local`, and address `192.168.178.57`  
+  - A detailed inspection of the Ingress via `kubectl describe ingress -n sock-shop front-end` proved backend routing to `front-end:80`  
+  - `curl -I -H 'Host: sockshop.local' http://127.0.0.1` returned `HTTP/1.1 200 OK`  
+  - Opening a browser and trying to request the storefront via `http://sockshop.local/` initially produced a Non-Existent Domain Error (`DNS_PROBE_FINISHED_NXDOMAIN`)
+  - After adding a local `/etc/hosts` mapping (`127.0.0.1 sockshop.local`), `curl -I http://sockshop.local/` returned `HTTP/1.1 200 OK` and the browser loaded the storefront successfully
+  - Browser evidence screenshots are recorded in the Phase 02 evidence folder
+- **Consequences / follow-ups:**  
+  - NodePort `30001` remains the known-good fallback entrypoint for local troubleshooting and rollback  
+  - for a later production-style environment, the `front-end` Service should move from `NodePort` to `ClusterIP` so the ingress layer becomes the only external entrypoint
+
+
 
 ## (Further entries will be added to record technical choices)

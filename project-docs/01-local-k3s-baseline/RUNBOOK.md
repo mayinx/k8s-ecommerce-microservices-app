@@ -1,4 +1,4 @@
-# 🧭 Runbook (TL;DR)
+# 🧭 Runbook (TL;DR) - Phase 01 (Local Cluster Baseline): Clean port-based Sock Shop deploy on k3s (NodePort, conflict-free)
 
 > ## 👤 About
 > This runbook is the short, command-first version of the Phase 01 local k3s baseline deploy of Sock Shop.  

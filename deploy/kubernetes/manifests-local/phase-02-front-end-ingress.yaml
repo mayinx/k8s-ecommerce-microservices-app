@@ -21,7 +21,7 @@ spec:
       http:
         paths:
           - path: /               # Root path rule / catch-all: covers the application from "/" onward
-            pathType: Prefix      # Prefix match: matches any URL starting with the defiend path "/" (all sub-paths are routed here)
+            pathType: Prefix      # Prefix match: matches any URL starting with the defined path "/" (all sub-paths are routed here)
             backend:
               service:
                 name: front-end   # The target Service to forward traffic to: the existing front-end Service (defined in 10-front-end-svc.yaml)

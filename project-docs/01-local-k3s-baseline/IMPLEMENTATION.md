@@ -1,9 +1,9 @@
-# 🧱 Implementation Log — Phase 01 (Local Cluster Baseline): Clean Sock Shop deploy on k3s (conflict-free)
+# 🧱 Implementation Log — Phase 01 (Local Cluster Baseline): Clean port-based Sock Shop deploy on k3s (NodePort, conflict-free)
 
 > ## 👤 About
 > This document is the implementation log and detailed project build diary for **Phase 01 (Local k3s Cluster Baseline)**.  
 > It records the full implementation path including rationales, key observations, corrections, verification/validation steps, and evidence pointers so the work remains auditable and reproducible.  
-> For a shorter, reproducible "TL;DR command checklist and quick setup guide", see: **[01-local-k3s-baseline/RUNBOOK.md](RUNBOOK.md)**.
+> For a shorter, reproducible **TL;DR command checklist / rerun guide**, see: **[01-local-k3s-baseline/RUNBOOK.md](RUNBOOK.md)**.
 
 ---
 
@@ -15,8 +15,8 @@
 - [**Step 0 — Preflight: NodePort collision check**](#step-0--preflight-nodeport-collision-check)
 - [**Step 1 — Create the `sock-shop` namespace (deployment boundary)**](#step-1--create-the-sock-shop-namespace-deployment-boundary)
 - [**Step 2 — Deploy Sock Shop (upstream manifests)**](#step-2--deploy-sock-shop-upstream-manifests)
-- [**Step 3 — Verify storefront reachability (baseline: NodePort)**](#step-3--verify-storefront-reachability-baseline-nodeport)
-- [**Step 4 — Cleanup**](#step-4--clean-shutdown--cleanup)
+- [**Step 3 — Verify storefront reachability (port-based: NodePort)**](#step-3--verify-storefront-reachability-port-based-nodeport)
+- [**Step 4 — Cleanup**](#step-4--cleanup)
 - [**Baseline observations and evidence (Phase 01)**](#baseline-observations-and-evidence-phase-01)
 - [**Sources**](#sources)
 
@@ -24,22 +24,24 @@
 
 ## Purpose / Goal 
 
-### Establish a Reproducible Cluster Baseline Deployment
+### Establish a port-based local cluster deployment
 - The primary objective is to deploy a verified, clean installation of the Sock Shop microservices onto a local k3s cluster.
 - By utilizing the repository’s native Kubernetes manifests without modifying upstream content, we ensure a stable and reproducible infrastructure-as-code (IaC) baseline that serves as the foundation for all subsequent architectural enhancements.
 
-### Connectivity via ISO/OSI Layer 4 NodePort
-- In this initial phase, external access to the storefront is achieved using a **NodePort Service type**. This provides a **direct, low-level mapping** from a **specific port on the k3s node (`30001`)** to the internal `front-end` Service.
-- While NodePort uses non-standard port ranges, it is chosen for this phase because it is **independent of complex routing logic**. This makes it an ideal "smoke test" to verify that the microservices are communicating correctly before introducing advanced Layer 7 ingress rules.
+### Port-based connectivity via ISO/OSI Layer 4 NodePort
+- In this initial phase, external access to the storefront is achieved using a **NodePort Service type**. 
+- This provides a **direct, port-based Layer-4 mapping** from a **specific port on the k3s node (`30001`)** to the internal `front-end` Service.
+- While NodePort uses non-standard port ranges, it is chosen for this phase because it is **independent of complex host-based routing logic**. This makes it an ideal **"smoke test" to verify that the microservices are communicating correctly** before introducing advanced Layer 7 ingress rules in Phase 02.
 
-### Validation of Microservice Orchestration
-- Beyond simple connectivity, this phase proves that the k3s control plane can successfully manage the full application lifecycle: pulling images, scheduling pods, and maintaining internal ClusterIP communication between the various Sock Shop backends (catalogue, cart, etc.).
-- Success is defined by reaching the storefront via `http://<node-ip>:30001`, confirming a functional "Stage 0" environment.
+### Validation of microservice management via k3s
+- Beyond simple **connectivity**, this phase proves that the **k3s control plane can successfully manage the full application lifecycle**: pulling images, scheduling pods, and maintaining internal ClusterIP communication between the various Sock Shop backends (catalogue, cart, etc.).
+- Success is defined by **reaching the storefront via the port-based NodePort entrypoint `http://<node-ip>:30001`**, confirming a functional "Stage 0" environment.
 
+---
 > **🧩 Info box — NodePort Service** 
 > A NodePort is a **Kubernetes Service type** that exposes an  application by opening a static TCP port (range 30000-32767) on every Node in the cluster. Any traffic sent to that port is automatically forwarded to the underlying Service.
 > NodePort operates at ISO/OSI Layer 4 (Transport). It routes traffic based on IP and Port but cannot "read" hostnames or URLs.
-> It is used here as a transparent, "no-frills" entry point. Since it bypasses complex routing logic, it serves as a primary diagnostic tool to verify that the front-end Pods are healthy and accessible before introducing Layer 7 Ingress rules (see Phase 02).
+> It is used here as a transparent, port-based, "no-frills" entry point: It bypasses complex routing logic and can be used as a first check to verify that the front-end Pods are healthy and accessible before introducing host-based Layer 7 Ingress routing in Phase 02.
 > In this project, we **utilize the upstream default port '30001'** to maintain compatibility with the original Sock Shop manifests.
 
 ---
@@ -255,7 +257,7 @@ user-db        ClusterIP   10.43.144.36    <none>        27017/TCP           ---
 
 ---
 
-## Step 3 — Verify storefront reachability (baseline: NodePort)
+## Step 3 — Verify storefront reachability (port-based: NodePort)
 
 Determine node IP (needed for NodePort access):
 
@@ -292,7 +294,7 @@ The browser loads the Sock Shop storefront UI:
 
 ---
 
-## Step 4 — Clean shutdown / cleanup
+## Step 4 — Cleanup
 
 **Rationale:** Leave the cluster in a known state. A scoped cleanup enables clean reruns without touching unrelated exercises.
 
