@@ -6,7 +6,7 @@ Mission statement: Collect evidence fragme4nts for later inclusion in docs (not 
 
 
 ## goal / vorgehensweise and reason / value
-In step 03, we iplement a valid  CI/CD baseline (with githiub hosted runne4rs) whcih proves real DevOps value: 
+In step 03, we iplement a valid  CI/CD baseline (with githiub hosted runners - and a  workflow that is triggered by push and workflow_dispatch, so the immediate trigger path is still governed by branch pushes and your workflow triggers etc ...) which proves real DevOps value: 
 
 GitHub Actions workflow design
 build/push automation

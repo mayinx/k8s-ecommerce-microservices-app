@@ -45,7 +45,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        repo: [openapi, healthcheck]
+        repo: [healthcheck]
 
     steps:
       - name: Checkout repository
