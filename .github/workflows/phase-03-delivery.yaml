@@ -112,7 +112,7 @@ jobs:
     # Temporarily include the current feature branch to test manual deployment
     # will be reverted after success  
     # previously: if: github.ref == 'refs/heads/master'
-    if: github.ref == 'refs/heads/master' || github.ref == 'refs/heads/feat/ci-github-actions-dev-pr    
+    if: github.ref == 'refs/heads/master' || github.ref == 'refs/heads/feat/ci-github-actions-dev-prod-gate'    
     runs-on: ubuntu-latest
     environment: prod
     timeout-minutes: 20
