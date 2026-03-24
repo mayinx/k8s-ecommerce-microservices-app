@@ -1,0 +1,144 @@
+# GitHub hosted-runner delivery workflow
+# - This workflow stays fully on GitHub-hosted runners (no unsecure self hosted runners)
+# - it avoids the public-fork + self-hosted-runner security problem GitHub warns about
+# - it uses dev / prod GitHub Environments, and prod can use required reviewers in a public repo
+# - it uses kind, which is explicitly suited to CI/testing
+# - later, the deploy jobs can be retargeted by replacing:
+#   - “Start Kind cluster”
+#   with:
+#   - “Set kubeconfig / target Proxmox cluster”
+
+name: phase-03-delivery
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - master # final intended branch
+      - feat/ci-github-actions-dev-prod-gate # current featriue branch - allows testing the wf immediatewly on push (will be removed later on)
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  validate-overlays:
+    name: Validate dev/prod overlays
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Show kubectl client version
+        run: kubectl version --client
+
+      - name: Render dev overlay
+        run: kubectl kustomize deploy/kubernetes/kustomize/overlays/dev > /tmp/dev-rendered.yaml
+
+      - name: Render prod overlay
+        run: kubectl kustomize deploy/kubernetes/kustomize/overlays/prod > /tmp/prod-rendered.yaml
+
+  build-push-support-images:
+    name: Build and push repo-owned images to GHCR
+    needs: validate-overlays
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        repo: [openapi, healthcheck]
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Prepare lowercase image owner
+        id: prep
+        shell: bash
+        run: echo "owner_lc=${GITHUB_REPOSITORY_OWNER,,}" >> "$GITHUB_OUTPUT"
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push image
+        uses: docker/build-push-action@v6
+        with:
+          context: ./${{ matrix.repo }}
+          push: true
+          tags: ghcr.io/${{ steps.prep.outputs.owner_lc }}/microservices-demo-${{ matrix.repo }}:${{ github.sha }}
+
+  deploy-dev-smoke:
+    name: Deploy dev smoke environment
+    needs: build-push-support-images
+    runs-on: ubuntu-latest
+    environment: dev
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Start Kind cluster
+        uses: engineerd/setup-kind@v0.5.0
+        with:
+          version: v0.20.0
+
+      - name: Wait for cluster readiness
+        run: |
+          until [ "$(kubectl get pods -A --no-headers | grep -cEv '([0-9]+)/\1')" -eq 0 ]; do
+            sleep 5
+          done
+          kubectl get pods -A
+
+      - name: Apply dev overlay
+        run: kubectl apply -k deploy/kubernetes/kustomize/overlays/dev
+
+      - name: Verify key dev rollouts
+        run: |
+          kubectl rollout status deployment/front-end -n sock-shop-dev --timeout=180s
+          kubectl rollout status deployment/catalogue -n sock-shop-dev --timeout=180s
+          kubectl rollout status deployment/payment -n sock-shop-dev --timeout=180s
+          kubectl rollout status deployment/user -n sock-shop-dev --timeout=180s
+
+      - name: Show dev resources
+        run: kubectl get deploy,pods,svc -n sock-shop-dev -o wide
+
+  deploy-prod-smoke:
+    name: Deploy prod smoke environment
+    needs: deploy-dev-smoke
+    if: github.ref == 'refs/heads/master'
+    runs-on: ubuntu-latest
+    environment: prod
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Start Kind cluster
+        uses: engineerd/setup-kind@v0.5.0
+        with:
+          version: v0.20.0
+
+      - name: Wait for cluster readiness
+        run: |
+          until [ "$(kubectl get pods -A --no-headers | grep -cEv '([0-9]+)/\1')" -eq 0 ]; do
+            sleep 5
+          done
+          kubectl get pods -A
+
+      - name: Apply prod overlay
+        run: kubectl apply -k deploy/kubernetes/kustomize/overlays/prod
+
+      - name: Verify key prod rollouts
+        run: |
+          kubectl rollout status deployment/front-end -n sock-shop-prod --timeout=180s
+          kubectl rollout status deployment/catalogue -n sock-shop-prod --timeout=180s
+          kubectl rollout status deployment/payment -n sock-shop-prod --timeout=180s
+          kubectl rollout status deployment/user -n sock-shop-prod --timeout=180s
+
+      - name: Show prod resources
+        run: kubectl get deploy,pods,svc -n sock-shop-prod -o wide
