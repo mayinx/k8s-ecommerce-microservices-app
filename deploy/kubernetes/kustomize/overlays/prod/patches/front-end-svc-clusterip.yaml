@@ -1,5 +1,13 @@
+# JSON patch for the storefront Service in the prod overlay
+# Purpose:
+# - switch the Service from NodePort to ClusterIP
+# - remove the fixed nodePort value so prod does not depend on the raw-manifest baseline's NodePort behavior
+#
+# See project-docs/03-ci-cd-baseline/IMPLEMENTATION.md for context
+
 - op: replace
   path: /spec/type
   value: ClusterIP
+
 - op: remove
-  path: /spec/ports/0/nodePort
+  path: /spec/ports/0/nodePort 

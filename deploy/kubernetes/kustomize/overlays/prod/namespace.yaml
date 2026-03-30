@@ -1,4 +1,11 @@
+# Namespace object for the prod smoke environment
+# Purpose:
+# - codify namespace creation for the prod path
+# - keep the environment boundary explicit and reproducible
+#
+# See project-docs/03-ci-cd-baseline/IMPLEMENTATION.md for context
+
 apiVersion: v1
 kind: Namespace
 metadata:
-  name: sock-shop-prod
+  name: sock-shop-prod  

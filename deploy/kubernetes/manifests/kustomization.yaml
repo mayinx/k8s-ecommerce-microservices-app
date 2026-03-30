@@ -1,6 +1,22 @@
+# Kustomize base entrypoint for the proven raw Sock Shop manifest set
+# Purpose:
+# - package the already proven raw manifests as one reusable Kustomize base for the 
+#   dev/prod overlays located in deploy/kubernetes/kustomize/overlays/dev|prod/kustomization.yml 
+# - let the dev/prod overlays reuse that base instead of duplicating the whole manifest set
+#
+# Why this file exists:
+# - Kustomize overlays need a base resource set/inventory to customize
+# - this file tells Kustomize which existing manifest files belong to that base
+#
+# References:
+# - Kubernetes Kustomize docs (bases/resources)
+# - see project-docs/03-ci-cd-baseline/IMPLEMENTATION.md for rationale and source links
+
+# Kustomize configuration schema version
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 
+# Base resource set reused by the environment overlays (dev / prod)
 resources:
   - 01-carts-dep.yaml
   - 02-carts-svc.yml

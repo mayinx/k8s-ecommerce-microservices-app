@@ -1,31 +1,5 @@
 # Phase 03 baseline = GitHub Actions + raw manifests + dev/prod namespaces
 
-Steps:
-
-- GitHub Actions
-- GHCR
-- self-hosted GitHub runner on your laptop for deploy jobs
-- deploy to sock-shop-dev automatically
-- deploy to sock-shop-prod after manual approval
-- based on the already proven Kubernetes manifest path
-
-- But: No helm (not yet) - reason:
-
-Fragments:
-
-- Helm exists in the repo, but it is not ready-to-use out of the box for our Phase-03 baseline path.
-- Helm was evaluated during Phase 03 triage, but because it was optional and showed dependency/setup friction, the CI/CD baseline was implemented first on the already proven Kubernetes deployment path. Helm remained a later enhancement candidate.
-- I evaluated Helm: 
-    - I found an outdated/incomplete dependency setup
-    - Helm is not required
-    - I chose the already proven Kubernetes path for the baseline
-    - I preserved Helm as a later enhancement candidate
-- So: Helm is deferred, not rejected!
-
-
---------
-
-
 # 🧱 Implementation Log — Phase 03 (CI/CD Baseline): GitHub Actions delivery smoke path for dev/prod
 
 > ## 👤 About
@@ -60,16 +34,16 @@ Fragments:
 
 - The goal of Phase 03 is to add a **working CI/CD baseline** that proves **build/push automation**, **Kubernetes deployment automation**, **environment separation**, and an **approval-gated production flow**.
 - This phase intentionally focuses on the **delivery mechanics first**, not yet on the final long-lived Proxmox target.
-- A clean CI/CD baseline already provides real DevOps value:
+- A clean CI/CD baseline will already provide real DevOps value:
   - pipeline mechanics
   - deployment automation
   - Kubernetes deploy reproducibility
   - environment modeling
   - approval flow
 
-### Why use GitHub-hosted runners + Kind here
+### GitHub-hosted runners + Kind (instead of a self-hosted runner)
 
-- This repository is a **public fork**, so using a self-hosted runner attached to a personal machine would introduce an unnecessary security risk for this phase.
+- This repository is a **public fork**, so using a self-hosted runner attached to a personal machine would introduce an unnecessary security risk for this phase. This was a deliberate risk-reduction choice for the CI/CD baseline, not a limitation of GitHub Actions itself.
 - GitHub-hosted runners are a better fit here because they run workflow jobs in fresh hosted VMs, while `kind` provides a clean temporary Kubernetes target that is explicitly suited to local development and CI.
 - This gives us a strong **delivery smoke-test path** now, while keeping the later transition to Proxmox straightforward.
 
@@ -82,7 +56,7 @@ Fragments:
   - CI/CD logic
 - A more disciplined DevOps move is to validate the **pipeline + deploy mechanics** first in a clean temporary Kubernetes target, then retarget the same delivery flow later to the real environment.
 
-> **🧩 Info box — CI/CD pipeline**
+> [!NOTE] **🧩 Info box — CI/CD pipeline**
 >
 > A **CI/CD pipeline** is an automated workflow that runs defined delivery steps after a trigger such as a push or a manual start.  
 > In this phase, the important elements are:
@@ -91,18 +65,18 @@ Fragments:
 > - deployment smoke tests for `dev` and `prod`
 > - an approval gate before the `prod` deployment step
 
-> **🧩 Info box — GitHub-hosted runner**
+> [!NOTE] **🧩 Info box — GitHub-hosted runner**
 >
 > A **GitHub-hosted runner** is a GitHub-provided VM used to run workflow jobs.  
 > In this phase, hosted runners are used for all jobs because the repository is public and the goal is to avoid attaching a self-hosted runner to a personal machine.
 
-> **🧩 Info box — kind**
+> [!NOTE] **🧩 Info box — kind**
 >
 > `kind` = **Kubernetes in Docker**.  
-> It creates a temporary Kubernetes cluster inside Docker containers and is explicitly designed for local development and CI.  
+> `kind` creates a temporary Kubernetes cluster inside Docker containers and is explicitly designed for local development and CI.  
 > In this phase, `kind` is used as a **clean deployment smoke-test target** for `dev` and `prod`.
 
-> **🧩 Info box — GHCR**
+> [!NOTE] **🧩 Info box — GHCR**
 >
 > **GHCR** = **GitHub Container Registry**.  
 > It stores container images under the GitHub account / repository ecosystem and can be used directly from GitHub Actions with `GITHUB_TOKEN`.
@@ -133,90 +107,325 @@ Fragments:
 
 ## Step 0 — Evaluate Helm as an optional deployment path
 
-**Rationale:** Before choosing the deployment mechanism for Phase 03, evaluate whether the existing Helm chart is usable out of the box for dev/prod automation.
+**Rationale:** Before choosing the deployment mechanism for Phase 03, we need to evaluate whether the existing Helm chart is usable out of the box for dev/prod automation.
 
-~~~bash
-# Inspect the chart metadata
-$ sed -n '1,220p' deploy/kubernetes/helm-chart/Chart.yaml
+### Inspecting the repository’s existing Helm chart files 
+
+The repository already contains a Helm chart in `deploy/kubernetes/helm-chart/`, so Helm is a legitimate option to evaluate first.
+
+A quick chart inspection shows:
+
+(1) **`Chart.yaml`** confirms that the repository does contain a dedicated Helm chart for Sock Shop.
+~~~yaml
+# deploy/kubernetes/helm-chart/Chart.yaml
 apiVersion: v1
 description: A Helm chart for Sock Shop
 name: helm-chart
 version: 0.3.0
+~~~
 
-# Inspect legacy Helm dependencies
-$ sed -n '1,220p' deploy/kubernetes/helm-chart/requirements.yaml
+(2) **Inspecting the Helm dependencies in `requirements.yaml`** shows that the chart still uses the older dependency mechanism and expects an external `nginx-ingress` dependency.
+~~~yaml
+# deploy/kubernetes/helm-chart/requirements.yaml
 dependencies:
   - name: nginx-ingress
     version: 0.4.2
     repository: https://helm.nginx.com/stable
-
-# Check whether the expected dependency artifacts are present
-$ sed -n '1,220p' deploy/kubernetes/helm-chart/Chart.lock
-sed: can't read deploy/kubernetes/helm-chart/Chart.lock: No such file or directory
-
-$ tree -L 2 deploy/kubernetes/helm-chart/charts
-deploy/kubernetes/helm-chart/charts  [error opening dir]
-
-0 directories, 0 files
 ~~~
+
+
+### Validating Helm
+
+To verify whether the chart is really usable as-is, the next realistic step is to lint and render it, then try a test install into the `dev` namespace:
+
+~~~bash
+# Lint the Helm chart for obvious chart/template issues
+$ helm lint deploy/kubernetes/helm-chart
+==> Linting deploy/kubernetes/helm-chart
+[INFO] Chart.yaml: icon is recommended
+[WARNING] ... chart directory is missing these dependencies: nginx-ingress
+
+# Render the chart for the dev namespace without installing it
+$ helm template sock-shop-dev deploy/kubernetes/helm-chart --namespace sock-shop-dev
+Error: An error occurred while checking for chart dependencies. You may need to run `helm dependency build` to fetch missing dependencies: found in Chart.yaml, but missing in charts/ directory: nginx-ingress
+~~~
+
+Because Helm itself explicitly points to missing chart dependencies, the next realistic step is to follow that hint and fetch them:
+
+~~~bash
+# Fetch/build the missing Helm chart dependencies
+$ helm dependency build deploy/kubernetes/helm-chart
+Getting updates for unmanaged Helm repositories...
+...Successfully got an update from the "https://helm.nginx.com/stable" chart repository
+Saving 1 charts
+Downloading nginx-ingress from repo https://helm.nginx.com/stable
+Deleting outdated charts
+
+# Re-render the chart after dependency build
+$ helm template sock-shop-dev deploy/kubernetes/helm-chart --namespace sock-shop-dev | sed -n '1,120p'
+# Source: helm-chart/charts/nginx-ingress/templates/controller-serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: sock-shop-dev-nginx-ingress
+  namespace: sock-shop-dev
+...
+
+# Try a real install/upgrade into the dev namespace
+$ helm upgrade --install sock-shop-dev deploy/kubernetes/helm-chart --namespace sock-shop-dev --create-namespace
+Release "sock-shop-dev" does not exist. Installing it now.
+Error: unable to build kubernetes objects from release manifest: [resource mapping not found ...
+no matches for kind "CustomResourceDefinition" in version "apiextensions.k8s.io/v1beta1"
+...
+no matches for kind "ClusterRole" in version "rbac.authorization.k8s.io/v1beta1"
+...
+]
+~~~
+
 
 **Observed result:**
 
-- The repository contains a Helm chart, so Helm was a realistic option to evaluate.
-- The chart uses the older dependency mechanism via `requirements.yaml`.
-- A dependency on `nginx-ingress` is declared.
-- At the same time, there is no `Chart.lock` and no usable `charts/` dependency directory.
+- The repository contains a Helm chart, so Helm is therefore a valid option to evaluate.
+- But the chart is **not usable out of the box** for this phase: 
+  - The first blocker was the missing `nginx-ingress` chart dependency.
+  - After running `helm dependency build`, that dependency was successfully fetched and the chart could be rendered.
+  - However, the actual install path still failed:
+    - the pulled `nginx-ingress` subchart emits outdated Kubernetes API versions
+    - these include `apiextensions.k8s.io/v1beta1` and `rbac.authorization.k8s.io/v1beta1`
+    - those resources are not compatible with the current cluster API surface
+  - So even after the obvious dependency-recovery step, Helm still does not provide a clean, low-friction deployment baseline for this phase.
+  - It depends on the older dependency mechanism via `requirements.yaml`.
+  - It expects an external dependency `nginx-ingress`.
+  - and that dependency is missing from the local chart dependency directory
+- Initially, the local `charts/` dependency directory was missing the required `nginx-ingress` dependency.
+- Running `helm dependency build` fetched that dependency and created the local chart artifact under `deploy/kubernetes/helm-chart/charts/`.
+- After that, chart rendering worked, but the actual install path still failed because the pulled subchart uses deprecated Kubernetes API versions.
+
+The dependency setup appears **older and incomplete**, which would introduce extra setup and troubleshooting work before a reliable dev/prod delivery path could be documented:
 
 **Conclusion:**
 
-Helm was evaluated and taken seriously, but it was **not ready-to-use out of the box** for this phase.  
-Because Helm is optional for the project, and because the already proven raw manifest path existed, the Phase 03 baseline was implemented first on the **manifest + Kustomize** path. Helm remains a later enhancement candidate.
+Helm is **deferred, not rejected** in favor of a **manifest + Kustomize** path
 
-> **🧩 Info box — Helm vs manifests**
+For this Phase 03 baseline and since Helm is optional for this project, the already proven raw Kubernetes manifest path is the stronger choice, especially when it is combined  with a **Kustomize layer for `dev` and `prod`**:
+
+- This avoids spending the phase on modernizing a legacy Helm dependency chain
+- gives us a lower-friction baseline
+- & reaches environment separation in form of an usable `dev` / `prod` baseline faster
+
+Helm remains a valid **later enhancement candidate** once the CI/CD baseline is stable.
+
+> [!NOTE] **🧩 Info box — Helm vs "raw manifests"**
 >
-> **Helm** is a Kubernetes package manager and templating layer.  
-> Plain **manifests** are direct Kubernetes YAML resources.  
-> In this phase, the plain-manifest path was preferred because it was already proven and did not introduce extra dependency/setup friction.
+>
+> **Helm** is a Kubernetes package manager and templating layer. A Helm chart bundles related Kubernetes resources into one reusable package, adds values-based configuration, and can make multi-resource application deployment much easier to repeat across environments.  
+>
+> That is why Helm is often preferred in larger projects:
+> - it groups many resources into one installable unit
+> - it supports configurable values per environment
+> - it is convenient for repeated deployments and reuse
+>
+> Plain **raw manifests** are direct Kubernetes YAML resources without that packaging / templating layer.
+>
+> Raw manifests can still be the better choice when:
+> - the manifest path is already proven and understood
+> - the Helm chart introduces extra dependency or compatibility friction
+> - the fastest defensible goal is a clean baseline, not packaging sophistication
+>
+> In this phase, the manifest-based path is preferred because it is already proven in this repository and reaches a reliable baseline faster.
 
 ---
 
 ## Step 1 — Add an environment-specific deployment layer with Kustomize
 
-**Rationale:** The proven raw manifest baseline is single-environment oriented. Phase 03 needs a thin layer that introduces environment separation for `dev` and `prod` without rewriting the upstream manifests.
+**Rationale:** Since Helm is not a viable option fro deployment right now, we take the proven path via plain Kubernetes manifests. But: The proven raw manifest baseline from the earlier phases is still a single-environment deployment path. For Phase 03, which operates on multipel environments, we need a thin environment layer for `dev` and `prod`. This is done by adding a thin Kustomize environment layer on top of the upstream manifests, so the original manifest set does not have to be rewritten or duplicated.
+
+To achieve that, a **Kustomize overlay layer** is implemented on top of the already proven manifest set - in form of a small set of new environment-specific files:
+
+### Resulting repository structure
 
 ~~~bash
-# Initial attempt: render the dev overlay
-$ kubectl kustomize deploy/kubernetes/kustomize/overlays/dev | sed -n '1,120p'
-error: accumulating resources: accumulation err='accumulating resources from '../../base' ... security; file ... is not in or below .../deploy/kubernetes/kustomize/base' ...
+deploy/
+└── kubernetes
+    ├── kustomize
+    │   └── overlays
+    │       ├── dev
+    │       │   ├── kustomization.yml
+    │       │   ├── namespace.yaml
+    │       │   └── patches
+    │       │       └── front-end-svc-clusterip.yaml
+    │       └── prod
+    │           ├── kustomization.yml
+    │           ├── namespace.yaml
+    │           └── patches
+    │               └── front-end-svc-clusterip.yaml
+    ├── Makefile
+    └── manifests
+        ├── 00-sock-shop-ns.yaml
+        ├── ...
+        └── kustomization.yaml
+~~~
 
-# After restructuring the base into the manifests directory, render again
-$ kubectl kustomize deploy/kubernetes/kustomize/overlays/dev | sed -n '1,40p'
+**Functional overview:**
+
+- **Base Kustomize entrypoint:** `deploy/kubernetes/manifests/kustomization.yaml`
+  - turns the already proven raw manifest set into one reusable Kustomize base
+- **`dev` overlay:** `deploy/kubernetes/kustomize/overlays/dev/kustomization.yml`
+  - applies only the `dev`-specific namespace and patching rules for `sock-shop-dev` on top of that base
+- **`prod` overlay:** `deploy/kubernetes/kustomize/overlays/prod/kustomization.yml`
+  - mirrors the same pattern for `sock-shop-prod`
+- **Namespace manifests:**
+  - `deploy/kubernetes/kustomize/overlays/dev/namespace.yaml`
+  - `deploy/kubernetes/kustomize/overlays/prod/namespace.yaml`
+- **Storefront Service patch:**
+  - `deploy/kubernetes/kustomize/overlays/dev/patches/front-end-svc-clusterip.yaml`
+  - `deploy/kubernetes/kustomize/overlays/prod/patches/front-end-svc-clusterip.yaml`
+
+This avoids copying or rewriting the whole upstream manifest set for each environment
+
+### Relevant excerpts of the added configuration
+
+**Base entrypoint — `deploy/kubernetes/manifests/kustomization.yaml`**  
+This file turns the already proven manifest set into a reusable Kustomize base by listing the resources that belong to the deployment:
+
+~~~yaml
+# deploy/kubernetes/manifests/kustomization.yaml
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - 01-carts-dep.yaml
+  - 02-carts-svc.yml
+  - 03-carts-db-dep.yaml
+  - 04-carts-db-svc.yaml
+  - 05-catalogue-dep.yaml
+  - 06-catalogue-svc.yaml
+  - 07-catalogue-db-dep.yaml
+  - 08-catalogue-db-svc.yaml
+  - 09-front-end-dep.yaml
+  - 10-front-end-svc.yaml
+  ...
+~~~
+
+The file name `kustomization.yaml` is the conventional Kustomize configuration entrypoint used by the kustomize tool.
+
+**`dev` overlay — `deploy/kubernetes/kustomize/overlays/dev/kustomization.yml`**  
+This file reuses the proven base, switches the target namespace to `sock-shop-dev`, and applies a patch to the storefront Service:
+
+~~~yaml
+# deploy/kubernetes/kustomize/overlays/dev/kustomization.yml
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - namespace.yaml
+  - ../../../manifests
+
+namespace: sock-shop-dev
+
+patches:
+  - target:
+      kind: Service
+      name: front-end
+    path: patches/front-end-svc-clusterip.yaml
+~~~
+
+**Namespace manifest — `deploy/kubernetes/kustomize/overlays/dev/namespace.yaml`**  
+This file codifies namespace creation so the workflow no longer depends on a manual namespace pre-step:
+
+~~~yaml
+# deploy/kubernetes/kustomize/overlays/dev/namespace.yaml
 apiVersion: v1
 kind: Namespace
 metadata:
   name: sock-shop-dev
-...
 ~~~
 
-**Observed result:**
+**Storefront Service patch — `deploy/kubernetes/kustomize/overlays/dev/patches/front-end-svc-clusterip.yaml`**  
+This patch removes the fixed NodePort behavior and switches the storefront Service to `ClusterIP` for the environment-based deployment path:
 
-- The first Kustomize layout hit a path/security restriction and could not render.
-- The fix was to move the Kustomize base into `deploy/kubernetes/manifests/` and let the overlays reference that proven manifest location directly.
-- After that change, the overlays rendered successfully.
+~~~yaml
+# deploy/kubernetes/kustomize/overlays/dev/patches/front-end-svc-clusterip.yaml
+- op: replace
+  path: /spec/type
+  value: ClusterIP
+- op: remove
+  path: /spec/ports/0/nodePort
+~~~
+
+Concretely, this is done through a JSON Patch applied to the `front-end` Service: the Service type is changed from `NodePort` to `ClusterIP`, and the explicit `nodePort` value is removed from the first port entry.
 
 **Conclusion:**
 
-Kustomize was chosen as the minimal environment layer because it:
-- reuses the already proven raw manifests
-- keeps upstream manifests untouched
-- supports `dev` / `prod` environment separation cleanly
+This demonstrates how the single-environment baseline was turned into a reusable `dev` / `prod` deployment input **without duplicating the whole manifest set**.
 
-> **🧩 Info box — Kustomize overlay**
+The purpose of these overlays is not to redesign the application, but to apply a few environment-specific adjustments only - thus acting as thin environment layer on top of the already proven manifest path:
+
+- switch from the original shared namespace to an environment-specific namespace
+- codify namespace creation so deployment no longer depends on a manual pre-step
+- patch the storefront exposure where needed so the two environments do not depend on the same fixed NodePort behavior
+
+### Render Kustomize layer  
+
+Once this Kustomize layer is in place, the next check is whether the `dev` overlay can be rendered cleanly into final Kubernetes YAML:
+
+~~~bash
+# Render the final Kubernetes YAML produced by the dev overlay
+$ kubectl kustomize deploy/kubernetes/kustomize/overlays/dev
+netes/kustomize/overlays/dev
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: sock-shop-dev
+---
+apiVersion: v1
+kind: Service
+~~~
+
+`kubectl kustomize <path>` **renders** the final Kubernetes YAML produced by the base + overlay combination. It does **not** deploy anything. In this step, it is used as a quick validation check before the real deployment via `kubectl apply -k ...`.
+
+**Observed result:**
+
+- The `dev` overlay renders successfully and produces the expected namespace-specific resources, including `sock-shop-dev`.
+
+### Why Kustomize matters for the CI/CD workflow
+
+This Kustomize layer is not just a local configuration convenience. It becomes the actual **deployment definition layer** used later by the GitHub Actions workflow.
+
+The workflow uses it in two places:
+
+- **Validation**
+  - `kubectl kustomize deploy/kubernetes/kustomize/overlays/dev`
+  - `kubectl kustomize deploy/kubernetes/kustomize/overlays/prod`
+  - Here the overlays are rendered to verify that they produce usable final Kubernetes YAML.
+
+- **Deployment**
+  - `kubectl apply -k deploy/kubernetes/kustomize/overlays/dev`
+  - `kubectl apply -k deploy/kubernetes/kustomize/overlays/prod`
+  - Here the overlays become the actual deploy input for the `dev` and `prod` smoke environments.
+
+Without Kustomize, the workflow would have needed a weaker alternative such as:
+
+- duplicating raw manifests per environment
+- keeping manual namespace creation and manual edits outside the workflow
+- or patching manifests ad hoc inside the CI/CD jobs
+
+Kustomize is what makes the `dev` / `prod` pipeline path clean, reproducible, and reviewable.
+
+**Conclusion:**
+
+Kustomize is working as the right minimal environment layer for this phase:
+- It reuses the already proven raw manifests
+- keeps upstream manifests untouched
+- adds `dev` / `prod` separation in a minimal and reviewable way
+
+> [!NOTE] **🧩 Info box — Kustomize overlay**
 >
 > A **Kustomize overlay** is a thin customization layer on top of a base set of Kubernetes resources.  
-> In this phase, the overlays do three important things:
-> - define the target namespace (`sock-shop-dev` / `sock-shop-prod`)
+> In this phase, the overlays are used to:
 > - add namespace manifests so the deploy path is reproducible
+> - switch from the original shared namespace to environment-specific namespaces
+> - codify namespace creation (`sock-shop-dev` / `sock-shop-prod`)
 > - patch the `front-end` Service from fixed `NodePort` to `ClusterIP` to avoid cross-environment port collisions
 
 ---
@@ -280,12 +489,17 @@ This made the later GitHub Actions implementation much more defensible: the auto
   - `prod`
 - In `prod`:
   - enable **Required reviewers**
-  - add one reviewer (here: the repository owner)
+  - add one reviewer (in our case: the repository owner)
 
 **Observed result:**
 
-- `dev` became the unprotected smoke environment
-- `prod` became the approval-gated smoke environment
+- `dev` is now the unprotected smoke environment
+- `prod` is now the approval-gated smoke environment
+
+**Production environment configuration in GitHub**
+
+![GitHub environment configuration for the production approval gate](evidence/gh/04-gh-config-prod.png)
+*Figure 1: GitHub `prod` environment configuration with the approval-related setup used for the production smoke deployment.*
 
 **Conclusion:**
 
@@ -300,41 +514,158 @@ This establishes the **manual promotion checkpoint** between `dev` and `prod`.
 
 ## Step 4 — Create a dedicated GitHub Actions delivery workflow
 
-**Rationale:** The repository already contains an upstream-style GitHub Actions workflow. Phase 03 needs a separate, cleaner delivery workflow for the project-specific dev/prod CI/CD path.
+**Rationale:** The repository already contains an upstream GitHub Actions workflow (located at `.github/workflows/main.yaml`).
+Inspecting this file produces the the following hints:
+- GitHub Actions is obviously established in this repo
+- `kind` (Kubernetes in Docker) is used in CI to create a temporary Kubernetes cluster inside Docker containers  
+- upstream/downstream job structure
+- A separate image-build job is used for `openapi` / `healthcheck`
+Phase 03 needs now a **separate, cleaner delivery workflow for the project-specific dev/prod CI/CD path** that uses `kind` as a **clean deployment smoke-test target** for `dev` and `prod`.
 
-The resulting workflow file:
+To achieve this we create a new workflow file at `.github/workflows/phase-03-delivery.yaml`: 
 
-- lives at `.github/workflows/phase-03-delivery.yaml`
-- uses **GitHub-hosted runners only**
-- validates both overlays
-- builds and pushes repo-owned support images to GHCR
-- deploys the `dev` smoke environment automatically
-- deploys the `prod` smoke environment only after approval
+### Workflow files in the repository
 
-### Workflow logic at a glance
+~~~bash
+.github/
+└── workflows
+    ├── main.yaml
+    └── phase-03-delivery.yaml
+~~~
 
-1. **`validate-overlays`**
-   - checks that both overlays render successfully
+**phase-03-delivery.yaml`: Key characteristics:**
 
-2. **`build-push-support-images`**
-   - builds/pushes repo-owned support images to GHCR
-   - uses a small matrix to avoid hardcoding each build step separately
+- This new workflow uses **GitHub-hosted runners only**
+- validates both **overlays**
+- builds and pushes **repo-owned support images** to **GHCR**
+- deploys the **`dev` smoke environment** automatically
+- deploys the **`prod` smoke environment** only after approval
 
-3. **`deploy-dev-smoke`**
+### Relevant workflow excerpt
+
+The most important parts of `.github/workflows/phase-03-delivery.yaml` are:
+
+~~~yaml
+name: phase-03-delivery
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - master
+      - feat/ci-github-actions-dev-prod-gate
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  validate-overlays:
+    runs-on: ubuntu-latest
+
+  build-push-support-images:
+    needs: validate-overlays
+    runs-on: ubuntu-latest
+
+  deploy-dev-smoke:
+    needs: build-push-support-images
+    runs-on: ubuntu-latest
+    environment: dev
+
+  deploy-prod-smoke:
+    needs: deploy-dev-smoke
+    if: github.ref == 'refs/heads/master'
+    runs-on: ubuntu-latest
+    environment: prod
+~~~
+
+This excerpt shows the core delivery shape of the workflow:
+
+- manual and push-based triggers
+- an upstream/downstream job order via `needs:`
+- explicit separation between `dev` and `prod`
+- a `prod` job that is gated both by branch condition and by the GitHub environment approval rules
+
+- **`deploy-dev-smoke`**
    - starts a temporary `kind` cluster
    - applies the `dev` overlay
    - verifies the key rollouts
 
-4. **`deploy-prod-smoke`**
+-  **`deploy-prod-smoke`**
    - starts another temporary `kind` cluster
    - waits for the `prod` environment approval
    - applies the `prod` overlay
    - verifies the key rollouts
 
+### Relevant workflow elements
+
+- **`on:`** defines how the workflow starts:
+  - `push` for normal branch-driven execution
+  - `workflow_dispatch` for manual reruns from GitHub
+- **`permissions:`** limits the workflow token to what is needed here:
+  - read repository contents
+  - write container packages to GHCR
+- **`needs:`** creates the upstream/downstream job order:
+  - validation first
+  - then build/push
+  - then deploy smoke tests
+- **`environment:`** binds the deployment jobs to GitHub environments:
+  - `dev` for the unprotected smoke path
+  - `prod` for the approval-gated smoke path
+- **`runs-on: ubuntu-latest`** keeps the whole workflow on GitHub-hosted runners in this phase
+
+### Workflow logic
+
+At a high level, the workflow follows a simple delivery chain:
+
+1. **Validate the deployment input (Kustomize overlays)**
+   - Before building images or starting any smoke deployment, the workflow renders both Kustomize overlays to verify both overlays render successfully
+   - This checks whether the `dev` and `prod` deployment definitions are structurally usable.
+   - Fazit: Rendering the overlays early is a cheap validation step. It helps catch broken environment configuration before the workflow spends time on image build or deployment jobs.
+
+2. **Build and publish the repo-owned support image**
+   - The workflow then builds the support image that is still relevant for this phase (`healthcheck`) and pushes it to GHCR.
+
+3. **Create a temporary Kubernetes target for smoke deployment**
+   - Instead of deploying to a long-lived cluster already, the workflow starts a temporary `kind` cluster on a GitHub-hosted runner.
+   - This gives the phase a clean and reproducible Kubernetes smoke-test target.
+   - Fazit: The workflow needs a Kubernetes target to prove that the deployment path actually works. In this phase, `kind` provides that target in a disposable CI-friendly way, without depending on the final Proxmox environment yet.
+
+4. **Deploy by applying the overlays**
+   - The `dev` and `prod` jobs do not hardcode raw manifests directly.
+   - They use the Kustomize overlays as the actual deployment input via `kubectl apply -k ...`.
+   - Fazit: The overlays are utrilized as the actual deployment input because they already encode the environment-specific namespace and storefront Service behavior. That makes them the correct deployment definition for `dev` and `prod`.
+
+So the workflow first proves that the deployment input is valid, then creates a disposable Kubernetes target, and then applies the environment-specific deployment definition to that target.
+
+### Interaction between workflow and the Kustomize layer
+
+The workflow does not hardcode raw Kubernetes manifests directly inside the CI/CD jobs. Instead, it **uses the Kustomize layer created in Step 1 as its deployment definition**.
+
+That interaction happens in two distinct ways:
+
+- **Validation stage (`validate-overlays`)**
+  - runs:
+    - `kubectl kustomize deploy/kubernetes/kustomize/overlays/dev`
+    - `kubectl kustomize deploy/kubernetes/kustomize/overlays/prod`
+  - purpose:
+    - verify that both overlays render into valid final Kubernetes YAML before any deployment job starts
+
+- **Deployment stages (`deploy-dev-smoke` / `deploy-prod-smoke`)**
+  - run:
+    - `kubectl apply -k deploy/kubernetes/kustomize/overlays/dev`
+    - `kubectl apply -k deploy/kubernetes/kustomize/overlays/prod`
+  - purpose:
+    - use those overlays as the actual deploy input for the `dev` and `prod` smoke environments
+
+So the Kustomize layer is the bridge between:
+- the already proven raw manifest baseline
+- and the new GitHub Actions delivery workflow
+
 > **🧩 Info box — workflow_dispatch**
 >
-> `workflow_dispatch` is the GitHub Actions event for **manual workflow starts** from the GitHub UI.  
-> In this phase, pushes were the practical first test path on the feature branch, while `workflow_dispatch` becomes more useful once the workflow exists on the default branch.
+> `workflow_dispatch` is the **GitHub Actions event** for **manual workflow starts** from the GitHub UI.  
+> In this phase, pushes from the active feature branch are the practical first test path. `workflow_dispatch` will become more useful once the workflow exists on the default branch.
 
 > **🧩 Info box — upstream vs downstream (workflow graph)**
 >
@@ -343,9 +674,11 @@ The resulting workflow file:
 
 ---
 
-## Step 5 — Run the first workflow and triage the openapi failure
+## Step 5 — Run the first workflow and triage the `openapi` failure
 
-**Rationale:** The first workflow run should expose whether the selected repo-owned image build surfaces are actually usable in the Phase 03 baseline.
+**Rationale:** The first GitHub Actions workflow run should show whether the selected image-build targets are actually usable in the Phase 03 baseline.
+
+The first run produces a mixed result in the GitHub Actions workflow:
 
 ~~~bash
 # Relevant workflow result signal from the first run
@@ -353,26 +686,60 @@ Build and push repo-owned images to GHCR (openapi)
 ERROR: failed to build: failed to solve: process "/bin/sh -c npm install" did not complete successfully: exit code: 236
 ~~~
 
-From the earlier repo audit:
+**First failed Phase 03 workflow run**
 
-- `openapi` is not a main runtime Sock Shop service
-- it is a repo-owned support/test build surface
-- its metadata still points to **Node 6 / npm 3**
+![First Phase 03 workflow run with the openapi build failure](evidence/gh/10-gh-pipeline-failed.png)
+*Figure 2: First `phase-03-delivery` workflow run. The pipeline stops before the deploy jobs because the `openapi` image build fails.*
 
-**Observed result:**
+Relevant workflow signal from the GitHub Actions build log:
+
+- the overlay validation succeeds
+- the repo-owned `healthcheck` image builds and pushes successfully
+- but the also repo-owned `openapi` image build fails during `npm install`
+
+> **🧩 Info box — repo-owned image target**
+>
+> A **repo-owned image target** (or repo-owned image) is a build target whose Docker build context lives inside this repository itself, rather than an upstream Sock Shop runtime image that is pulled from an external registry:
+> - both healthcheck and openapi are build contexts/directories that live inside this repository (see `healthcheck/Dockerfile` + `openapi/Dockerfile`), they are not external images that can be pulled as upstream images during the smoke deployment
+> - they are auxiliary images that can be built and published by the workflow
+
+**Observed result 1:**
 
 - `healthcheck` built and pushed successfully
 - `openapi` failed during `npm install`
-- downstream deploy jobs did not run because the build matrix was not fully successful
+- because the build matrix was not fully successful, the downstream deploy jobs did not run yet
 
+To decide whether this should block the whole phase, the next question is what role `openapi` actually plays in this repository.
+
+**Observed result 2:**
+
+- `openapi` is **not** one of the main Sock Shop runtime services
+- it is a **repository-owned auxiliary test/build target**
+  - its `package.json` describes it as:
+    - `microservices-demo-api-test` 
+    - “Verify microservices API endpoints against the specification”
+  - its README describes it as a **Dredd-based API testing** directory
+  - its build/runtime setup is clearly legacy:
+    - `node: "6"`
+    - `npm: "3"`
+    - Docker base image: `mhart/alpine-node:6.17`
+- The actual Phase 03 delivery goal (`dev` / `prod` smoke deployment of the application path) does not depend on `openapi` 
+
+ 
 **Conclusion:**
 
-Excluding `openapi` from the Phase 03 workflow was the right decision to unblock the actual CI/CD baseline.  
-This was not a random cut; it was a documented decision based on:
-- the repo audit
-- the legacy Node 6 / npm 3 dependency
-- the fact that `openapi` is optional for the main delivery path
+- For Phase 03, `openapi` is excluded to unblock the actual CI/CD baseline. 
+- `openapi` is deferred for later follow-up, and the workflow is reduced to the support image that is actually usable in this phase (`healthcheck`).
 
+Reasoning:
+
+- the phase goal is to prove the **CI/CD delivery baseline** 
+- `openapi` is **not** part of the main storefront deployment path being proven in this phase
+- the failure comes from a **legacy auxiliary test/build target**, not from the actual `dev` / `prod` smoke deployment path
+- keeping `healthcheck` preserves enough proof of:
+  - repo-owned image build
+  - GHCR push
+  - workflow-controlled registry publishing
 ---
 
 ## Step 6 — Re-run the workflow and prove the dev smoke deployment
@@ -401,7 +768,17 @@ The GitHub Actions workflow now proved a complete **dev smoke delivery path**:
 
 **Rationale:** Phase 03 is only fully convincing if the `prod` environment gate is also exercised successfully.
 
-During feature-branch testing, the `prod` job was temporarily allowed to run from the active Phase 03 feature branch so that the approval gate could be tested before merge. After the proof succeeded, the job condition was restored to `master` only.
+During feature-branch testing, the `prod` job was temporarily allowed to run from the active Phase 03 feature branch so that the approval gate could be tested before merge. After the proof succeeded, this temporary branch allowance was removed again to restore the job condition to `master` only.
+
+**Production approval gate waiting for review**
+
+![Workflow paused before the production smoke deployment pending approval](evidence/gh/17-gh-prod-.waiting-for-review.png)
+*Figure 3: The `prod` environment gate pauses the workflow and waits for explicit approval before the production smoke deployment starts.*
+
+**Successful production smoke deployment**
+
+![Successful production smoke deployment after approval](evidence/gh/19-gh-prod-success.png)
+*Figure 4: Successful `prod` smoke deployment after manual approval through the GitHub environment gate.*
 
 **Observed result:**
 
@@ -452,29 +829,69 @@ Phase 03 proved:
 
 ### Evidence index
 
-**Local / Kubernetes proof placeholders**
-- `[YYYY-MM-DD]-Phase-03-kustomize-dev-render-success.png`  
-  - overlay render / apply proof after the Kustomize path fix
-- `[YYYY-MM-DD]-Phase-03-dev-namespace-recreated.png`  
-  - `sock-shop-dev` recreated from the overlay
-- `[YYYY-MM-DD]-Phase-03-dev-resources-healthy.png`  
-  - `kubectl get deploy,pods,svc -n sock-shop-dev -o wide`
-- `[YYYY-MM-DD]-Phase-03-dev-rollout-success.png`  
-  - successful rollout proof for the dev baseline
+**GitHub / workflow evidence**
+- `project-docs/03-ci-cd-baseline/evidence/gh/01-nsp-empty-github.png`
+  - GitHub namespace overview before creating the environments
 
-**GitHub / workflow proof placeholders**
-- `[YYYY-MM-DD]-Phase-03-github-environments-overview.png`  
-  - repository `dev` / `prod` environment overview
-- `[YYYY-MM-DD]-Phase-03-prod-required-reviewer-config.png`  
-  - `prod` environment protection rule / reviewer config
-- `[YYYY-MM-DD]-Phase-03-workflow-run-success.png`  
-  - successful pipeline overview
-- `[YYYY-MM-DD]-Phase-03-ghcr-healthcheck-image.png`  
-  - pushed GHCR package/image
-- `[YYYY-MM-DD]-Phase-03-prod-approval-gate.png`  
-  - workflow paused before `prod`
-- `[YYYY-MM-DD]-Phase-03-prod-smoke-success.png`  
-  - successful prod smoke completion after approval
+- `project-docs/03-ci-cd-baseline/evidence/gh/02-nsp-creation-dev.png`
+  - creation of the `dev` GitHub environment
+
+- `project-docs/03-ci-cd-baseline/evidence/gh/03-NSPC.png`
+  - intermediate GitHub environment configuration state
+
+- `project-docs/03-ci-cd-baseline/evidence/gh/04-gh-config-prod.png`
+  - `prod` environment configuration, including the approval-related setup
+
+- `project-docs/03-ci-cd-baseline/evidence/gh/05-gh-nspcs-overview.png`
+  - overview showing both GitHub environments
+
+- `project-docs/03-ci-cd-baseline/evidence/gh/06-runenrs-empty.png`
+  - repository runner overview showing that no self-hosted runner is used here
+
+- `project-docs/03-ci-cd-baseline/evidence/gh/07-gh-workflows actions-empty.png`
+  - workflow area before the new Phase 03 workflow appears
+
+- `project-docs/03-ci-cd-baseline/evidence/gh/08-gh-workflows-actionsa-phase-03-delivery.png`
+  - new `phase-03-delivery` workflow visible in GitHub Actions
+
+- `project-docs/03-ci-cd-baseline/evidence/gh/09-gh-pipeline-running.png`
+  - workflow run in progress
+
+- `project-docs/03-ci-cd-baseline/evidence/gh/10-gh-pipeline-failed.png`
+  - first failed workflow run, before the `openapi` scope correction
+
+- `project-docs/03-ci-cd-baseline/evidence/gh/11-gh-pipeline-succceeded.png`
+  - successful workflow run overview
+
+- `project-docs/03-ci-cd-baseline/evidence/gh/12-gh-pipeline-succeeded-deatils.png`
+  - successful workflow details view
+
+- `project-docs/03-ci-cd-baseline/evidence/gh/13-gh-pipeline-graph.png`
+  - workflow graph showing the job structure and execution order
+
+- `project-docs/03-ci-cd-baseline/evidence/gh/14-gh-pipeline-success-awaiting-review-prod.png`
+  - successful upstream jobs with the workflow paused before `prod`
+
+- `project-docs/03-ci-cd-baseline/evidence/gh/15-gh-success-bigger.png`
+  - larger successful workflow view
+
+- `project-docs/03-ci-cd-baseline/evidence/gh/16-gh-actions-overview.png`
+  - GitHub Actions overview after successful runs
+
+- `project-docs/03-ci-cd-baseline/evidence/gh/17-gh-prod-.waiting-for-review.png`
+  - `prod` deployment waiting for manual approval
+
+- `project-docs/03-ci-cd-baseline/evidence/gh/18-review-prod-and-deploy.png`
+  - review / approval dialog before the production smoke deployment
+
+- `project-docs/03-ci-cd-baseline/evidence/gh/18-gh-deploying-to-prod.png`
+  - `prod` deployment in progress after approval
+
+- `project-docs/03-ci-cd-baseline/evidence/gh/19-gh-prod-success.png`
+  - successful `prod` smoke deployment
+
+- `project-docs/03-ci-cd-baseline/evidence/gh/20-gh-success-oevrview.png`
+  - final successful workflow overview
 
 ### Deferred follow-ups captured during this phase
 
@@ -490,17 +907,47 @@ Phase 03 proved:
 
 ## Sources
 
-### Project requirements and project-specific standards
-- `Project Requirements & Expectations.docx.pdf`
-- `CAPSTONE_COLLAB_RULES.md`
-- `adr/[2026-03-18] ADR-0002 -- Docs-System.md`
+### Helm
+- Helm Docs — Charts  
+  https://helm.sh/docs/topics/charts/
+- Helm Docs — `helm dependency build`  
+  https://helm.sh/docs/helm/helm_dependency_build/
 
-### GitHub Actions / GitHub Environments / GHCR
+### Kubernetes / Kustomize
+- Kubernetes Docs — Declarative management of Kubernetes objects using Kustomize  
+  https://kubernetes.io/docs/tasks/manage-kubernetes-objects/kustomization/
+- kubectl reference — `kubectl kustomize`  
+  https://kubernetes.io/docs/reference/kubectl/generated/kubectl_kustomize/
+
+### GitHub Actions / GitHub environments / GHCR / runners / registry
 - GitHub Docs — Workflow syntax for GitHub Actions  
+  https://docs.github.com/en/actions/reference/workflows-and-actions/workflow-syntax
+- GitHub Docs — Deploying to a specific environment  
+  https://docs.github.com/en/actions/how-tos/write-workflows/choose-what-workflows-do/deploy-to-environment
 - GitHub Docs — Managing environments for deployment  
+  https://docs.github.com/en/actions/how-tos/deploy/configure-and-manage-deployments/manage-environments
+- GitHub Docs — GitHub-hosted runners  
+  https://docs.github.com/en/actions/concepts/runners/github-hosted-runners
+- GitHub Docs — Adding self-hosted runners  
+  https://docs.github.com/en/actions/how-tos/manage-runners/self-hosted-runners/add-runners
 - GitHub Docs — Working with the Container registry  
-- GitHub Docs — GitHub-hosted runners
+  https://docs.github.com/en/packages/working-with-a-github-packages-registry/working-with-the-container-registry
+
+### Action references used while shaping the workflow
+- `actions/checkout`  
+  https://github.com/actions/checkout
+- `docker/login-action`  
+  https://github.com/docker/login-action
+- `docker/build-push-action`  
+  https://github.com/docker/build-push-action
+- `engineerd/setup-kind`  
+  https://github.com/engineerd/setup-kind
 
 ### kind
-- kind official documentation
+- kind documentation — Quick Start  
+  https://kind.sigs.k8s.io/docs/user/quick-start/
+- kind documentation — Overview  
+  https://kind.sigs.k8s.io/
 
+### Repository references used during implementation (evidence / pattern references, not external sources)
+- Upstream workflow reference: `.github/workflows/main.yaml`

@@ -1,5 +1,15 @@
+# JSON patch for the storefront Service in the dev overlay
+# Purpose:
+# - switch the Service from NodePort to ClusterIP
+# - remove the fixed nodePort value so dev/prod overlays do not depend on the same cluster-wide port
+#
+# See project-docs/03-ci-cd-baseline/IMPLEMENTATION.md for context
+
+# Replace the Service type with ClusterIP
 - op: replace
   path: /spec/type
   value: ClusterIP
+
+# Remove the fixed nodePort entry from the first port definition
 - op: remove
-  path: /spec/ports/0/nodePort
+  path: /spec/ports/0/nodePort  

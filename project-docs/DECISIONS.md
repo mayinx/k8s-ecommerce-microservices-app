@@ -214,7 +214,7 @@ The initial phases use Docker Compose and a local k3s cluster to establish a sta
 
 ---
 
-## Phase 02 — Ingress baseline: host-based Traefik routing to the Sock Shop storefront
+## Phase 02 — Ingress baseline: Host-based Traefik routing to the Sock Shop storefront
 
 **Quick recap (Phase 02)**  
 - Phase 02 added a more **production-like, host-based storefront entrypoint** on the local k3s cluster by introducing a **Traefik Ingress** for `http://sockshop.local/`, while keeping the already proven **port-based NodePort `30001`** path intact as fallback.  
