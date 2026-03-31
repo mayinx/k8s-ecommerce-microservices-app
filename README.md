@@ -15,7 +15,8 @@ The goal is not just to run the application once, but to build a **reproducible,
 
 The project is intentionally implemented in phases so that each new capability builds on an already proven baseline.
 
-## What this project will cover (capstone deliverables)
+## Target Scope
+
 - Kubernetes deployment (k3s locally → Proxmox target)
 - CI/CD (build/test/push/deploy with gated prod later)
 - IaC (Terraform planned for Proxmox)
@@ -88,11 +89,11 @@ Depending on the phase, a folder may contain:
 - Phase 03 decisions:
   - [project-docs/03-ci-cd-baseline/DECISIONS.md](project-docs/03-ci-cd-baseline/DECISIONS.md)
 
-### Cross-phase docs (Decisions, ADRs)
+### Cross-phase docs
 
-- summarized project decisions:
+- Summarized project decisions:
   - [project-docs/DECISIONS.md](project-docs/DECISIONS.md)
-- project roadmap / planning:
+- Project roadmap / planning:
   - [project-docs/ROADMAP.md](project-docs/ROADMAP.md)
 - Architecture Decision Records (ADRs):
   - [adr/](adr/)
@@ -200,14 +201,32 @@ The full evidence index for each phase is documented inside the corresponding `I
 
 This README is intentionally kept open for the next implementation phases.
 
-The current likely next major areas are:
-
-- retargeting the proven delivery path to the long-lived environment
-- IaC for the target infrastructure
+### Core phases still to complete
+- target deployment on the primary long-lived environment (Proxmox)
+- IaC for that target environment (Terraform)
 - monitoring / observability
 - security hardening
 - disaster recovery / rollback strategy
-- architecture and operations refinement as the project matures
+
+### Strong stretch goals before evaluation, if time allows
+- **Testing track:**
+  - pipeline smoke verification
+  - browser-level Playwright smoke / E2E coverage
+- **Custom Python microservice:**
+  - Order Guard / Policy Service
+  - FastAPI-based service extension with its own tests and deployment path
+- **Stronger image / supply-chain checks:**
+  - image scanning / SBOM generation
+  - optional later signing / verification
+
+### Later portfolio extensions
+- GitOps layer (for example Argo CD)
+- stronger secret-management integration
+- Optional AWS target as an additional Terraform-driven deployment track
+- Recruiter-facing live dashboard / situation-room style proof layer
+
+For the fuller internal planning view, see:
+- [project-docs/ROADMAP.md](project-docs/ROADMAP.md)
 
 ## License / upstream
 This is a fork-based project built for training/capstone purposes. Upstream origins and licenses apply where relevant.

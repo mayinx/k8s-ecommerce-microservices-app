@@ -29,3 +29,16 @@ Documentation is iterative and phase-aligned: baseline notes first, then milesto
 - Phase 05: Observability (monitoring/logging/alerting)
 - Phase 06: Security hardening (scanning, policies, secrets)
 - Phase 07: DR / rollback runbooks
+
+## Optional extension track (later / if time allows)
+- Testing track:
+  - pipeline smoke verification
+  - Playwright storefront smoke / E2E coverage
+- Custom Python microservice:
+  - Order Guard / Policy Service
+- GitOps layer:
+  - Argo CD or similar
+- Secret-management extension:
+  - external secrets integration
+- Optional AWS target:
+  - Terraform-driven secondary deployment track
