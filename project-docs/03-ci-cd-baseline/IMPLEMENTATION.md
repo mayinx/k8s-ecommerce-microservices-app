@@ -481,7 +481,7 @@ This made the later GitHub Actions implementation much more defensible: the auto
 
 ## Step 3 — Prepare GitHub environments for dev and prod
 
-**Rationale:** Phase 03 needs **explicit environment modeling** and a **production approval gate**. Because the workflow uses `environment: dev` and `environment: prod`, these environments must be configured in the GitHub repository settings itself, not only in the YAML workflow file. GitHub environments are the place where deployment protection rules such as **required reviewers** are configured. 
+**Rationale:** Phase 03 needs **explicit environment modeling** and a **production approval gate**. Because the workflow (Step 4) will use `environment: dev` and `environment: prod`, these environments must be configured in the GitHub repository settings itself accordingly, not only in the YAML workflow file. GitHub environments are the place where deployment protection rules such as **required reviewers** are configured, whci are a prerequisite human approval-gated environments/worklfow steps.  
 
 **GitHub UI preparation:**
 
@@ -497,6 +497,7 @@ Why this matters:
 
 - `dev` is intended to stay the faster unprotected smoke path
 - `prod` should not deploy automatically without an explicit human checkpoint
+  - i.e. the `prod` environment is now approval-gated and can pause the workflow (see Step 4) until it is explicitly approved.
 - GitHub environments provide that checkpoint directly through protection rules
 - GitHub documents that an environment can require reviewers, and that only one listed reviewer approval is needed for the job to proceed. 
 

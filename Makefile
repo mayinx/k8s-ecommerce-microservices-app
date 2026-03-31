@@ -1,3 +1,29 @@
+# Project Makefile
+# Purpose:
+# - keep repeated local verification and rerun commands short and consistent
+# - provide thin phase-scoped helper targets on top of the documented raw commands
+
+.PHONY: help
+
+help:
+	@echo "Available targets:"
+	@echo "  gen-complete-demo          - Run upstream complete-demo generation helper"
+	@echo "  check-generated-files      - Run upstream generated-files check"
+	@echo "  p02-ingress-apply          - Apply the Phase 02 local ingress manifest"
+	@echo "  p02-ingress-show           - Show and describe the Phase 02 ingress"
+	@echo "  p02-ingress-test-host-header - Test Traefik host-based routing before hosts edit"
+	@echo "  p02-ingress-test-browser-url - Test browser-style hostname URL after hosts edit"
+	@echo "  p02-ingress-delete         - Delete the Phase 02 ingress manifest"
+	@echo "  p02-nodeport-test          - Re-check the Phase 01 NodePort fallback"
+	@echo "  p03-render-overlays        - Render the Phase 03 dev/prod overlays locally"
+	@echo "  p03-render-dev             - Render the Phase 03 dev overlay"
+	@echo "  p03-render-prod            - Render the Phase 03 prod overlay"
+	@echo "  p03-dev-apply             - Apply the Phase 03 dev overlay"
+	@echo "  p03-dev-status            - Show Phase 03 dev resources"
+	@echo "  p03-dev-rollouts          - Check key Phase 03 dev rollouts"
+	@echo "  p03-dev-recreate          - Delete and recreate the Phase 03 dev namespace"
+
+
 .PHONY: gen-complete-demo
 gen-complete-demo:
 	make -C deploy/kubernetes docker-gen-complete-demo
@@ -62,5 +88,62 @@ p02-nodeport-test:
 	@echo
 	curl -s http://localhost:30001/ | head -n 5
 
+# -------------------------------------------------------------------
+# Phase 03 — CI/CD baseline helpers
+# Thin convenience targets only for the local/manual side of Phase 03.
+# Source of truth remains:
+# - project-docs/03-ci-cd-baseline/SETUP.md
+# - project-docs/03-ci-cd-baseline/IMPLEMENTATION.md
+# - project-docs/03-ci-cd-baseline/RUNBOOK.md
+# -------------------------------------------------------------------
 
+P03_DEV_OVERLAY  := deploy/kubernetes/kustomize/overlays/dev
+P03_PROD_OVERLAY := deploy/kubernetes/kustomize/overlays/prod
+
+.PHONY: \
+	p03-render-overlays \
+	p03-render-dev \
+	p03-render-prod \
+	p03-dev-apply \
+	p03-dev-status \
+	p03-dev-rollouts \
+	p03-dev-recreate
+
+p03-render-overlays:
+	@echo "Rendering Phase 03 dev and prod overlays..."
+	kubectl kustomize $(P03_DEV_OVERLAY) > /tmp/dev-rendered.yaml
+	kubectl kustomize $(P03_PROD_OVERLAY) > /tmp/prod-rendered.yaml
+	@echo
+	@echo "Rendered overlays to:"
+	@echo "  /tmp/dev-rendered.yaml"
+	@echo "  /tmp/prod-rendered.yaml"
+
+p03-render-dev:
+	@echo "Rendering the Phase 03 dev overlay..."
+	kubectl kustomize $(P03_DEV_OVERLAY)
+
+p03-render-prod:
+	@echo "Rendering the Phase 03 prod overlay..."
+	kubectl kustomize $(P03_PROD_OVERLAY)
+
+p03-dev-apply:
+	@echo "Applying the Phase 03 dev overlay..."
+	kubectl apply -k $(P03_DEV_OVERLAY)
+
+p03-dev-status:
+	@echo "Showing Phase 03 dev resources..."
+	kubectl get deploy,pods,svc -n sock-shop-dev -o wide
+
+p03-dev-rollouts:
+	@echo "Checking key Phase 03 dev rollouts..."
+	kubectl rollout status deployment/front-end -n sock-shop-dev --timeout=180s
+	kubectl rollout status deployment/catalogue -n sock-shop-dev --timeout=180s
+	kubectl rollout status deployment/payment -n sock-shop-dev --timeout=180s
+	kubectl rollout status deployment/user -n sock-shop-dev --timeout=180s
+
+p03-dev-recreate:
+	@echo "Recreating the Phase 03 dev namespace from the overlay..."
+	kubectl delete namespace sock-shop-dev
+	@echo
+	kubectl apply -k $(P03_DEV_OVERLAY)
 	
