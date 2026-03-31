@@ -20,8 +20,8 @@ name: phase-03-delivery
 
 on:
   # Manual workflow trigger / rerun entrypoint from the GitHub Actions UI
-  # No extra inputs are needed, so the key is left empty.  This is enough to enable 
-  # manual workflow runs from the GitHub Actions UI 
+  # No extra inputs are needed, so the key is left empty. This is enough 
+  # to enable manual workflow runs from the GitHub Actions UI 
   workflow_dispatch:
 
   # Normal branch-driven execution path
@@ -46,6 +46,9 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      # Make the repository contents available inside the runner workspace
+      # Checks out the repository content into the runner workspace so later steps can read files from the repo 
+      # (like  workflow files, Kustomize overlays, and build contexts)    
       - name: Checkout repository
         uses: actions/checkout@v4
 
@@ -73,6 +76,7 @@ jobs:
         repo: [healthcheck]
 
     steps:
+      # Make the repository contents available inside the runner workspace
       - name: Checkout repository
         uses: actions/checkout@v4
 
@@ -82,6 +86,8 @@ jobs:
         shell: bash
         run: echo "owner_lc=${GITHUB_REPOSITORY_OWNER,,}" >> "$GITHUB_OUTPUT"
 
+      # Authenticate the workflow to a container registry (here GHCR via ghcr.io) so the workflow 
+      # can push the built support image with the repository-scoped GitHub token
       - name: Log in to GHCR
         uses: docker/login-action@v3
         with:
@@ -89,6 +95,8 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      # Build the Docker image and push it to the target registry
+      # I.e. build the selected repo-owned image target (i.e. 'healthcheck') and push it to GHCR using the commit SHA as the image tag
       - name: Build and push image
         uses: docker/build-push-action@v6
         with:
@@ -107,12 +115,14 @@ jobs:
     timeout-minutes: 20
 
     steps:
+      # Make the repository contents available inside the runner workspace
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # Start a temporary Kubernetes cluster for the smoke deployment
+      # Start a temporary kind Kubernetes cluster for the smoke deployment
       # The workflow needs a Kubernetes target to prove the deployment path.
       # In this phase, kind provides a disposable CI-friendly cluster for this smoke test.
+      # (engineerd/setup-kind creates a temporary `kind` Kubernetes cluster inside the workflow job)
       - name: Start Kind cluster
         uses: engineerd/setup-kind@v0.5.0
         with:
@@ -159,9 +169,11 @@ jobs:
     timeout-minutes: 20
 
     steps:
+      # Make the repository contents available inside the runner workspace
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      # Start a temporary kind Kubernetes cluster for the smoke deployment inside the workflow job
       - name: Start Kind cluster
         uses: engineerd/setup-kind@v0.5.0
         with:
