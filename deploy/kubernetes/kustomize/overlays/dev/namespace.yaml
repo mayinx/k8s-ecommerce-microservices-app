@@ -1,0 +1,11 @@
+# Namespace object for the dev smoke environment
+# Purpose:
+# - codify namespace creation so deployment does not depend on a manual pre-step
+# - keep the environment boundary explicit and reproducible
+#
+# See project-docs/03-ci-cd-baseline/IMPLEMENTATION.md for context
+
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: sock-shop-dev

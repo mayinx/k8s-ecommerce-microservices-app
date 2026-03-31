@@ -1,0 +1,25 @@
+# Prod overlay for the GitHub Actions smoke deployment path
+# Purpose:
+# - reuse the proven raw-manifest base
+# - deploy into sock-shop-prod
+# - remove fixed storefront NodePort behavior for the environment-based path
+#
+# Reference pattern:
+# - Kubernetes Kustomize docs (bases/overlays/patches/namespace)
+# - see project-docs/03-ci-cd-baseline/IMPLEMENTATION.md for rationale and source links
+
+# Kustomize configuration schema version
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - namespace.yaml
+  - ../../../manifests
+
+namespace: sock-shop-prod
+
+patches:
+  - target:
+      kind: Service
+      name: front-end
+    path: patches/front-end-svc-clusterip.yaml    

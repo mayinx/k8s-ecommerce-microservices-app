@@ -142,7 +142,7 @@ The initial phases use Docker Compose and a local k3s cluster to establish a sta
 
 ---
 
-## Phase 01 — Local cluster baseline (k3s) => Deploy baseline app on local k3s cluster (NodePort) and prove it runs.
+## Phase 01 — Port-based local cluster baseline (k3s): Deploy Sock Shop via NodePort and prove the baseline works
 
 **Quick recap (Phase 01)**  
 - Phase 01 established a **clean, reproducible port-based Sock Shop baseline on the local k3s cluster** using the repository’s upstream Kubernetes manifests located in `deploy/kubernetes/manifests/`.
@@ -214,7 +214,7 @@ The initial phases use Docker Compose and a local k3s cluster to establish a sta
 
 ---
 
-## Phase 02 — Ingress baseline: host-based Traefik routing to the Sock Shop storefront
+## Phase 02 — Ingress baseline: Host-based Traefik routing to the Sock Shop storefront
 
 **Quick recap (Phase 02)**  
 - Phase 02 added a more **production-like, host-based storefront entrypoint** on the local k3s cluster by introducing a **Traefik Ingress** for `http://sockshop.local/`, while keeping the already proven **port-based NodePort `30001`** path intact as fallback.  
@@ -267,6 +267,73 @@ The initial phases use Docker Compose and a local k3s cluster to establish a sta
   - NodePort `30001` remains the known-good fallback entrypoint for local troubleshooting and rollback  
   - for a later production-style environment, the `front-end` Service should move from `NodePort` to `ClusterIP` so the ingress layer becomes the only external entrypoint
 
+## Phase 03 — CI/CD baseline: GitHub Actions delivery smoke path for dev/prod
 
+### Quick recap (Phase 03)
+
+####  Starting point: Phase 03 needed a real delivery baseline
+
+Phase 03 needed a real CI/CD baseline for the project’s `dev` / `prod` delivery path.
+
+#### Obstacle 1: Helm was not a viable baseline at this point
+
+The repository’s Helm chart was evaluated first, but even after fetching the missing dependency, the install path still failed because the pulled `nginx-ingress` subchart relied on deprecated Kubernetes API versions.
+
+### Solution / Chosen path: Reuse the proven raw manifests and add a thin Kustomize environment layer - along with GitHub Actions + hosted runners + kind
+
+The chosen path was therefore:
+
+- reuse the already proven raw manifests
+- add a thin Kustomize layer for `dev` and `prod`
+- use GitHub Actions with GitHub-hosted runners
+- use `kind` as the temporary Kubernetes smoke target
+- use GitHub Environments with a required-reviewer gate for `prod`
+
+This made it possible to introduce environment separation **without rewriting or duplicating the full manifest set**.
+
+### Obstacle 2: The repo-owned `openapi` image target failed and had to be deferred / excluded from workflow  
+
+The first workflow run surfaced a legacy `openapi` build problem. That auxiliary target was excluded for now, while `healthcheck` remained in scope as the repo-owned support image for the baseline.
+
+### Verified result: Successful dev + prod smoke delivery through GitHub Actions Pipeline
+
+The phase successfully proved:
+
+- automated `dev` smoke deployment
+- approval-gated `prod` smoke deployment
+- a delivery path that remains easy to retarget later to Proxmox
+
+The successfulyl implemented CI/CD smoke path works like this:
+
+1. validate the `dev` / `prod` overlays
+2. build and push the repo-owned `healthcheck` image to GHCR
+3. deploy the `dev` smoke environment automatically
+4. pause before `prod`
+5. require approval through the GitHub `prod` environment
+6. deploy the `prod` smoke environment after approval
+
+This gives the repository a real delivery baseline before moving to the final infrastructure target.
+
+## Primary evidence (Phase 03)   
+- First failed workflow run (before `openapi` scope correction):  
+  `project-docs/03-ci-cd-baseline/evidence/gh/10-gh-pipeline-failed.png`
+- Production gate waiting for approval:  
+  `project-docs/03-ci-cd-baseline/evidence/gh/17-gh-prod-.waiting-for-review.png`
+- Successful production smoke deployment:  
+  `project-docs/03-ci-cd-baseline/evidence/gh/19-gh-prod-success.png`
+
+## Further details 
+- Setup guide: `project-docs/03-ci-cd-baseline/SETUP.md`
+- Implementation log: `project-docs/03-ci-cd-baseline/IMPLEMENTATION.md`
+- Runbook: `project-docs/03-ci-cd-baseline/RUNBOOK.md`
+- Full phase-local decisions: `project-docs/03-ci-cd-baseline/DECISIONS.md`
+
+## Conclusion + Next steps  
+- Phase 03 proved the delivery mechanics cleanly without depending on the final target environment yet.
+- The next major step is to retarget the proven delivery path toward the real long-lived environment and continue with the remaining requirements:
+  - IaC / target infrastructure
+  - monitoring
+  - security hardening
+  - DR / rollback
 
 ## (Further entries will be added to record technical choices)

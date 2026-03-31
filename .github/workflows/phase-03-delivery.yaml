@@ -1,0 +1,201 @@
+# Phase 03 delivery smoke workflow
+# Purpose:
+# - validate the dev/prod Kustomize overlays
+# - build and push a repo-owned support image to GHCR
+# - deploy a dev smoke environment automatically
+# - deploy a prod smoke environment after approval
+#
+# Design choices:
+# - stays on GitHub-hosted runners for this phase
+# - uses kind as a temporary Kubernetes smoke target
+# - can later be retargeted from kind to Proxmox by replacing the cluster setup / kubeconfig section
+#
+# References:
+# - GitHub Actions workflow syntax
+# - GitHub environments
+# - GitHub-hosted runners
+# - see project-docs/03-ci-cd-baseline/IMPLEMENTATION.md for rationale and source links
+
+name: phase-03-delivery
+
+on:
+  # Manual workflow trigger / rerun entrypoint from the GitHub Actions UI
+  # No extra inputs are needed, so the key is left empty. This is enough 
+  # to enable manual workflow runs from the GitHub Actions UI 
+  workflow_dispatch:
+
+  # Normal branch-driven execution path
+  push:
+    branches:
+      - master # final intended branch
+      - feat/ci-github-actions-dev-prod-gate # temporary feature-branch trigger used while proving this phase
+
+# Minimum token permissions needed here:
+# - read repository contents
+# - push packages to GHCR
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  # ---------------------------------------------------------------------------
+  # 1) Validate the deployment definition layer
+  # ---------------------------------------------------------------------------
+  validate-overlays:
+    name: Validate dev/prod overlays
+    runs-on: ubuntu-latest
+
+    steps:
+      # Make the repository contents available inside the runner workspace
+      # Checks out the repository content into the runner workspace so later steps can read files from the repo 
+      # (like  workflow files, Kustomize overlays, and build contexts)    
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Show kubectl client version
+        run: kubectl version --client
+
+      # Render both overlays as a quick validation step before any image build or deploy job starts
+      # This checks whether the dev/prod deployment definitions are usable
+      # before the workflow spends time on image build or smoke deployment jobs.
+      - name: Render dev overlay
+        run: kubectl kustomize deploy/kubernetes/kustomize/overlays/dev > /tmp/dev-rendered.yaml
+
+      - name: Render prod overlay
+        run: kubectl kustomize deploy/kubernetes/kustomize/overlays/prod > /tmp/prod-rendered.yaml
+
+  # ---------------------------------------------------------------------------
+  # 2) Build and push the repo-owned support image(s)
+  # ---------------------------------------------------------------------------
+  build-push-support-images:
+    name: Build and push repo-owned images to GHCR
+    needs: validate-overlays
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        repo: [healthcheck]
+
+    steps:
+      # Make the repository contents available inside the runner workspace
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # Normalize owner name for lowercase GHCR image paths
+      - name: Prepare lowercase image owner
+        id: prep
+        shell: bash
+        run: echo "owner_lc=${GITHUB_REPOSITORY_OWNER,,}" >> "$GITHUB_OUTPUT"
+
+      # Authenticate the workflow to a container registry (here GHCR via ghcr.io) so the workflow 
+      # can push the built support image with the repository-scoped GitHub token
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # Build the Docker image and push it to the target registry
+      # I.e. build the selected repo-owned image target (i.e. 'healthcheck') and push it to GHCR using the commit SHA as the image tag
+      - name: Build and push image
+        uses: docker/build-push-action@v6
+        with:
+          context: ./${{ matrix.repo }}
+          push: true
+          tags: ghcr.io/${{ steps.prep.outputs.owner_lc }}/microservices-demo-${{ matrix.repo }}:${{ github.sha }}
+
+  # ---------------------------------------------------------------------------
+  # 3) Deploy the dev smoke environment
+  # ---------------------------------------------------------------------------
+  deploy-dev-smoke:
+    name: Deploy dev smoke environment
+    needs: build-push-support-images
+    runs-on: ubuntu-latest
+    environment: dev
+    timeout-minutes: 20
+
+    steps:
+      # Make the repository contents available inside the runner workspace
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # Start a temporary kind Kubernetes cluster for the smoke deployment
+      # The workflow needs a Kubernetes target to prove the deployment path.
+      # In this phase, kind provides a disposable CI-friendly cluster for this smoke test.
+      # (engineerd/setup-kind creates a temporary `kind` Kubernetes cluster inside the workflow job)
+      - name: Start Kind cluster
+        uses: engineerd/setup-kind@v0.5.0
+        with:
+          version: v0.20.0
+
+      # Wait until the cluster system pods are ready
+      - name: Wait for cluster readiness
+        run: |
+          until [ "$(kubectl get pods -A --no-headers | grep -cEv '([0-9]+)/\1')" -eq 0 ]; do
+            sleep 5
+          done
+          kubectl get pods -A
+
+      # Use the dev overlay as the actual deployment input
+      # The overlay is the real deployment definition for this environment:
+      # it reuses the manifest base, applies the environment namespace,
+      # and patches the storefront Service behavior where needed.
+      - name: Apply dev overlay
+        run: kubectl apply -k deploy/kubernetes/kustomize/overlays/dev
+
+      # Verify the key app rollouts that matter for the storefront path
+      - name: Verify key dev rollouts
+        run: |
+          kubectl rollout status deployment/front-end -n sock-shop-dev --timeout=180s
+          kubectl rollout status deployment/catalogue -n sock-shop-dev --timeout=180s
+          kubectl rollout status deployment/payment -n sock-shop-dev --timeout=180s
+          kubectl rollout status deployment/user -n sock-shop-dev --timeout=180s
+
+      # Show the resulting dev resources for quick proof/debugging
+      - name: Show dev resources
+        run: kubectl get deploy,pods,svc -n sock-shop-dev -o wide
+
+  # ---------------------------------------------------------------------------
+  # 4) Deploy the prod smoke environment
+  # ---------------------------------------------------------------------------
+  deploy-prod-smoke:
+    name: Deploy prod smoke environment
+    needs: deploy-dev-smoke
+    # Only allow the prod smoke deploy from the default branch.
+    # Based on this config GitHub adds the approval gate.
+    if: github.ref == 'refs/heads/master' 
+    runs-on: ubuntu-latest
+    environment: prod
+    timeout-minutes: 20
+
+    steps:
+      # Make the repository contents available inside the runner workspace
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # Start a temporary kind Kubernetes cluster for the smoke deployment inside the workflow job
+      - name: Start Kind cluster
+        uses: engineerd/setup-kind@v0.5.0
+        with:
+          version: v0.20.0
+
+      - name: Wait for cluster readiness
+        run: |
+          until [ "$(kubectl get pods -A --no-headers | grep -cEv '([0-9]+)/\1')" -eq 0 ]; do
+            sleep 5
+          done
+          kubectl get pods -A
+
+      # Use the prod overlay as the actual deployment input
+      - name: Apply prod overlay
+        run: kubectl apply -k deploy/kubernetes/kustomize/overlays/prod
+
+      - name: Verify key prod rollouts
+        run: |
+          kubectl rollout status deployment/front-end -n sock-shop-prod --timeout=180s
+          kubectl rollout status deployment/catalogue -n sock-shop-prod --timeout=180s
+          kubectl rollout status deployment/payment -n sock-shop-prod --timeout=180s
+          kubectl rollout status deployment/user -n sock-shop-prod --timeout=180s
+
+      - name: Show prod resources
+        run: kubectl get deploy,pods,svc -n sock-shop-prod -o wide
