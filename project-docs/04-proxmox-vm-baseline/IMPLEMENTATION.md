@@ -19,7 +19,7 @@
 - [**Preconditions**](#preconditions)
 - [**Step 0 — Confirm the Proxmox target host and storage layout**](#step-0--confirm-the-proxmox-target-host-and-storage-layout)
 - [**Step 1 — Stage the Ubuntu 24.04 cloud image on the Proxmox host**](#step-1--stage-the-ubuntu-2404-cloud-image-on-the-proxmox-host)
-- [**Step 2 — Create the reusable base VM template (`9000`)**](#step-2--create-the-reusable-base-vm-template-9000)
+- [**Step 2 — Create the reusable base VM template (`9000`) from the host-staged cloud image**](#step-2--create-the-reusable-base-vm-template-9000-from-the-host-staged-cloud-image)
 - [**Step 3 — Create the reference smoke VM (`9100`) from the template**](#step-3--create-the-reference-smoke-vm-9100-from-the-template)
 - [**Step 4 — Verify the reference smoke VM from inside the guest**](#step-4--verify-the-reference-smoke-vm-from-inside-the-guest)
 - [**Cleanup / rerun notes**](#cleanup--rerun-notes)
@@ -88,6 +88,8 @@ This step is the hypervisor-side starting point for the whole phase:
 
 This implementation step builds on the broader **target-host reconnaissance** captured separately in **[DISCOVERY.md](DISCOVERY.md)**.
 
+### Action
+
 **Node summary on the target Proxmox host**
 
 ![Node summary on the target Proxmox host](./evidence/px/03-PX-Node_Summary-dash.png)
@@ -100,8 +102,9 @@ This implementation step builds on the broader **target-host reconnaissance** ca
 
 ***Figure 2.*** *Datacenter storage view showing the available storage targets used for the template and smoke VM workflow.*
 
+**Investigate Proxmox storage targets via host shell**
 
-Using the Proxmox Storage Manager `pvesm` shows, that **both expected Proxmox storage targets are present and active**, so the host is ready for the template-and-clone workflow used in this phase:
+Using the Proxmox Storage Manager `pvesm` in the host shell shows, that **both expected Proxmox storage targets are present and active**, so the host is ready for the template-and-clone workflow used in this phase:
 
 ~~~bash
 # pvesm = Proxmox VE Storage Manager CLI
@@ -126,8 +129,10 @@ vmdata zfspool     active      5653921792             468      5653921324    0.0
 Now that the Proxmox host and storage targets are confirmed, the next step is to **stage the Ubuntu 24.04 cloud image** on the Proxmox host.
 
 - This **cloud image** is the **raw operating-system base** from which the reusable **VM template** will be built.
-- Instead of installing Ubuntu interactively from scratch, this phase uses a **prebuilt cloud image** and **converts it into a Proxmox template**. THis is much faster and fits the later **template -> clone** workflow.
+- Instead of installing Ubuntu interactively from scratch, this phase uses a **prebuilt cloud image** and **converts it into a Proxmox template**. This is much faster and fits the later **template -> clone** workflow.
 - A **temporary `.part` file** is used first so the download can be verified before it is moved into place as the real import source.
+
+### Action
 
 ~~~bash
 # Create a dedicated working directory for staging the cloud image
@@ -148,6 +153,10 @@ mv ubuntu-24.04-server-cloudimg-amd64.img.part \
    ubuntu-24.04-server-cloudimg-amd64.img
 ~~~
 
+### Result
+
+The cloud image was downloaded and successfully staged on the Proxmox host.
+
 > [!NOTE] **🧩 Cloud Image**  
 > A cloud image is a prebuilt operating-system image designed for automated first boot, typically with Cloud-Init support already present.  
 > That makes it a good fit for a Proxmox **template -> clone -> configure** workflow.
@@ -162,6 +171,8 @@ With the Ubuntu 24.04 cloud image staged on the Proxmox host, the next step is t
 
 - This is done via Proxmox’s command-line VM manager (`qm`).  
 - The result of this step is **a VM template as reusable base artifact** from which later smoke or application VMs can be cloned quickly and consistently.
+
+### Action
 
 > [!NOTE] **🧩 Template vs Clone**  
 > The template is the reusable base artifact.  
@@ -195,7 +206,7 @@ The template uses the following settings:
 > The Cloud-Init drive only provides the configuration data that the guest reads during its first boot.
 
 ~~~bash
-# --- Create the base VM shell ---
+# --- (1) Create the base VM shell ---
 # Create the base VM object that will become the reusable template
 # qm = Proxmox QEMU/KVM virtual-machine manager CLI
 $ qm create 9000 \
@@ -205,7 +216,7 @@ $ qm create 9000 \
   --ostype l26 \
   --scsihw virtio-scsi-pci
 
-# --- Import the Ubuntu cloud image and add the Cloud-Init drive ---
+# --- (2) Import the Ubuntu cloud image and add the Cloud-Init drive ---
 
 # Import the Ubuntu cloud image as the real root disk on vmdata
 $ qm set 9000 \
@@ -226,7 +237,7 @@ $ qm set 9000 --boot order=scsi0
 # Redirect the primary guest console to the first serial interface
 $ qm set 9000 --serial0 socket --vga serial0
 
-# --- Verify the VM object before converting it into a template ---
+# --- (3) Verify the VM object before converting it into a template ---
 $ qm config 9000
 boot: order=scsi0
 cores: 2
@@ -251,29 +262,57 @@ Volid                    Format  Type            Size VMID
 vmdata:vm-9000-cloudinit raw     images       4194304 9000
 vmdata:vm-9000-disk-0    raw     images    3758096384 9000
 
-# --- Convert the VM into a reusable VM template ---
+# --- (4) Convert the VM into a reusable VM template ---
 $ qm template 9000
 
-# --- Verify the final template result ---
+# --- (5) Verify the final template result ---
 $ qm config 9000
+boot: order=scsi0
+cores: 2
+ide2: vmdata:vm-9000-cloudinit,media=cdrom
+memory: 2048
+meta: creation-qemu=9.2.0,ctime=<redacted>
+name: ubuntu-2404-cloudinit-template
+ostype: l26
+scsi0: vmdata:base-9000-disk-0,size=3584M
+scsihw: virtio-scsi-pci
+serial0: socket
+smbios1: uuid=<redacted>
+template: 1
+vga: serial0
+vmgenid: <redacted>
+
 $ qm list --full
+VMID NAME                            STATUS   MEM(MB) BOOTDISK(GB) PID
+9000 ubuntu-2404-cloudinit-template  stopped     2048         3.50 0
+
 $ pvesm list vmdata
+Volid                    Format  Type            Size VMID
+vmdata:base-9000-disk-0  raw     images    3758096384 9000
+vmdata:vm-9000-cloudinit raw     images       4194304 9000
 ~~~
 
-**Verification:**
+### Result
 
-- `qm config 9000` must show:
-  - `boot: order=scsi0`
-  - a real `scsi0` root disk
-  - a Cloud-Init drive `vmdata` on `ide2`
-- `qm list --full` must show a non-zero boot disk
-- `pvesm list vmdata` must show the template-related storage objects
+The Ubuntu 24.04 cloud image was successfully converted into a **reusable Proxmox VM template**.
 
+The successful end state is shown by these concrete post-conversion signals:
+
+- `qm config 9000` now  
+  - shows a Cloud-Init drive `vmdata` on `ide2` 
+  - includes `template: 1` 
+  - shows `boot: order=scsi0`
+  - shows a real `scsi0` root disk - as `vmdata:base-9000-disk-0,...` (instead of `vmdata:vm-9000-disk-0,...`)
+- `qm list --full` still shows a non-zero boot disk
+- `pvesm list vmdata` shows the expected template-side storage objects:
+  - `vmdata:base-9000-disk-0`
+  - `vmdata:vm-9000-cloudinit`
+ 
 **Reusable base template created**
 
 ![Reusable base template created](./evidence/px/09-PX-Base-VM-Template-Image-9000-created.png)
 
-***Figure 3.*** *Proxmox inventory view showing the reusable Ubuntu 24.04 base template after successful creation. This proves that the imported cloud image and attached Cloud-Init drive were turned into a reusable template artifact.*
+***Figure 3.*** *Proxmox inventory view showing the reusable Ubuntu 24.04 base VM template after successful creation. This proves that the imported cloud image and attached Cloud-Init drive were turned into a reusable template artifact.*
 
 ---
 
@@ -281,60 +320,64 @@ $ pvesm list vmdata
 
 ### Rationale
 
-Once the reusable template exists, the next step is to create the **reference smoke VM** from it and apply the final guest settings.
+Once the reusable template exists, the next step is to create the **minimal verification VM** from it - and prove that the template can be turned into a working guest with the intended first-boot settings.
+
+This step establishes the first working VM baseline that later phases can build on for deployment and automation work.
+
+### Action
 
 > [!NOTE] **🧩 "Smoke VM"**  
-> A **minimal validation VM** created from a template used to prove that the baseline works before heavier deployment steps are added on top.  
-> In this phase, `9100` is the **reference smoke VM** used to validate the reusable template path:
+> A **minimal validation VM** created from a reusable template used to prove that the baseline works before heavier deployment steps are added on top.  
+> In this phase, `9100` is the **smoke VM** used to validate the reusable template path
 
-The reference smoke VM will utilize:
+The smoke VM uses:
 
-- The reusable template `9000` as its source
+- the reusable template `9000` as its source
 - `9100` as its own VM ID
-- A Cloud-Init user and password
-- A no-bridge `net0: virtio` guest NIC - as guest-network path for DHCP, DNS, and outbound access (reasoning see Info Box below "Guest NIC without bridge attachment") 
-- A larger root disk before first boot
+- a Cloud-Init user and password
+- a virtio NIC (`net0: virtio`) without bridge attachment - to use the documented default guest VM network path for DHCP, DNS, and outbound access (unbridged QEMU user-mode NAT - reasoning see below "Guest NIC without bridge attachment") 
+- a larger root disk before first boot
 
 > [!NOTE] **🧩 NIC (Network Interface Card)**
-> A NIC is the network adapter a system uses to connect to a network.
+> A **NIC** is the **network adapter** a system uses to connect to a network.
 >
 > In this phase, the smoke VM does **not** use a physical NIC directly.  
-> Instead, Proxmox presents the guest with a **virtual NIC**, configured here as:
+> Instead, Proxmox presents the guest VM with a **virtual NIC**, configured here as:
 >
 > - `net0: virtio`
 >
-> `net0` means the VM’s first network interface.  
-> `virtio` means a paravirtualized virtual NIC designed for virtualization, with lower overhead and better performance than older emulated adapter types such as `e1000`.
+> `net0` = the VM’s first network interface.  
+> `virtio` = a paravirtualized virtual NIC designed for virtualization, with lower overhead and better performance than older emulated adapter types such as `e1000`.
 >
 > Inside the Ubuntu guest, that virtual NIC appears as `eth0`.  
-> In the final proven baseline for this phase, that NIC is intentionally left **without a bridge** so the guest uses for outbound connectivity QEMU user-mode NAT (a built-in VM networking mode provided by QEMU on the host side).
+> In this phase, the NIC is intentionally configured **without a bridge** (i.e. without `bridge=vmbr0`), so the guest uses for outbound connectivity QEMU user-mode NAT (a built-in VM networking mode provided by QEMU on the host side).
 
 To proceed, we again utilize Proxmox' QEMU/KVM virtual-machine manager CLI tool `qm`: 
 
 ~~~bash
-# --- Clone the smoke VM from the reusable base template ---
+# --- (1) Clone the smoke VM from the reusable base template ---
 $ qm clone 9000 9100 --name ubuntu-2404-smoke-01
 create full clone of drive ide2 (vmdata:vm-9000-cloudinit)
 create linked clone of drive scsi0 (vmdata:base-9000-disk-0)
 
-# --- Configure guest networking and Cloud-Init login values ---
-# Use the final proven guest NIC path: virtio NIC without bridge attachment
+# --- (2) Configure guest networking and Cloud-Init login values ---
+# Use the documented guest NIC path: virtio NIC without bridge attachment
 $ qm set 9100 --net0 virtio
 update VM 9100: -net0 virtio
 
 $ qm set 9100 --ciuser ubuntu
 update VM 9100: -ciuser ubuntu
 
-$ qm set 9100 --cipassword 'CHANGE_TO_A_FRESH_TEMP_PASSWORD'
+$ qm set 9100 --cipassword 'SECURE_TEMP_PASSWORD'
 update VM 9100: -cipassword <hidden>
 
 $ qm set 9100 --ipconfig0 ip=dhcp
 update VM 9100: -ipconfig0 ip=dhcp
 
-# --- Enlarge the guest root disk before first boot ---
+# --- (3) Enlarge the guest root disk before first boot ---
 $ qm resize 9100 scsi0 16G
 
-# --- Verify the smoke VM object before booting ---
+# --- (4) Verify the smoke VM object before booting ---
 $ qm config 9100
 boot: order=scsi0
 cipassword: **********
@@ -363,7 +406,7 @@ $ qm list --full
       9000 ubuntu-2404-cloudinit-template stopped    2048          3.50 0
       9100 ubuntu-2404-smoke-01          stopped    2048         16.00 0
 
-# --- Start the smoke VM and confirm runtime state ---
+# --- (5) Start the smoke VM and confirm runtime state ---
 $ qm start 9100
 Use of uninitialized value in split at /usr/share/perl5/PVE/QemuServer/Cloudinit.pm line 115.
 generating cloud-init ISO
@@ -376,7 +419,13 @@ VMID NAME                 STATUS   MEM(MB) BOOTDISK(GB) PID
 9100 ubuntu-2404-smoke-01          running    2048         16.00 <redacted-pid>
 ~~~
 
+### Result
+
+The **smoke VM (`9100`) was successfully created** from the reusable Proxmox VM template. The template can be turned into a working guest with the intended first-boot settings.
+
 **Hypervisor-side verification points:**
+
+The successful end state is shown by these concrete post-conversion signals:
 
 - `qm config 9100` shows:
   - `net0: virtio=...` with **no** bridge parameter
@@ -385,13 +434,13 @@ VMID NAME                 STATUS   MEM(MB) BOOTDISK(GB) PID
   - `scsi0: ... size=16G`
 - `qm cloudinit pending 9100` shows the configured Cloud-Init values queued for the guest
 - `qm list --full` first shows the VM in `stopped` state with `BOOTDISK(GB)` at `16.00`, and then in `running` state after boot
+- the warning `Interface 'tap9100i0' not attached to any bridge.` appears during start and is expected here, because the guest NIC is intentionally configured without bridge attachment
 
-> [!NOTE] **🧩 Guest NIC without bridge attachment**
+> [!NOTE] **🧩 Guest NIC without host bridge attachment**
 >
-> In this phase, the smoke VM NIC is intentionally configured as `net0: virtio` **without** `bridge=vmbr0`.  
-> This is the guest-VM-network path for **DHCP** (**Dynamic Host Configuration Protocol**), **DNS** (**Domain Name System**), and outbound access on this Proxmox host.
+> In this phase, the smoke VM NIC is intentionally configured as virtio NIC (`net0: virtio`) **without** bridge attachment (no `bridge=vmbr0`) - to use the documented default unbridged QEMU user-mode NAT path for guest VMs.
 >
-> The official Proxmox documentation on `qm` VM networking states that **if no bridge is specified for a guest NIC**, Proxmox/QEMU creates a **user-mode NAT** network path for that VM as default. In that mode, the guest receives built-in network services and a private guest-side network, typically with:
+> Details: The official Proxmox `qm` VM networking documentation states that **if no bridge is specified for a guest NIC**, Proxmox/QEMU uses the default unbridged **user-mode NAT** network path for that guest VM. In that mode, the guest receives built-in network services and a private guest-side network, typically with:
 > - guest addresses in the `10.0.2.0/24` range
 > - default gateway `10.0.2.2`
 > - DNS server `10.0.2.3`
@@ -401,24 +450,11 @@ VMID NAME                 STATUS   MEM(MB) BOOTDISK(GB) PID
 > - the guest used `10.0.2.2` as its default route
 > - outbound access worked successfully from inside the VM
 
-
-> [!NOTE] **🧩 QEMU user-mode NAT**
-> QEMU user-mode NAT is a built-in VM networking mode provided by QEMU on the host side.
->
-> If a Proxmox VM NIC is configured without a bridge attachment, QEMU can provide a small private guest network with:
-> - DHCP (**Dynamic Host Configuration Protocol**)
-> - DNS (**Domain Name System**)
-> - a private IPv4 range such as `10.0.2.0/24`
-> - outbound access through **NAT** (**Network Address Translation**)
->
-> The guest does not need to know that NAT is being handled by QEMU.  
-> Inside the VM, Ubuntu simply sees a normal network interface, an IP address, a default route, and working outbound connectivity.
-
 **Smoke VM created**
 
 ![Smoke VM created](./evidence/px/10-PX-Smoke-Test-VM-Clone-9100-created.png)
 
-***Figure 4.*** *Proxmox inventory view showing the reference smoke VM cloned from the base template. This proves that the template is reusable and that the final reference guest path was established successfully.*
+***Figure 4.*** *Proxmox inventory view showing the reference smoke VM cloned from the base template and running. This proves that the template is reusable and that the final reference guest path was established successfully.*
 
 ---
 
@@ -426,40 +462,81 @@ VMID NAME                 STATUS   MEM(MB) BOOTDISK(GB) PID
 
 ### Rationale
 
-At this point the VM exists and is running in Proxmox, but the hypervisor-side inventory alone is still not enough.
+At this point the **VM exists and is running in Proxmox**, but the hypervisor-side inventory alone is still not enough.
 
-Now the verification moves **inside the guest**, meaning inside the operating system running in the VM itself.  
-This is the point where the phase proves that the VM is not only present in Proxmox, but also usable as a real machine: it must accept login, finish Cloud-Init initialization, expose the enlarged root filesystem, and provide outbound connectivity.
+To complete the verification, we now log into the guest VM itself and prove that the machine is not only present in Proxmox but also usable from inside the operating system.
 
-The guest is accessed through the configured serial console:
+The goal is to verify that the guest:
+
+- accepts login
+- finishes Cloud-Init initialization
+- exposes the enlarged root filesystem
+- provides outbound connectivity
+
+### Action
+
+The guest OS is accessed through the configured serial console from the host:
 
 ~~~bash
 # Open the VM's serial console from the Proxmox host to log into the guest operating system
 qm terminal 9100
 ~~~
 
-Inside the guest, the following checks are used:
+Inside the guest, we perform the following checks:
 
 ~~~bash
 # Confirm the guest login identity and Cloud-Init completion
-whoami
-hostname
-cloud-init status --wait
+$ whoami
+ubuntu
+
+$ hostname
+ubuntu-2404-smoke-01
+
+$ cloud-init status --wait
+status: done
 
 # Confirm the guest addressing and routing
-ip -brief address
-ip route
+$ ip -brief address
+lo               UNKNOWN        127.0.0.1/8 ::1/128
+eth0             UP             10.0.2.15/24 metric 100 fec0::be24:11ff:fe4d:da17/64 fe80::be24:11ff:fe4d:da17/64
+
+$ ip route
+default via 10.0.2.2 dev eth0 proto dhcp src 10.0.2.15 metric 100
+10.0.2.0/24 dev eth0 proto kernel scope link src 10.0.2.15 metric 100
+10.0.2.2 dev eth0 proto dhcp scope link src 10.0.2.15 metric 100
+10.0.2.3 dev eth0 proto dhcp scope link src 10.0.2.15 metric 100
 
 # Confirm that the enlarged root filesystem is visible inside the guest
-df -h /
+$ df -h /
+Filesystem      Size  Used Avail Use% Mounted on
+/dev/sda1        15G  2.2G   13G  16% /
 
 # Confirm outbound connectivity
-ping -c 2 1.1.1.1
-ping -c 2 example.com || true
-curl -I --max-time 10 https://example.com || true
+$ ping -c 2 1.1.1.1
+PING 1.1.1.1 (1.1.1.1) 56(84) bytes of data.
+64 bytes from 1.1.1.1: icmp_seq=1 ttl=255 time=1.84 ms
+64 bytes from 1.1.1.1: icmp_seq=2 ttl=255 time=1.94 ms
+
+--- 1.1.1.1 ping statistics ---
+2 packets transmitted, 2 received, 0% packet loss, time 1002ms
+rtt min/avg/max/mdev = 1.840/1.889/1.938/0.049 ms
+
+$ curl -I --max-time 10 https://example.com
+HTTP/2 200
+date: Thu, 02 Apr 2026 20:10:18 GMT
+content-type: text/html
+server: cloudflare
+last-modified: Tue, 24 Mar 2026 22:07:32 GMT
+allow: GET, HEAD
+accept-ranges: bytes
+age: 4589
+cf-cache-status: HIT
+cf-ray: 9e6279e8d9136d1d-AMS
 ~~~
 
-The final successful results are:
+### Result
+
+**The final successful results are:**
 
 - `whoami` -> `ubuntu`
 - `hostname` -> `ubuntu-2404-smoke-01`
@@ -467,8 +544,8 @@ The final successful results are:
 - `ip -brief address` -> `eth0` with `10.0.2.15/24`
 - `ip route` -> default route via `10.0.2.2`
 - `df -h /` -> `/dev/sda1` visible at roughly `15G`
-- `ping -c 2 1.1.1.1` -> success
-- `curl -I --max-time 10 https://example.com` -> success
+- `ping -c 2 1.1.1.1` -> successful outbound IP connectivity
+- `curl -I --max-time 10 https://example.com` -> successful DNS resolution plus outbound HTTPS connectivity
 
 **Guest login, Cloud-Init, and disk verification success**
 
@@ -531,6 +608,8 @@ qm start 9100
 - `evidence/px/10-PX-Smoke-Test-VM-Clone-9100-created.png`
 - `evidence/px/11-PX-Smoke-VM-9100_guest-login-and-cloud-init-success.png`
 
+More evidence can be found in the `evidence` folder of this phase.
+
 ### What this phase proves
 
 This phase proves the first stable **Proxmox-backed VM baseline** for the target environment.
@@ -551,14 +630,17 @@ The phase proves:
 - Proxmox Cloud-Init support:
   - https://pve.proxmox.com/wiki/Cloud-Init_Support
 
-- Proxmox QEMU/KVM configuration reference:
+- Proxmox `qm(1)` command reference:
+  - https://pve.proxmox.com/pve-docs/qm.1.html
+
+- Proxmox `qm.conf(5)` configuration reference:
   - https://pve.proxmox.com/pve-docs/qm.conf.5.html
 
-- Proxmox QEMU/KVM virtual machine documentation:
-  - https://pve.proxmox.com/pve-docs/chapter-qm.html
+- Proxmox VE Storage / `pvesm`:
+  - https://pve.proxmox.com/pve-docs/chapter-pvesm.html
 
-- Proxmox disk resize reference:
+- Proxmox Resize disks reference:
   - https://pve.proxmox.com/wiki/Resize_disks
 
-- Ubuntu 24.04 released cloud image index:
+- Ubuntu 24.04 LTS released cloud image index:
   - https://cloud-images.ubuntu.com/releases/noble/release/
