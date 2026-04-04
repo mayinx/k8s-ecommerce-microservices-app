@@ -41,12 +41,34 @@
     - **hypervisor-side verification** on the Proxmox host itself
     - **guest-side verification** inside the guest VM operating system on that host
 
-### Prove the VM end-to-end, not just the Proxmox inventory object
+### Establish a CLI-driven template workflow (instead of GUI-based VM creation)
 
-- A new Proxmox sidebar entry alone is not enough to count as success.
-- This phase therefore verifies the VM at two levels:
+This phase follows the official Proxmox **[Cloud-Init](https://pve.proxmox.com/wiki/Cloud-Init_Support) template workflow**:
+
+- (1) Use a **Cloud-Init-capable Ubuntu image** 
+- (2) Turn this image into a **reusable VM template** on the Proxmox host
+- (3) Clone guest VMs from that template 
+
+That is the workflow Proxmox itself recommends for rolling out new VM instances efficiently. The Proxmox documentation explicitly recommends converting a prepared **Cloud-Init image** into a **VM template** and then using that template to create **linked clones** quickly.
+
+The Proxmox GUI wizard is a valid operational surface for VM creation and was inspected during discovery. For this phase, however, the baseline is documented via the **CLI-driven template path** because it makes teh chosen workflow
+
+- easier to reproduce exactly
+- easier to verify from the host and from inside the guest
+- and easier to align later with automation and Infrastructure as Code work
+
+The implementation therefore standardizes on one clear documented path:
+
+- create a reusable **Cloud-Init VM template**
+- clone a **reference smoke VM**
+- verify the result from both the **Proxmox host** and **inside the guest**
+
+### Prove the VM at both verification layers (host + guest)
+
+- A new Proxmox sidebar entry for a new VM/VM-Template is not enough to count as success.
+- This phase therefore verifies the VM at two distinct levels:
   - on the **Proxmox host** (`qm`, `pvesm`, inventory, disk objects, runtime state)
-  - and inside the **guest** (the virtual machine operating system itself)
+  - and inside the **guest operating system** itself
 - The guest must boot, accept login, finish Cloud-Init initialization, expose a usable root filesystem, and prove outbound connectivity.
 
 ---
@@ -126,10 +148,10 @@ vmdata zfspool     active      5653921792             468      5653921324    0.0
 
 ### Rationale
 
-Now that the Proxmox host and storage targets are confirmed, the next step is to **stage the Ubuntu 24.04 cloud image** on the Proxmox host.
+Now that the Proxmox host and storage targets are confirmed, the next step is to **stage a Ubuntu 24.04 cloud image** on the Proxmox host.
 
-- This **cloud image** is the **raw operating-system base** from which the reusable **VM template** will be built.
-- Instead of installing Ubuntu interactively from scratch, this phase uses a **prebuilt cloud image** and **converts it into a Proxmox template**. This is much faster and fits the later **template -> clone** workflow.
+- This **cloud image** is the **raw operating-system base** from which the reusable **CloudInit VM template** will be built. In the case of Ubuntu, that cloud image is provided at https://cloud-images.ubuntu.com.
+- So instead of installing Ubuntu interactively from scratch, this phase uses a **prebuilt cloud image** and **converts it into a Proxmox template**. This is much faster and fits the later **template -> clone** workflow.
 - A **temporary `.part` file** is used first so the download can be verified before it is moved into place as the real import source.
 
 ### Action
@@ -149,7 +171,7 @@ $ ls -lh ubuntu-24.04-server-cloudimg-amd64.img.part
 -rw-r--r-- 1 root root 601M Mar 23 19:31 ubuntu-24.04-server-cloudimg-amd64.img.part
 
 # Move the validated download into place as the real import source
-mv ubuntu-24.04-server-cloudimg-amd64.img.part \
+$ $mv ubuntu-24.04-server-cloudimg-amd64.img.part \
    ubuntu-24.04-server-cloudimg-amd64.img
 ~~~
 
@@ -167,7 +189,7 @@ The cloud image was downloaded and successfully staged on the Proxmox host.
 
 ### Rationale
 
-With the Ubuntu 24.04 cloud image staged on the Proxmox host, the next step is to turn that image into a reusable **Proxmox VM template**.
+With the Ubuntu 24.04 cloud image staged on the Proxmox host, the next step is to turn that image into a reusable **Proxmox CloudInit VM template**.
 
 - This is done via Proxmox’s command-line VM manager (`qm`).  
 - The result of this step is **a VM template as reusable base artifact** from which later smoke or application VMs can be cloned quickly and consistently.
@@ -294,7 +316,7 @@ vmdata:vm-9000-cloudinit raw     images       4194304 9000
 
 ### Result
 
-The Ubuntu 24.04 cloud image was successfully converted into a **reusable Proxmox VM template**.
+The Ubuntu 24.04 cloud image was successfully converted into a **reusable Proxmox CloudInit VM template**.
 
 The successful end state is shown by these concrete post-conversion signals:
 
