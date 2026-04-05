@@ -47,6 +47,8 @@ Current proven highlights include:
 - GHCR publishing for the repo-owned `healthcheck` image
 - automated `dev` smoke deployment
 - approval-gated `prod` smoke deployment
+- reusable Proxmox VM template baseline
+- verified Proxmox smoke VM with host-side and guest-side proof
 
 ## Architecture direction
 
@@ -59,7 +61,9 @@ The current architecture direction is:
 - **container registry:** GHCR
 - **temporary CI/CD smoke target:** `kind`
 - **later long-lived target:** Proxmox-based environment
-- **later planned layers:** monitoring, security hardening, DR, IaC-driven target deployment
+  - **current Proxmox target baseline (realized):** reusable VM template + verified smoke VM
+  - **next target step:** application deployment on the Proxmox-backed environment
+- **later planned layers:** monitoring, security hardening, DR, and selective IaC-driven target codification
 
 This means the project is already proving the delivery mechanics now, while remaining open for the next infrastructure and operations layers.
 
@@ -80,6 +84,16 @@ Depending on the phase, a folder may contain:
 - `evidence/`
 
 ### Current phase docs
+- Phase 04 discovery:
+  - [project-docs/04-proxmox-vm-baseline/DISCOVERY.md](project-docs/04-proxmox-vm-baseline/DISCOVERY.md)
+- Phase 04 implementation log:
+  - [project-docs/04-proxmox-vm-baseline/IMPLEMENTATION.md](project-docs/04-proxmox-vm-baseline/IMPLEMENTATION.md)
+- Phase 04 runbook:
+  - [project-docs/04-proxmox-vm-baseline/RUNBOOK.md](project-docs/04-proxmox-vm-baseline/RUNBOOK.md)
+- Phase 04 decisions:
+  - [project-docs/04-proxmox-vm-baseline/DECISIONS.md](project-docs/04-proxmox-vm-baseline/DECISIONS.md)
+
+### Previous phase docs
 - Phase 03 setup:
   - [project-docs/03-ci-cd-baseline/SETUP.md](project-docs/03-ci-cd-baseline/SETUP.md)
 - Phase 03 implementation log:
@@ -146,6 +160,22 @@ The repository currently contains proven work across these phases:
     - [Runbook](project-docs/03-ci-cd-baseline/RUNBOOK.md)
     - [Decisions](project-docs/03-ci-cd-baseline/DECISIONS.md)  
 
+- **Phase 04 — Proxmox VM baseline**
+  - provided Proxmox target host inspected and documented
+  - reusable Ubuntu 24.04 Cloud-Init VM template created as `9000`
+  - reference smoke VM created as `9100`
+  - host-side verification completed
+  - guest-side verification completed:
+    - login
+    - Cloud-Init completion
+    - usable root disk
+    - outbound connectivity
+  - docs:
+    - [Discovery](project-docs/04-proxmox-vm-baseline/DISCOVERY.md)
+    - [Implementation](project-docs/04-proxmox-vm-baseline/IMPLEMENTATION.md)
+    - [Runbook](project-docs/04-proxmox-vm-baseline/RUNBOOK.md)
+    - [Decisions](project-docs/04-proxmox-vm-baseline/DECISIONS.md)
+
 This section is intentionally a moving summary, not the final shape of the project.
 
 ## Tech stack
@@ -190,6 +220,17 @@ The full evidence index for each phase is documented inside the corresponding `I
 - `openapi` is excluded for now because it is a legacy auxiliary build target and not required for proving the main delivery path.
 - The project remains phase-based so later infrastructure retargeting and hardening can build on already proven delivery mechanics.
 
+## Current notable decisions
+
+- Helm was evaluated but deferred for the current CI/CD baseline because the chart path still depends on legacy incompatible API usage.
+- The CI/CD baseline uses GitHub-hosted runners and `kind`, not a self-hosted runner on a personal machine.
+- `openapi` is excluded for now because it is a legacy auxiliary build target and not required for proving the main delivery path.
+
+- The Proxmox baseline is standardized on the official Cloud-Init template workflow via `qm` (Proxmox’s command-line VM manager).
+- Phase 04 proves the target VM baseline through both host-side and guest-side verification, not through inventory visibility alone.
+
+- The project remains phase-based so later deployment, automation, and hardening work can build on already proven mechanics.
+
 ## Repository structure (high level)
 
 - `.github/workflows/` — workflow definitions
@@ -202,8 +243,9 @@ The full evidence index for each phase is documented inside the corresponding `I
 This README is intentionally kept open for the next implementation phases.
 
 ### Core phases still to complete
-- target deployment on the primary long-lived environment (Proxmox)
-- IaC for that target environment (Terraform)
+- application deployment on the primary Proxmox-backed target environment
+- IaC for that target environment (Terraform) 
+  - selective Terraform / Infrastructure as Code work for stable target/bootstrap pieces
 - monitoring / observability
 - security hardening
 - disaster recovery / rollback strategy
