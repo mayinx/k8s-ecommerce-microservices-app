@@ -1,13 +1,11 @@
-
-# ▶️ Runbook — Phase 04 (Proxmox VM Baseline): Proxmox template and smoke VM baseline
+# ▶️ Runbook — Phase 04 (Proxmox VM Baseline): Proxmox VM template and smoke VM
 
 > ## 👤 About
 > This document is the short rerun guide for **Phase 04 (Proxmox VM Baseline)**.  
-> It captures the **final proven happy path** for creating the reusable Proxmox VM template and the reference smoke VM for this phase.  
+> It is meant as a quick rerun reference without the long-form diary. 
 >
 > For the detailed build diary and rationale, see: **[IMPLEMENTATION.md](IMPLEMENTATION.md)**.  
 > For the earlier discovery and target-host audit, see: **[DISCOVERY.md](DISCOVERY.md)**.  
-> For environment preparation and prerequisites, see: **[SETUP.md](SETUP.md)**.  
 > For phase-scoped rationale and outcome notes, see: **[DECISIONS.md](DECISIONS.md)**.  
 > For top-level project navigation, see: **[../INDEX.md](../INDEX.md)**.
 
@@ -19,9 +17,9 @@
 - [**Preconditions**](#preconditions)
 - [**Step 0 — Confirm Proxmox storage targets**](#step-0--confirm-proxmox-storage-targets)
 - [**Step 1 — Stage the Ubuntu 24.04 cloud image**](#step-1--stage-the-ubuntu-2404-cloud-image)
-- [**Step 2 — Create the reusable VM template (`9000`)**](#step-2--create-the-reusable-vm-template-9000)
+- [**Step 2 — Create the reusable Cloud-Init VM template (`9000`)**](#step-2--create-the-reusable-cloud-init-vm-template-9000)
 - [**Step 3 — Create the reference smoke VM (`9100`)**](#step-3--create-the-reference-smoke-vm-9100)
-- [**Step 4 — Verify the smoke VM inside the guest**](#step-4--verify-the-smoke-vm-inside-the-guest)
+- [**Step 4 — Verify the reference smoke VM from inside the guest**](#step-4--verify-the-reference-smoke-vm-from-inside-the-guest)
 - [**Cleanup / rerun**](#cleanup--rerun)
 - [**Files added in this phase**](#files-added-in-this-phase)
 
@@ -96,7 +94,7 @@ mv ubuntu-24.04-server-cloudimg-amd64.img.part \
 
 ---
 
-## Step 2 — Create the reusable VM template (`9000`)
+## Step 2 — Create the reusable Cloud-Init VM template (`9000`)
 
 ~~~bash
 # --- (1) Create the base VM shell ---
@@ -173,7 +171,9 @@ $ qm list --full
   - `ipconfig0: ip=dhcp`
   - `ide2: ...cloudinit...`
   - `scsi0: ... size=16G`
+- `qm cloudinit pending 9100` shows the queued Cloud-Init values for the guest
 - `qm list --full` shows the VM in `running` state after start
+- the warning about no bridge attachment during `qm start 9100` is expected in this phase
 
 > [!NOTE] **🧩 Guest NIC without bridge attachment**
 >
@@ -182,7 +182,7 @@ $ qm list --full
 
 ---
 
-## Step 4 — Verify the smoke VM inside the guest
+## Step 4 — Verify the reference smoke VM from inside the guest
 
 ~~~bash
 # Open the serial console from the Proxmox host

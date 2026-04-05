@@ -24,11 +24,19 @@ Documentation is iterative and phase-aligned: baseline notes first, then milesto
 - [Phase 03 — Runbook (TL;DR)](./03-ci-cd-baseline/RUNBOOK.md)
 - [Phase 03 — Decision Log](./03-ci-cd-baseline/DECISIONS.md)
 
+## Phase 04: Proxmox VM baseline (reusable Cloud-Init template + smoke VM)
+- [Phase 04 — Setup Guide](./04-proxmox-vm-baseline/SETUP.md)
+- [Phase 04 — Discovery / target audit](./04-proxmox-vm-baseline/DISCOVERY.md)
+- [Phase 04 — Implementation Log](./04-proxmox-vm-baseline/IMPLEMENTATION.md)
+- [Phase 04 — Runbook (TL;DR)](./04-proxmox-vm-baseline/RUNBOOK.md)
+- [Phase 04 — Decision Log](./04-proxmox-vm-baseline/DECISIONS.md)
+
 ## Future phases (placeholders; added when we reach them)
-- Phase 04: Target deployment on Proxmox (IaC)
-- Phase 05: Observability (monitoring/logging/alerting)
-- Phase 06: Security hardening (scanning, policies, secrets)
-- Phase 07: DR / rollback runbooks
+- Phase 05: Sock Shop target deployment on the Proxmox VM baseline
+- Phase 06: Proxmox target automation / Infrastructure as Code
+- Phase 07: Observability (monitoring/logging/alerting)
+- Phase 08: Security hardening (scanning, policies, secrets)
+- Phase 09: DR / rollback runbooks
 
 ## Optional extension track (later / if time allows)
 - Testing track:

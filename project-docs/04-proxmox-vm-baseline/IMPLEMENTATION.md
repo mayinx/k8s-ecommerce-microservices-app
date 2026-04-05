@@ -1,11 +1,10 @@
-# 🧱 Implementation Log — Phase 04 (Proxmox VM Baseline): Proxmox template and smoke VM baseline
+# 🧱 Implementation Log — Phase 04 (Proxmox VM Baseline): Proxmox VM template and smoke VM
 
 > ## 👤 About
 > This document is the implementation log and detailed project build diary for **Phase 04 (Proxmox VM Baseline)**.  
 > It records the **final proven implementation path** for the first reusable Proxmox-backed VM baseline in this project.  
 >
 > For the earlier **discovery and environment audit** that informed this implementation path, see: **[DISCOVERY.md](DISCOVERY.md)**.  
-> For environment preparation and **prerequisite setup**, see: **[SETUP.md](SETUP.md)**.  
 > For the shorter, reproducible TL;DR **command checklist / rerun guide**, see: **[RUNBOOK.md](RUNBOOK.md)**.  
 > For phase-scoped **rationale and outcome notes**, see: **[DECISIONS.md](DECISIONS.md)**.  
 > For top-level project navigation, see: **[../INDEX.md](../INDEX.md)**.
@@ -51,7 +50,7 @@ This phase follows the official Proxmox **[Cloud-Init](https://pve.proxmox.com/w
 
 That is the workflow Proxmox itself recommends for rolling out new VM instances efficiently. The Proxmox documentation explicitly recommends converting a prepared **Cloud-Init image** into a **VM template** and then using that template to create **linked clones** quickly.
 
-The Proxmox GUI wizard is a valid operational surface for VM creation and was inspected during discovery. For this phase, however, the baseline is documented via the **CLI-driven template path** because it makes teh chosen workflow
+The Proxmox GUI wizard is a valid operational surface for VM creation and was inspected during discovery. For this phase, however, the baseline is documented via the **CLI-driven template path** because it makes the chosen workflow ...
 
 - easier to reproduce exactly
 - easier to verify from the host and from inside the guest
@@ -171,7 +170,7 @@ $ ls -lh ubuntu-24.04-server-cloudimg-amd64.img.part
 -rw-r--r-- 1 root root 601M Mar 23 19:31 ubuntu-24.04-server-cloudimg-amd64.img.part
 
 # Move the validated download into place as the real import source
-$ $mv ubuntu-24.04-server-cloudimg-amd64.img.part \
+$ mv ubuntu-24.04-server-cloudimg-amd64.img.part \
    ubuntu-24.04-server-cloudimg-amd64.img
 ~~~
 
