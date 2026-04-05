@@ -1,4 +1,4 @@
-# Phase 03 baseline = GitHub Actions + raw manifests + dev/prod namespaces
+# Phase 03 (CI/CD Baseline): GitHub Actions smoke delivery for dev/prod
 
 # 🧱 Implementation Log — Phase 03 (CI/CD Baseline): GitHub Actions delivery smoke path for dev/prod
 

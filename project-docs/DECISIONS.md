@@ -57,7 +57,7 @@ With this in mind (and to keep changes reviewable + failures diagnosable), the p
 
 ### Local first
 
-The initial phases use Docker Compose and a local k3s cluster to establish a stable local baseline before moving to the long-lived target environment (Proxmox). THsi way, compelxity is isolated to later phases:
+The initial phases use Docker Compose and a local k3s cluster to establish a stable local baseline before moving to the long-lived target environment (Proxmox). This way, compelxity is isolated to later phases:
 
 - Proxmox will add extra moving parts (VM networking, firewall rules, DNS, storage, TLS) that make failures slower to debug. This complexity should not be introduced early. 
 - A local k3s baseline proves the the deployment path (app deploy -> service exposure -> routing) quickly and repeatedly on the same machine, with clear evidence and fast rollback. 
@@ -69,8 +69,10 @@ The initial phases use Docker Compose and a local k3s cluster to establish a sta
 ### Phase progression (so far):
 
 - Phase 00 proved a working application baseline via Compose (fastest triage surface).
-- Phase 01 proved a clean local (k3s) Kubernetes baseline via upstream manifests (minimal moving parts).
-- Phase 02 adds Ingress as the next capability, without removing the already proven NodePort fallback.
+- Phase 01 proved a clean local k3s Kubernetes baseline via upstream manifests (minimal moving parts).
+- Phase 02 added host-based Ingress without removing the already proven NodePort fallback.
+- Phase 03 proved a real CI/CD smoke-delivery path for `dev` / `prod`.
+- Phase 04 established the first reusable Proxmox-backed VM baseline through a reusable template plus a verified smoke VM.
 
 ### Sources (delivery approach)
 
@@ -88,7 +90,7 @@ The initial phases use Docker Compose and a local k3s cluster to establish a sta
 
 ---
 
-## Phase 00 — Compose + repo baseline
+## Phase 00 — Compose + Repo Baseline
 
 **Quick recap (Phase 00)**  
 - Phase 00 established a reliable starting point for the project by validating the fork setup, mapping the repo’s deployment assets, and running Sock Shop locally via Docker Compose. 
@@ -335,5 +337,74 @@ This gives the repository a real delivery baseline before moving to the final in
   - monitoring
   - security hardening
   - DR / rollback
+
+---
+
+## Phase 04 — Proxmox VM baseline: Proxmox VM template and smoke VM
+
+### Quick recap (Phase 04)
+
+#### Starting point: Phase 04 needed a real Proxmox-backed VM baseline
+
+Before moving the application path toward the long-lived target environment, the project first needed a proven VM baseline on the provided Proxmox host.
+
+### Chosen path: Use the CLI-driven Proxmox Cloud-Init template workflow - via Proxmox’s command-line VM manager `qm`
+
+The chosen baseline was:
+
+- stage an Ubuntu 24.04 Cloud-Init image on the Proxmox host
+- convert it into reusable VM template `9000`
+- clone reference smoke VM `9100` from that template
+- verify the result on the Proxmox host and inside the guest
+
+The Proxmox GUI was inspected during discovery, but the documented baseline was standardized on the CLI-driven `qm` path because it makes the workflow easier to reproduce, verify, and carry forward into later automation work.
+
+#### Chosen smoke-VM profile: minimal guest with working outbound access
+
+The reference smoke VM was configured as:
+
+- clone from template `9000`
+- Cloud-Init guest bootstrap
+- `virtio` NIC without bridge attachment
+- enlarged root disk before first boot
+
+That produced a compact validation VM suitable for proving the baseline cleanly.
+
+#### Verified result: reusable template + working smoke VM
+
+Phase 04 successfully proved:
+
+- reusable Proxmox VM template `9000`
+- smoke VM `9100` cloned from that template
+- successful guest login
+- successful Cloud-Init completion
+- visible enlarged guest root filesystem
+- working outbound connectivity from inside the guest
+
+This gives the project its first real Proxmox-backed VM baseline.
+
+## Primary evidence (Phase 04)
+- Reusable template created:
+  `project-docs/04-proxmox-vm-baseline/evidence/px/09-PX-Base-VM-Template-Image-9000-created.png`
+- Smoke VM created from the template:
+  `project-docs/04-proxmox-vm-baseline/evidence/px/10-PX-Smoke-Test-VM-Clone-9100-created.png`
+- Guest verification inside the smoke VM:
+  `project-docs/04-proxmox-vm-baseline/evidence/px/11-PX-Smoke-VM-9100_guest-login-and-cloud-init-success.png`
+
+## Further details
+- Discovery:
+  `project-docs/04-proxmox-vm-baseline/DISCOVERY.md`
+- Implementation log:
+  `project-docs/04-proxmox-vm-baseline/IMPLEMENTATION.md`
+- Runbook:
+  `project-docs/04-proxmox-vm-baseline/RUNBOOK.md`
+- Full phase-local decisions:
+  `project-docs/04-proxmox-vm-baseline/DECISIONS.md`
+
+## Conclusion + Next steps
+- Phase 04 proved the first reusable Proxmox-backed VM baseline cleanly.
+- The next major step is to move from VM baseline proof to real target-side application deployment and codify the stable target/bootstrap pieces where that adds clear value.
+
+---
 
 ## (Further entries will be added to record technical choices)

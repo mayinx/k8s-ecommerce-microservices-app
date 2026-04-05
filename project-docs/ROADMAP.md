@@ -23,17 +23,15 @@
 ## Current position
 
 - Current proven phase:
-  - Phase 03 — CI/CD baseline
+  - Phase 04 — Proxmox VM baseline
 - Primary next target:
-  - Phase 04 — target deployment / IaC
+  - Phase 05 — Target deployment on Proxmox + selective Terraform / IaC
 - Main current objective:
-  - finish the core project cleanly with a defensible primary deployment target and the required DevOps layers
+  - move from the proven Proxmox VM baseline to real application deployment on the target and continue the remaining core DevOps layers cleanly
 - Important planning note:
-  - the project should preserve room for strong extensions, but the core path must stay stable first
-
+  - the project should preserve room for strong extensions (see below Tier B), but the core path must stay stable first
 
 ---
-
 
 ## Planning tiers
 
@@ -67,8 +65,6 @@
 - Helm rehabilitation / modernization
 
 ---
-
-
 
 ## Phase roadmap
 
@@ -124,26 +120,41 @@
   - [Runbook](./03-ci-cd-baseline/RUNBOOK.md)
   - [Decisions](./03-ci-cd-baseline/DECISIONS.md)
 
+### Phase 04 — Proxmox VM baseline
+- status:
+  - done
+- purpose:
+  - establish the first reusable Proxmox-backed VM baseline
+- already proven:
+  - target-host discovery and documentation
+  - reusable Ubuntu 24.04 Cloud-Init VM template as `9000`
+  - reference smoke VM as `9100`
+  - host-side verification
+  - guest-side verification
+- docs:
+  - [Discovery](./04-proxmox-vm-baseline/DISCOVERY.md)
+  - [Implementation](./04-proxmox-vm-baseline/IMPLEMENTATION.md)
+  - [Runbook](./04-proxmox-vm-baseline/RUNBOOK.md)
+  - [Decisions](./04-proxmox-vm-baseline/DECISIONS.md)
 
-### Phase 04 — Target deployment / IaC
+### Phase 05 — Target deployment on Proxmox + selective Terraform / IaC
 - status:
   - next core phase
 - purpose:
-  - move the proven deployment path to the primary long-lived target
+  - move from the proven VM baseline to real application deployment on the Proxmox-backed target and codify the stable target/bootstrap pieces that are worth automating now
 - likely work:
-  - target-environment deployment path
-  - Terraform for the target stack
-  - replace temporary `kind` smoke deployment assumptions where needed
+  - choose the most realistic target-side Kubernetes deployment path
+  - deploy Sock Shop on the target
+  - codify the stable target/bootstrap pieces where Terraform adds clear value
+  - retarget the already proven delivery mechanics toward the real target
 - open questions:
-  - exact Terraform scope
-  - exact target-cluster access pattern
-  - how much of the current GitHub Actions job structure can stay unchanged
-  - Retarget the proven GitHub Actions smoke-delivery structure from `kind` to the real target-cluster access path
-  - Decide how much of the current CI smoke flow can be reused unchanged
-  - Revisit whether the current repo-owned image-build proof remains sufficient once the real target deployment exists
-  - Consider the deprecated Kubernetes node selector cleanup if manifest-touching work already happens here    
+  - exact target-cluster shape
+  - exact target-cluster access path
+  - how much of the current GitHub Actions structure can stay unchanged
+  - which target/bootstrap pieces should be codified first in Terraform
+  - whether manifest-touching work in this phase should already include the deprecated node selector cleanup
 
-### Phase 05 — Observability
+### Phase 06 — Observability
 - status:
   - core phase still open
 - purpose:
@@ -155,7 +166,7 @@
 - open questions:
   - what minimum useful dashboards should exist before project evaluation
 
-### Phase 06 — Security hardening
+### Phase 07 — Security hardening
 - status:
   - core phase still open
 - purpose:
@@ -172,7 +183,7 @@
   - Add workflow protection such as `CODEOWNERS`
   - Re-check `GITHUB_TOKEN` permissions job-by-job  
 
-### Phase 07 — DR / rollback
+### Phase 08 — DR / rollback
 - status:
   - core phase still open
 - purpose:
@@ -285,15 +296,17 @@
 
 ## Open planning questions
 
-- What is the most realistic minimum target-environment scope for Phase 04?
+- What is the most realistic minimum target-deployment scope for Phase 05?
+- Which target/bootstrap pieces should be codified first in Terraform during Phase 05?
 - Which test layer gives the strongest value soonest:
   - pipeline smoke checks
   - Playwright
   - service-level tests
 - Should the custom Python microservice be implemented before or after the first full observability baseline?
 - Is an AWS extension realistic before evaluation, or better kept for post-bootcamp portfolio work?
-- Which later extension gives the strongest hiring signal per hour of effort:
+- Which later extension gives the strongest hiring signal "per hour of effort" ;-) :
   - Argo CD
   - Python microservice
   - stronger testing
   - AWS target
+  - ...
