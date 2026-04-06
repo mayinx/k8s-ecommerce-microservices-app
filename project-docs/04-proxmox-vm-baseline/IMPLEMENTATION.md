@@ -455,7 +455,7 @@ The successful end state is shown by these concrete post-conversion signals:
   - `scsi0: ... size=16G`
 - `qm cloudinit pending 9100` shows the configured Cloud-Init values queued for the guest
 - `qm list --full` first shows the VM in `stopped` state with `BOOTDISK(GB)` at `16.00`, and then in `running` state after boot
-- the warning `Interface 'tap9100i0' not attached to any bridge.` appears during start and is expected here, because the guest NIC is intentionally configured without bridge attachment
+- the warning `Interface 'tap9100i0' not attached to any bridge.` appears during start and is expected here, because the guest NIC is intentionally configured without bridge attachment to trigger default settings
 
 > [!NOTE] **🧩 Guest NIC without host bridge attachment**
 >

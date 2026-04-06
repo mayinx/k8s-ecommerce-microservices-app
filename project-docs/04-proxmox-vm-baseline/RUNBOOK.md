@@ -52,6 +52,8 @@ Create and verify the first reusable **Proxmox-backed VM baseline** for the proj
 
 ## Step 0 — Confirm Proxmox storage targets
 
+Open the host Shell via the Proxmox GUI (select Node > Shell):  
+
 ~~~bash
 # pvesm = Proxmox VE Storage Manager CLI
 # Confirm that the expected storage targets are active before creating VM artifacts
