@@ -5,7 +5,8 @@
 > It shows how the provided Proxmox target host was inspected, which relevant template and guest options were available, and why the final **VM template -> smoke VM** path was chosen for this phase.  
 >
 > For the final proven implementation path, see: **[IMPLEMENTATION.md](IMPLEMENTATION.md)**.  
-> For the shorter rerun guide, see: **[RUNBOOK.md](RUNBOOK.md)**.  
+> For the shorter rerun guide, see: **[RUNBOOK.md](RUNBOOK.md)**.
+> For local/workstation preparation and SSH access to the Proxmox host, see: **[SETUP.md](SETUP.md)**.
 > For phase-scoped rationale and outcomes, see: **[DECISIONS.md](DECISIONS.md)**.  
 > For top-level project navigation, see: **[../INDEX.md](../INDEX.md)**.
 

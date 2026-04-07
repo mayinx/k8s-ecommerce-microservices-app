@@ -1,10 +1,11 @@
-# 🧱 Implementation Log — Phase 04 (Proxmox VM Baseline): Proxmox VM template and smoke VM
+# 🧱 Implementation Log — Phase 04 (Proxmox VM Baseline): Generic Ubuntu VM Template, smoke VM, and workload-ready VM template
 
 > ## 👤 About
 > This document is the implementation log and detailed project build diary for **Phase 04 (Proxmox VM Baseline)**.  
 > It records the **final proven implementation path** for the first reusable Proxmox-backed VM baseline in this project.  
 >
 > For the earlier **discovery and environment audit** that informed this implementation path, see: **[DISCOVERY.md](DISCOVERY.md)**.  
+> For local/workstation preparation and SSH access to the Proxmox host, see: [SETUP.md](SETUP.md).
 > For the shorter, reproducible TL;DR **command checklist / rerun guide**, see: **[RUNBOOK.md](RUNBOOK.md)**.  
 > For phase-scoped **rationale and outcome notes**, see: **[DECISIONS.md](DECISIONS.md)**.  
 > For top-level project navigation, see: **[../INDEX.md](../INDEX.md)**.
@@ -21,6 +22,9 @@
 - [**Step 2 — Create the reusable base VM template (`9000`) from the host-staged cloud image**](#step-2--create-the-reusable-base-vm-template-9000-from-the-host-staged-cloud-image)
 - [**Step 3 — Create the reference smoke VM (`9100`) from the template**](#step-3--create-the-reference-smoke-vm-9100-from-the-template)
 - [**Step 4 — Verify the reference smoke VM from inside the guest**](#step-4--verify-the-reference-smoke-vm-from-inside-the-guest)
+- [**Step 5 — Extend the generic baseline VM template into a workload-ready prep VM (`9010`)**](#step-5--extend-the-generic-baseline-vm-template-into-a-workload-ready-prep-vm-9010)
+- [**Step 6 — Qualify the workload-ready prep VM from inside the guest**](#step-6--qualify-the-workload-ready-prep-vm-from-inside-the-guest)
+- [**Step 7 — Persist the private guest network and finalize the workload-ready template (`9010`)**](#step-7--persist-the-private-guest-network-and-finalize-the-workload-ready-template-9010)
 - [**Cleanup / rerun notes**](#cleanup--rerun-notes)
 - [**Baseline observations and evidence (Phase 04)**](#baseline-observations-and-evidence-phase-04)
 - [**Sources**](#sources)
@@ -31,14 +35,14 @@
 
 ### Establish the first reusable Proxmox-backed VM baseline
 
-- The goal of Phase 04 is to prove the first **reusable VM baseline** on the provided Proxmox host.
-- This phase focuses on a **template + smoke VM path** that is stable, repeatable, and easy to verify.
-- The concrete deliverables are:
-  - a reusable Ubuntu 24.04 **Cloud-Init VM template**
-  - a **reference smoke VM** cloned from that template
-  - explicit verification at both layers:
-    - **hypervisor-side verification** on the Proxmox host itself
-    - **guest-side verification** inside the guest VM operating system on that host
+- The goal of Phase 04 is to establish and verify the first **reusable Proxmox-backed VM baseline** on the provided host.
+- The phase now concludes with **three explicit baseline artifacts**:
+  - **(1) generic Ubuntu 24.04 Cloud-Init VM template `9000`**
+  - **(2) reference smoke VM `9100` cloned from that template**
+  - **(3) workload-ready baseline template variant `9010` as the Phase-05 starting point**
+- The phase also proves the baseline at both required verification layers:
+  - **hypervisor-side verification** on the Proxmox host itself
+  - **guest-side verification** inside the guest operating system
 
 ### Establish a CLI-driven template workflow (instead of GUI-based VM creation)
 
@@ -70,6 +74,19 @@ The implementation therefore standardizes on one clear documented path:
   - and inside the **guest operating system** itself
 - The guest must boot, accept login, finish Cloud-Init initialization, expose a usable root filesystem, and prove outbound connectivity.
 
+### Phase 04 follows a two-layer qualification path
+
+- The first qualification layer establishes the generic reusable Ubuntu cloud-image baseline.
+  - This proves the Proxmox Cloud-Init template workflow itself: image staging, template creation, clone creation, Cloud-Init bootstrap, serial-console access, disk growth, guest login, and basic outbound smoke connectivity.
+- The second qualification layer tests and verifies whether that baseline is already suitable as the actual deployment platform for later target-side work.
+  - Phase 04 therefore concludes by preparing, validating, and finalizing a workload-ready template variant (`9010`) from the generic baseline before Phase 05 begins.  
+
+> [!NOTE] **🧩 Phase-04 artifact roles**
+>
+> - `9000` = generic Ubuntu cloud-image baseline template
+> - `9100` = initial smoke-validation clone from the generic baseline
+> - `9010` = workload-ready baseline template variant finalized during Phase 04
+
 ---
 
 ## Definition of done (Phase 04)
@@ -82,6 +99,13 @@ The implementation therefore standardizes on one clear documented path:
   - `cloud-init status --wait` returns `status: done`.
   - The guest root filesystem is confirmed at a usable size after hypervisor-side disk enlargement.
   - Outbound connectivity works from inside the guest.
+- A **workload-ready baseline template variant `9010`** exists as base for Phase 05.
+  - The guest uses a **private host-bridged network path** via `vmbr1`.
+  - The guest has a **stable private IPv4 address** and **default route**.
+  - DNS resolution and outbound HTTPS work for later bootstrap endpoints such as GitHub, `get.k3s.io`, and common container registries.
+  - The guest-side **QEMU Guest Agent** is active and reachable from the Proxmox host.
+  - The host-side `vmbr1` + NAT design is persisted.
+  - Cloud-Init instance state is cleaned before template conversion.
 
 ---
 
@@ -455,21 +479,19 @@ The successful end state is shown by these concrete post-conversion signals:
   - `scsi0: ... size=16G`
 - `qm cloudinit pending 9100` shows the configured Cloud-Init values queued for the guest
 - `qm list --full` first shows the VM in `stopped` state with `BOOTDISK(GB)` at `16.00`, and then in `running` state after boot
-- the warning `Interface 'tap9100i0' not attached to any bridge.` appears during start and is expected here, because the guest NIC is intentionally configured without bridge attachment
+- the warning `Interface 'tap9100i0' not attached to any bridge.` appears during start and is expected here, because the reference smoke VM intentionally uses the documented unbridged guest path for the first generic-baseline validation pass
 
 > [!NOTE] **🧩 Guest NIC without host bridge attachment**
 >
-> In this phase, the smoke VM NIC is intentionally configured as virtio NIC (`net0: virtio`) **without** bridge attachment (no `bridge=vmbr0`) - to use the documented default unbridged QEMU user-mode NAT path for guest VMs.
+> In this first qualification layer, the smoke VM NIC is intentionally configured as `virtio` **without** bridge attachment (no `bridge=vmbr0`) so the guest uses the documented default unbridged QEMU user-mode NAT path.
 >
-> Details: The official Proxmox `qm` VM networking documentation states that **if no bridge is specified for a guest NIC**, Proxmox/QEMU uses the default unbridged **user-mode NAT** network path for that guest VM. In that mode, the guest receives built-in network services and a private guest-side network, typically with:
-> - guest addresses in the `10.0.2.0/24` range
-> - default gateway `10.0.2.2`
-> - DNS server `10.0.2.3`
+> That makes this network model **acceptable for generic smoke validation** in Phase 04:
+> - the template/clone mechanics are proven
+> - Cloud-Init bootstrap is proven
+> - the guest reaches the outside successfully
 >
-> That documented behavior matches the final successful smoke-VM verification in this phase:
-> - the guest received `10.0.2.15/24`
-> - the guest used `10.0.2.2` as its default route
-> - outbound access worked successfully from inside the VM
+> But this is not a suitable workload-ready target baseline: Phase 04 later extends this generic baseline into a private host-bridged workload-ready VM template as base  for Phase 05.
+
 
 **Smoke VM created**
 
@@ -576,6 +598,508 @@ cf-ray: 9e6279e8d9136d1d-AMS
 
 ---
 
+## Step 5 — Extend the generic baseline VM template into a workload-ready prep VM (`9010`)
+
+### Rationale
+
+The first qualification layer established that the generic Proxmox template workflow works cleanly on the provided host.
+
+The next question for the same phase is narrower and more practical:
+- Can this baseline also serve as the actual deployment base for later target-side work (i.e. Proxmox deployment)?
+
+To answer that, Phase 04 now **extends the generic baseline into a workload-ready prep VM**:
+
+- **private guest bridge** instead of the earlier unbridged smoke path
+- stable **private guest addressing**
+- **explicit/deterministic DNS resolver** 
+- **larger root disk**
+- more practical **CPU and memory baseline**
+- **guest-agent capability** for later **host-side interaction**
+
+### Action
+
+> [!NOTE] **🧩 Private Linux bridge `vmbr1`**
+>
+> `vmbr1` is a **private Linux bridge** created on the Proxmox host.
+> A Linux bridge acts like a small virtual Layer-2 switch inside the host:
+> - guest NICs can be attached to it
+> - the bridge can also hold its own host-side IP address
+>
+> In this Phase-04 setup, `vmbr1` is **not** attached to a physical NIC.
+> Instead:
+> - the **host-side bridge address `10.10.10.1`** acts as the **guest default gateway**
+> - the guest remains on the private subnet `10.10.10.0/24`
+> - host-side forwarding + NAT then let guest traffic leave through the existing public bridge `vmbr0`
+
+> [!NOTE] **🧩 NAT and masquerading**
+>
+> **NAT** (**Network Address Translation**) means that the **host rewrites outgoing guest traffic** so it can **leave the private guest subnet** by using the **host's public-side network path**.
+>
+> In this Phase-04 setup, Linux **masquerading** is the concrete NAT technique used on the host:
+> - traffic from the private guest subnet `10.10.10.0/24` leaves through `vmbr0`
+> - the host rewrites that traffic so it appears to come from the host-side uplink path instead of directly from the guest's private address
+>
+> That is why the guest can stay on a private subnet while still reaching package, bootstrap, and registry endpoints on the outside.
+
+> [!NOTE] **🧩 Deterministic/explicit DNS resolver**
+>
+> A **DNS resolver** is the **DNS server** a system asks when it needs to **translate host names** such as `github.com` **into IP addresses**.
+>
+> In this Phase-04 setup, the **guest is given the explicit DNS resolver `1.1.1.1`**.
+> That makes DNS behavior **deterministic/explicit** here - i.e. the **guest does not depend on an unknown or changing DNS resolver source**; the intended DNS server is set explicitly in the VM's first-boot configuration.
+
+> [!NOTE] **🧩 Chosen guest IP and gateway**
+>
+> `10.10.10.10/24` is a chosen private guest address inside the private subnet `10.10.10.0/24`.
+>
+> `10.10.10.1` is used as the guest gateway because the host-side bridge `vmbr1` itself holds that address.
+> In this design, the guest therefore sends traffic for outside destinations to the host-side bridge address, which then forwards and NATs that traffic onward through `vmbr0`.
+
+To extend the generic baseline VM into a workload-ready prep VM we need  
+
+- to build the temporary **private guest bridge **
+- and **clone** the workload-ready prep VM :
+
+~~~bash
+# --- (1) Create a private guest bridge on the host for the workload-ready VM ---
+
+# Check first whether a bridge named vmbr1 already exists.
+# ip     = Linux networking CLI
+# -br    = brief output format
+# link   = show network links/interfaces
+$ ip -br link show vmbr1
+Device "vmbr1" does not exist.
+
+# Create a new Linux bridge named vmbr1.
+# type bridge = create a software bridge device rather than a normal interface.
+$ ip link add name vmbr1 type bridge
+
+# Assign the host-side gateway address to the bridge.
+# 10.10.10.1/24 means:
+# - bridge address = 10.10.10.1
+# - subnet mask    = /24 = 255.255.255.0
+$ ip addr add 10.10.10.1/24 dev vmbr1
+
+# Bring the new bridge interface up so it can actually carry traffic.
+$ ip link set vmbr1 up
+
+# Enable IPv4 forwarding on the host.
+# sysctl = kernel runtime parameter tool
+# -w     = write the given value immediately
+$ sysctl -w net.ipv4.ip_forward=1
+net.ipv4.ip_forward = 1
+
+# Add a NAT masquerading rule for traffic leaving the private guest subnet through vmbr0.
+# iptables      = Linux packet-filter / firewall CLI
+# -t nat        = use the NAT table
+# -A POSTROUTING = append a rule to the POSTROUTING chain
+# -s            = source subnet to match
+# -o            = outgoing interface
+# -j MASQUERADE = apply source NAT using the host-side outgoing path
+$ iptables -t nat -A POSTROUTING -s 10.10.10.0/24 -o vmbr0 -j MASQUERADE
+
+# Allow guest traffic to leave the private bridge toward the public-side bridge.
+# -A FORWARD = append to the forwarding chain
+# -i         = incoming interface
+# -o         = outgoing interface
+# -j ACCEPT  = allow the matched traffic
+$ iptables -A FORWARD -i vmbr1 -o vmbr0 -j ACCEPT
+
+# Allow established return traffic back from vmbr0 to vmbr1.
+# -m conntrack                = use connection-tracking state matching
+# --ctstate ESTABLISHED,RELATED = allow replies to already allowed outbound traffic
+$ iptables -A FORWARD -i vmbr0 -o vmbr1 -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT
+
+# Confirm that vmbr1 now exists and has the expected host-side bridge address.
+$ ip -br addr show vmbr1
+vmbr1            UNKNOWN        10.10.10.1/24 ...
+
+# --- (2) Clone the workload-ready prep VM from the generic baseline template ---
+$ qm clone 9000 9010 --name ubuntu-2404-workload-ready-template-v1 --full 1
+
+# Attach the guest NIC to the private bridge
+$ qm set 9010 --net0 virtio,bridge=vmbr1
+
+# Set Cloud-Init bootstrap values
+$ qm set 9010 --ciuser ubuntu
+$ qm set 9010 --cipassword 'CHANGE_TO_A_FRESH_TEMP_PASSWORD'
+$ qm set 9010 --ipconfig0 ip=10.10.10.10/24,gw=10.10.10.1
+$ qm set 9010 --nameserver 1.1.1.1
+
+# Enable the guest-agent feature on the Proxmox side
+$ qm set 9010 --agent enabled=1
+
+# Raise the baseline disk / CPU / RAM profile
+$ qm resize 9010 scsi0 40G
+$ qm set 9010 --cores 4 --memory 4096
+
+# Inspect the resulting prep-VM config
+$ qm config 9010
+$ qm cloudinit pending 9010
+$ qm list --full
+~~~
+
+**Workload-ready prep VM created on the private guest bridge**
+
+![Workload-ready prep VM created on the private guest bridge](./evidence/px/12-PX-Workload-Ready-Prep-VM-9010-created-on-vmbr1.png)
+
+***Figure 6.*** *Proxmox inventory view showing the workload-ready prep VM `9010` created from the generic baseline and attached to `vmbr1`. This proves that the second qualification layer starts from the existing template path (rather than from a fresh manual VM build).*
+
+### Result
+
+The **generic baseline has now been extended** into a **workload-ready prep VM candidate** with these host-side features:
+
+- **`vmbr1`** exists as a **private bridge** with **host-side address `10.10.10.1/24`**
+- **host-side forwarding + masquerading rules** exist for `10.10.10.0/24`
+- **`9010`** exists as a **full clone from `9000`**
+- **`9010`** is configured with:
+  - `bridge=vmbr1`
+  - static private guest IP `10.10.10.10/24`
+  - gateway `10.10.10.1`
+  - explicit DNS resolver `1.1.1.1`
+  - guest-agent feature enabled
+  - `40G` root disk
+  - `4` CPU cores
+  - `4096 MB` RAM
+
+> [!NOTE] **🧩 Notable features of workload-ready template path `9010`**
+>
+> - private host-bridged guest network via `vmbr1`
+> - host-side NAT, with forwarding and masquerading out through `vmbr0`
+> - stable private guest addressing (`10.10.10.10/24`) and deterministic routing via default gateway `10.10.10.1`
+> - deterministic DNS via resolver `1.1.1.1`
+> - working outbound HTTPS reachability for later bootstrap, package-retrieval, and target-side setup tasks
+> - guest-agent capability
+> - more practical disk / CPU / memory baseline
+> - cleaned Cloud-Init state before template conversion
+> - persisted host-side `vmbr1` network configuration and NAT rules
+
+---
+
+## Step 6 — Qualify the workload-ready prep VM from inside the guest
+
+### Rationale
+
+At this point, the prep VM already exists with the intended hypervisor-side configuration, i.e.:
+- the Proxmox host-side VM definition
+- VM hardware settings: NIC attachment/private guest network, disk size, CPU, and memory
+- Cloud-Init values queued in the VM config
+
+Now verification is needed, that the workload-ready prep VM is not only configured correctly on the Proxmox side, but also behaves like a **usable deployment base** that is suitable for later target-side work:  
+
+- private guest addressing works
+- the default route works
+- DNS resolution works
+- outbound HTTPS bootstrap reachability works
+- container registry reachability works
+- the enlarged disk and practical CPU / memory baseline are visible inside the guest
+ 
+After that guest-side verification, that must be performed from **inside the guest operating system**, the phase also adds the small reusable helper layer needed for later target-side work:
+
+- QEMU Guest Agent
+- basic HTTPS / DNS / JSON troubleshooting tools
+
+### Action
+
+**Boot `9010` and verify the guest network/bootstrap baseline**
+
+~~~bash
+# Start the prep VM and open the serial console
+$ qm start 9010
+$ qm terminal 9010
+~~~
+
+After the first-boot Cloud-Init activity finishes, run inside the guest:
+
+~~~bash
+# Wait until Cloud-Init finishes all first-boot initialization work.
+# --wait blocks until the final state is available.
+$ cloud-init status --wait
+status: done
+
+# Confirm guest identity / currently logged-in guest user.
+$ whoami
+ubuntu
+
+# Confirm the guest hostname set through the VM / Cloud-Init path.
+$ hostname
+ubuntu-2404-workload-ready-template-v1
+
+# Confirm private guest addressing and routing by showing 
+# the main guest interface in compact form.
+# - ip -brief     = short interface summary
+# - show dev eth0 = restrict output to the primary NIC
+$ ip -brief address show dev eth0
+eth0             UP             10.10.10.10/24 ...
+
+# Identify primary outbound paths to verify network connectivity:
+# - Default route (the "Gateway" to other networks)
+# - Primary local route (the directly connected private subnet)
+$ ip route | head -n 2
+default via 10.10.10.1 dev eth0 proto static
+10.10.10.0/24 dev eth0 proto kernel scope link src 10.10.10.10
+
+# Confirm DNS resolution by displaying the current DNS settings 
+# and server status via systemd-resolved
+$ resolvectl status
+...
+Current DNS Server: 1.1.1.1
+DNS Servers: 1.1.1.1
+
+# Confirm gateway and raw outbound IPv4 reachability
+# Confirm that the guest can reach its own host-side gateway and then an outside IPv4 address.
+# -c 2 sends exactly two ICMP echo requests.
+$ ping -c 2 10.10.10.1
+$ ping -c 2 1.1.1.1
+
+# Confirm DNS resolution for later bootstrap endpoints
+# Resolve later bootstrap (k3s, github, etc.) host names through the configured resolver.
+# getent = query the system name-service switch
+# ahosts = return address information
+# awk 'NR==1 { print }' = print only the first returned line
+$ getent ahosts github.com | awk 'NR==1 { print }'
+140.82.121.3    STREAM github.com
+
+$ getent ahosts get.k3s.io | awk 'NR==1 { print }'
+104.21.56.122   STREAM get.k3s.io
+
+# Confirm outbound HTTPS reachability without downloading full response bodies.
+# curl -I       = HEAD request / headers only
+# --max-time 15 = fail rather than hanging too long
+$ curl -I --max-time 15 https://get.k3s.io | head -n 6
+HTTP/2 200
+...
+
+$ curl -I --max-time 15 https://github.com/k3s-io/k3s/releases/latest | head -n 6
+HTTP/2 302
+...
+
+# Confirm common registry endpoint reachability.
+# 401 / 405 here still count as useful proof that the endpoint is reachable over HTTPS.
+$ curl -I --max-time 15 https://registry-1.docker.io/v2/
+HTTP/2 401
+
+$ curl -I --max-time 15 https://ghcr.io/v2/
+HTTP/2 405
+
+# Confirm that the resized root filesystem is visible inside the guest.
+# df   = disk free / mounted-filesystem usage
+# -h   = human-readable sizes
+# /    = show only the root filesystem
+$ df -h /
+Filesystem      Size  Used Avail Use% Mounted on
+/dev/sda1        38G  2.2G   36G   6% /
+
+# Confirm how many CPU cores the guest sees.
+# nproc = print the number of available processing units
+$ nproc
+4
+
+# Confirm usable guest memory in human-readable form.
+# free -h = memory summary with human-readable units
+$ free -h | head -n 3
+               total        used        free ...
+Mem:           3.8Gi ...
+
+# Confirm time synchronization health.
+$ timedatectl status
+...
+System clock synchronized: yes
+~~~
+
+The guest-side network and bootstrap checks above confirm that the **prep VM now behaves like a usable target-side baseline**. 
+
+But a **reusable helper layer** is still missing, that provides the guest with **QEMU Guest Agent** and a few **basic troubleshooting tools**, useful for host-side interaction and target-side debugging:
+
+**Install reusable baseline helper tools and validate guest-agent communication**
+
+~~~bash
+# Refresh package metadata and install the small reusable helper set
+$ sudo apt-get update
+$ sudo apt-get install -y qemu-guest-agent curl ca-certificates jq dnsutils vim
+
+# Enable the guest-agent service inside the VM
+$ sudo systemctl enable --now qemu-guest-agent
+
+# Confirm that the service is active
+$ sudo systemctl status qemu-guest-agent --no-pager
+~~~
+
+Back on the Proxmox host, the next check confirms that the newly enabled guest-agent service is not only active inside the VM, but is also **reachable from the host through the Proxmox guest-agent channel**:
+
+~~~bash
+# Ask the QEMU Guest Agent for the guest network-interface data from the Proxmox host side.
+# qm guest cmd <vmid> <command> forwards a supported guest-agent command into the VM.
+# network-get-interfaces returns the interface data as seen from inside the guest.
+$ qm guest cmd 9010 network-get-interfaces
+[
+  ...
+  {
+    "name": "eth0",
+    "ip-addresses": [
+      {
+        "ip-address": "10.10.10.10",
+        "ip-address-type": "ipv4",
+        "prefix": 24
+      }
+    ]
+  }
+]
+~~~
+
+**Guest-agent and baseline helper tools verified**
+
+![Guest-agent and baseline helper tools verified](./evidence/px/13-PX-Workload-Ready-Prep-VM-9010_guest-agent-and-baseline-tools-success.png)
+
+***Figure 7.*** *Guest-side proof that the workload-ready prep VM is no longer only a generic smoke clone. The guest has stable private addressing, working bootstrap reachability, and an active QEMU Guest Agent that is reachable from the Proxmox host.*
+
+### Result
+
+The **workload-ready prep VM** is now **qualified inside the guest**.
+
+The guest-side acceptance criteria are:
+
+- `eth0` uses `10.10.10.10/24`
+- the default route points to `10.10.10.1`
+- `resolvectl` shows `1.1.1.1`
+- DNS resolution works for GitHub and `get.k3s.io`
+- outbound HTTPS works for later bootstrap endpoints
+- common registry endpoints are reachable
+- the resized `40G` root disk is visible inside the guest
+- the guest sees `4` CPU cores and about `4 GiB` RAM
+- time synchronization is healthy
+- the QEMU Guest Agent is active inside the guest and reachable from the host
+
+---
+
+## Step 7 — Persist the private guest network and finalize the workload-ready template (`9010`)
+
+### Rationale
+
+The prep VM has now proven the real target-side groundwork needed for later deployment work.
+
+Before converting it into a reusable template, two final things are still needed:
+
+- the **private bridge **+ NAT model must be made persistent on the host
+- the **prep VM must be rebooted once** after the package/kernel activity, **re-validated** briefly, **cleaned**, and only then templated
+
+This produces the **final workload-ready VM template** from a prep VM that has already been rebooted, rechecked, and cleaned for reuse.
+
+### Action
+
+**Persist the private guest bridge + NAT model on the host**
+
+The temporary bridge and forwarding/NAT rules used during prep must now be written into the host's persistent network configuration so the workload-ready baseline can be recreated reliably after host reboot.
+
+~~~bash
+# Back up the host network config before editing it
+$ cp /etc/network/interfaces /etc/network/interfaces.bak.$(date +%F-%H%M%S)
+
+# Append the persistent vmbr1 bridge definition
+$ cat <<'EOF' >> /etc/network/interfaces
+
+auto vmbr1
+iface vmbr1 inet static
+    address 10.10.10.1/24
+    bridge_ports none
+    bridge_stp off
+    bridge_fd 0
+
+    post-up echo 1 > /proc/sys/net/ipv4/ip_forward
+    post-up iptables -t nat -A POSTROUTING -s '10.10.10.0/24' -o vmbr0 -j MASQUERADE
+    post-up iptables -A FORWARD -i vmbr1 -o vmbr0 -j ACCEPT
+    post-up iptables -A FORWARD -i vmbr0 -o vmbr1 -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT
+
+    post-down iptables -t nat -D POSTROUTING -s '10.10.10.0/24' -o vmbr0 -j MASQUERADE
+    post-down iptables -D FORWARD -i vmbr1 -o vmbr0 -j ACCEPT
+    post-down iptables -D FORWARD -i vmbr0 -o vmbr1 -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT
+EOF
+
+# Persist IPv4 forwarding at the sysctl level
+$ cat <<'EOF' > /etc/sysctl.d/99-proxmox-vmbr1-nat.conf
+net.ipv4.ip_forward = 1
+EOF
+
+# Apply the sysctl setting and confirm the config contains exactly one vmbr1 stanza
+$ sysctl --system | grep net.ipv4.ip_forward
+$ grep -n "iface vmbr1 inet static" /etc/network/interfaces
+$ grep -n -A 20 -B 2 "iface vmbr1 inet static" /etc/network/interfaces
+~~~
+
+**Reboot, re-validate briefly, clean, and convert `9010` into a template**
+
+Inside the guest:
+
+~~~bash
+# Reboot once after the package/kernel activity
+$ sudo reboot
+~~~
+
+Back on the Proxmox host:
+
+~~~bash
+# Reattach to the guest after reboot
+$ qm terminal 9010
+~~~
+
+Inside the guest:
+
+~~~bash
+# Reconfirm the key guest acceptance signals after reboot
+$ cloud-init status --wait
+$ ip -brief address show dev eth0
+$ ip route | head -n 2
+$ getent ahosts github.com | awk 'NR==1 { print }'
+$ curl -I --max-time 15 https://get.k3s.io | head -n 6
+$ uname -r
+
+# Clean instance-specific state before templating
+$ sudo cloud-init clean --logs
+$ sudo cloud-init clean --machine-id
+
+# Shut the guest down cleanly
+$ sudo shutdown -h now
+~~~
+
+Back on the Proxmox host:
+
+~~~bash
+# Wait until the guest is fully stopped, then convert it into a template
+$ qm wait 9010
+$ qm template 9010
+
+# Confirm the final template state
+$ qm config 9010
+$ qm list --full
+~~~
+
+**Workload-ready template finalized**
+
+![Workload-ready template finalized](./evidence/px/14-PX-Workload-Ready-Template-9010-finalized.png)
+
+***Figure 8.*** *Final Proxmox inventory view showing `9010` as the workload-ready baseline template variant created from the generic Phase-04 baseline. This is the template Phase 05 starts from for real target-side application deployment.*
+
+### Result
+
+Phase 04 delivers a **finalized workload-ready baseline template variant** in addition to the **original generic baseline template and smoke VM**.
+
+The final-state features are:
+
+- `vmbr1` is persisted in `/etc/network/interfaces`
+- the host-side IPv4 forwarding + NAT model is persisted
+- `9010` survives reboot with the same private address, route, and bootstrap reachability
+- the updated kernel is active after reboot
+- Cloud-Init instance state is cleaned before templating
+- `qm template 9010` succeeds
+- `qm config 9010` shows `template: 1`
+
+Phase 04 ends with the following artifacts:
+- generic template `9000`
+- smoke clone `9100`
+- workload-ready baseline template `9010` - from which Phase 05 can start its real target-side deployment work.
+
+---
+
 ## Cleanup / rerun notes
 
 ### Stop the reference smoke VM cleanly
@@ -606,20 +1130,58 @@ qm resize 9100 scsi0 16G
 qm start 9100
 ~~~
 
+
+### Recreate the workload-ready baseline variant
+
+~~~bash
+# Remove the existing workload-ready prep VM first if it already exists
+qm stop 9010
+qm wait 9010
+qm destroy 9010
+
+# Recreate the workload-ready prep VM from the generic baseline template
+qm clone 9000 9010 --name ubuntu-2404-workload-ready-template-v1 --full 1
+qm set 9010 --net0 virtio,bridge=vmbr1
+qm set 9010 --ciuser ubuntu
+qm set 9010 --cipassword 'CHANGE_TO_A_FRESH_TEMP_PASSWORD'
+qm set 9010 --ipconfig0 ip=10.10.10.10/24,gw=10.10.10.1
+qm set 9010 --nameserver 1.1.1.1
+qm set 9010 --agent enabled=1
+qm resize 9010 scsi0 40G
+qm set 9010 --cores 4 --memory 4096
+qm start 9010
+~~~
+
 ---
 
 ## Baseline observations and evidence (Phase 04)
 
 ### What was established
 
-- A reusable Ubuntu 24.04 Proxmox template exists as `9000`
-- A reference smoke VM exists as `9100`
-- The reference smoke VM uses the final proven no-bridge guest NIC path
-- The smoke VM boots successfully
-- Guest login works
-- Cloud-Init finishes successfully
-- The guest root filesystem reflects the enlarged hypervisor-side disk
-- Outbound connectivity works from inside the guest
+Phase 04 now ends with **two qualification layers**:
+
+- **(1) Generic reusable baseline established**
+  - reusable Ubuntu 24.04 Cloud-Init template `9000`
+  - smoke-validation clone `9100`
+  - host-side and guest-side proof of the generic template/clone mechanics: 
+    - smoke VM boots successfully 
+    - Guest login works 
+    - Cloud-Init finishes successfully
+    - Outbound connectivity works from inside the guest
+
+- **(2) Workload-ready baseline finalized**
+  - private guest bridge `vmbr1` with host-side NAT
+  - workload-ready prep VM `9010`
+  - stable private guest addressing and routing
+  - deterministic DNS and outbound bootstrap reachability
+  - guest-agent capability
+  - cleaned and finalized workload-ready template `9010`
+
+### Artifact roles at the end of Phase 04
+
+- `9000` = generic Ubuntu cloud-image baseline template
+- `9100` = initial smoke-validation clone from the generic baseline
+- `9010` = workload-ready baseline template variant - as base for Phase 05 
 
 ### Evidence index
 
@@ -628,21 +1190,20 @@ qm start 9100
 - `evidence/px/09-PX-Base-VM-Template-Image-9000-created.png`
 - `evidence/px/10-PX-Smoke-Test-VM-Clone-9100-created.png`
 - `evidence/px/11-PX-Smoke-VM-9100_guest-login-and-cloud-init-success.png`
+- `evidence/px/12-PX-Workload-Ready-Prep-VM-9010-created-on-vmbr1.png`
+- `evidence/px/13-PX-Workload-Ready-Prep-VM-9010_guest-agent-and-baseline-tools-success.png`
+- `evidence/px/14-PX-Workload-Ready-Template-9010-finalized.png`
 
 More evidence can be found in the `evidence` folder of this phase.
 
 ### What this phase proves
 
-This phase proves the first stable **Proxmox-backed VM baseline** for the target environment.
+Phase 04 proves:
 
-The phase proves:
-
-- template creation on the provided Proxmox host
-- clone-based guest creation from that template
-- successful Cloud-Init guest bootstrap
-- successful guest login
-- successful guest-side root filesystem verification
-- successful guest outbound connectivity
+- the generic Proxmox Cloud-Init template workflow works on the provided host
+- the resulting generic baseline can be validated through a smoke clone
+- the baseline was then qualified for real target-side use during the same phase
+- Phase 05 therefore starts from a workload-ready template variant 
 
 ---
 
@@ -665,3 +1226,19 @@ The phase proves:
 
 - Ubuntu 24.04 LTS released cloud image index:
   - https://cloud-images.ubuntu.com/releases/noble/release/
+
+- Proxmox network configuration and masquerading / private-subnet examples:
+  - https://pve.proxmox.com/wiki/Network_Configuration
+
+- Proxmox QEMU Guest Agent:
+  - https://pve.proxmox.com/wiki/Qemu-guest-agent
+
+- Cloud-Init CLI reference (`clean`, `--logs`, `--machine-id`):
+  - https://docs.cloud-init.io/en/latest/reference/cli.html
+
+
+
+
+
+
+

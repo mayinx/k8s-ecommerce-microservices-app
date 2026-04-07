@@ -1,4 +1,4 @@
-# ▶️ Runbook — Phase 04 (Proxmox VM Baseline): Proxmox VM template and smoke VM
+# ▶️ Runbook — Phase 04 (Proxmox VM Baseline): Generic Ubuntu VM Template, smoke VM, and workload-ready VM template
 
 > ## 👤 About
 > This document is the short rerun guide for **Phase 04 (Proxmox VM Baseline)**.  
@@ -6,6 +6,7 @@
 >
 > For the detailed build diary and rationale, see: **[IMPLEMENTATION.md](IMPLEMENTATION.md)**.  
 > For the earlier discovery and target-host audit, see: **[DISCOVERY.md](DISCOVERY.md)**.  
+> For local/workstation preparation and SSH access to the Proxmox host, see: **[SETUP.md](SETUP.md)**.
 > For phase-scoped rationale and outcome notes, see: **[DECISIONS.md](DECISIONS.md)**.  
 > For top-level project navigation, see: **[../INDEX.md](../INDEX.md)**.
 
@@ -20,6 +21,8 @@
 - [**Step 2 — Create the reusable Cloud-Init VM template (`9000`)**](#step-2--create-the-reusable-cloud-init-vm-template-9000)
 - [**Step 3 — Create the reference smoke VM (`9100`)**](#step-3--create-the-reference-smoke-vm-9100)
 - [**Step 4 — Verify the reference smoke VM from inside the guest**](#step-4--verify-the-reference-smoke-vm-from-inside-the-guest)
+- [**Step 5 — Create the workload-ready baseline variant (`9010`)**](#step-5--create-the-workload-ready-baseline-variant-9010)
+- [**Step 6 — Qualify and finalize the workload-ready template (`9010`)**](#step-6--qualify-and-finalize-the-workload-ready-template-9010)
 - [**Cleanup / rerun**](#cleanup--rerun)
 - [**Files added in this phase**](#files-added-in-this-phase)
 
@@ -29,9 +32,10 @@
 
 Create and verify the first reusable **Proxmox-backed VM baseline** for the project:
 
-- Reusable Ubuntu 24.04 **Cloud-Init VM template** as `9000`
-- Reference **smoke VM** as `9100`
-- Proven guest login, Cloud-Init completion, usable root disk, and outbound connectivity
+- (1) Reusable Ubuntu 24.04 **Cloud-Init VM template** as `9000`
+- (2) Reference **smoke VM** as `9100`
+- (3) Workload-ready baseline template variant as `9010`
+- (4) Proven guest login, Cloud-Init completion, usable root disk, outbound connectivity, and private-bridge target readiness
 
 ---
 
@@ -51,6 +55,8 @@ Create and verify the first reusable **Proxmox-backed VM baseline** for the proj
 ---
 
 ## Step 0 — Confirm Proxmox storage targets
+
+Open the host Shell via the Proxmox GUI (select Node > Shell):  
 
 ~~~bash
 # pvesm = Proxmox VE Storage Manager CLI
@@ -219,6 +225,106 @@ curl -I --max-time 10 https://example.com
 
 ---
 
+## Step 5 — Create the workload-ready baseline variant (`9010`)
+
+~~~bash
+# Create the private guest bridge and temporary NAT rules
+ip link add name vmbr1 type bridge
+ip addr add 10.10.10.1/24 dev vmbr1
+ip link set vmbr1 up
+sysctl -w net.ipv4.ip_forward=1
+iptables -t nat -A POSTROUTING -s 10.10.10.0/24 -o vmbr0 -j MASQUERADE
+iptables -A FORWARD -i vmbr1 -o vmbr0 -j ACCEPT
+iptables -A FORWARD -i vmbr0 -o vmbr1 -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT
+
+# Clone the workload-ready prep VM from the generic baseline
+qm clone 9000 9010 --name ubuntu-2404-workload-ready-template-v1 --full 1
+qm set 9010 --net0 virtio,bridge=vmbr1
+qm set 9010 --ciuser ubuntu
+qm set 9010 --cipassword 'CHANGE_TO_A_FRESH_TEMP_PASSWORD'
+qm set 9010 --ipconfig0 ip=10.10.10.10/24,gw=10.10.10.1
+qm set 9010 --nameserver 1.1.1.1
+qm set 9010 --agent enabled=1
+qm resize 9010 scsi0 40G
+qm set 9010 --cores 4 --memory 4096
+~~~
+
+**Success looks like:**
+- `vmbr1` exists with `10.10.10.1/24`
+- forwarding + NAT rules exist
+- `qm config 9010` shows `bridge=vmbr1`
+- `qm config 9010` shows `ipconfig0: ip=10.10.10.10/24,gw=10.10.10.1`
+- `qm config 9010` shows `40G`, `4` cores, and `4096 MB`
+
+## Step 6 — Qualify and finalize the workload-ready template (`9010`)
+
+~~~bash
+# Start the prep VM and open the serial console
+qm start 9010
+qm terminal 9010
+~~~
+
+After logging in as `ubuntu`, run:
+
+~~~bash
+# Confirm guest addressing, route, DNS, and bootstrap reachability
+cloud-init status --wait
+ip -brief address show dev eth0
+ip route | head -n 2
+getent ahosts github.com | awk 'NR==1 { print }'
+curl -I --max-time 15 https://get.k3s.io | head -n 6
+df -h /
+nproc
+free -h | head -n 3
+
+# Install baseline helper tools and enable the guest agent
+sudo apt-get update
+sudo apt-get install -y qemu-guest-agent curl ca-certificates jq dnsutils vim
+sudo systemctl enable --now qemu-guest-agent
+
+# Reboot once after the package/kernel activity
+sudo reboot
+~~~
+
+Back on the host:
+
+~~~bash
+# Reattach after reboot, then finalize the template
+qm terminal 9010
+qm guest cmd 9010 network-get-interfaces
+~~~
+
+Inside the guest:
+
+~~~bash
+cloud-init status --wait
+ip -brief address show dev eth0
+ip route | head -n 2
+getent ahosts github.com | awk 'NR==1 { print }'
+curl -I --max-time 15 https://get.k3s.io | head -n 6
+sudo cloud-init clean --logs
+sudo cloud-init clean --machine-id
+sudo shutdown -h now
+~~~
+
+Back on the host:
+
+~~~bash
+qm wait 9010
+qm template 9010
+qm config 9010
+qm list --full
+~~~
+
+**Success looks like:**
+- `9010` keeps `10.10.10.10/24` after reboot
+- the guest reaches GitHub / `get.k3s.io`
+- `qm guest cmd 9010 network-get-interfaces` returns guest interface data
+- `qm template 9010` succeeds
+- `qm config 9010` shows `template: 1`
+
+---
+
 ## Cleanup / rerun
 
 ### Stop the smoke VM cleanly
@@ -228,7 +334,7 @@ qm stop 9100
 qm wait 9100
 ~~~
 
-### Recreate the smoke VM from the template
+### Recreate the smoke VM 9100 from the VM template 9000
 
 ~~~bash
 qm stop 9100
@@ -243,6 +349,26 @@ qm set 9100 --ipconfig0 ip=dhcp
 qm resize 9100 scsi0 16G
 qm start 9100
 ~~~
+
+### Recreate the workload-ready VM template 9010 from the VM template 9000
+
+~~~bash
+qm stop 9010
+qm wait 9010
+qm destroy 9010
+
+qm clone 9000 9010 --name ubuntu-2404-workload-ready-template-v1 --full 1
+qm set 9010 --net0 virtio,bridge=vmbr1
+qm set 9010 --ciuser ubuntu
+qm set 9010 --cipassword 'CHANGE_TO_A_FRESH_TEMP_PASSWORD'
+qm set 9010 --ipconfig0 ip=10.10.10.10/24,gw=10.10.10.1
+qm set 9010 --nameserver 1.1.1.1
+qm set 9010 --agent enabled=1
+qm resize 9010 scsi0 40G
+qm set 9010 --cores 4 --memory 4096
+qm start 9010
+~~~
+
 
 ---
 

@@ -24,7 +24,7 @@ Documentation is iterative and phase-aligned: baseline notes first, then milesto
 - [Phase 03 — Runbook (TL;DR)](./03-ci-cd-baseline/RUNBOOK.md)
 - [Phase 03 — Decision Log](./03-ci-cd-baseline/DECISIONS.md)
 
-## Phase 04: Proxmox VM baseline (reusable Cloud-Init template + smoke VM)
+## Phase 04 Proxmox VM Baseline (Generic Ubuntu VM Template, smoke VM, and workload-ready VM template)
 - [Phase 04 — Setup Guide](./04-proxmox-vm-baseline/SETUP.md)
 - [Phase 04 — Discovery / target audit](./04-proxmox-vm-baseline/DISCOVERY.md)
 - [Phase 04 — Implementation Log](./04-proxmox-vm-baseline/IMPLEMENTATION.md)
