@@ -49,6 +49,7 @@ Current proven highlights include:
 - approval-gated `prod` smoke deployment
 - reusable Proxmox VM template baseline
 - verified Proxmox smoke VM with host-side and guest-side proof
+- workload-ready Proxmox baseline variant for target-side deployment
 
 ## Architecture direction
 
@@ -61,9 +62,11 @@ The current architecture direction is:
 - **container registry:** GHCR
 - **temporary CI/CD smoke target:** `kind`
 - **later long-lived target:** Proxmox-based environment
-  - **current Proxmox target baseline (realized):** reusable VM template + verified smoke VM
-  - **next target step:** application deployment on the Proxmox-backed environment
-- **later planned layers:** monitoring, security hardening, DR, and selective IaC-driven target codification
+  - **current Proxmox target baseline (realized):**
+    - generic baseline template `9000`
+    - smoke-validation clone `9100`
+    - workload-ready baseline template variant `9010`
+  - **next target step:** application deployment on the Proxmox-backed environment- **later planned layers:** monitoring, security hardening, DR, and selective IaC-driven target codification
 
 This means the project is already proving the delivery mechanics now, while remaining open for the next infrastructure and operations layers.
 
@@ -170,10 +173,16 @@ The repository currently contains proven work across these phases:
     - Cloud-Init completion
     - usable root disk
     - outbound connectivity
+  - workload-ready baseline variant prepared and finalized as `9010`
+    - private guest bridge `vmbr1`
+    - stable private guest addressing and routing
+    - deterministic DNS and outbound bootstrap reachability
+    - guest-agent capability
   - docs:
     - [Discovery](project-docs/04-proxmox-vm-baseline/DISCOVERY.md)
     - [Implementation](project-docs/04-proxmox-vm-baseline/IMPLEMENTATION.md)
     - [Runbook](project-docs/04-proxmox-vm-baseline/RUNBOOK.md)
+    - [Setup](project-docs/04-proxmox-vm-baseline/SETUP.md)
     - [Decisions](project-docs/04-proxmox-vm-baseline/DECISIONS.md)
 
 This section is intentionally a moving summary, not the final shape of the project.

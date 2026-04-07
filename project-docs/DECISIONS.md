@@ -340,7 +340,7 @@ This gives the repository a real delivery baseline before moving to the final in
 
 ---
 
-## Phase 04 — Proxmox VM baseline: Proxmox VM template and smoke VM
+## Phase 04 (Proxmox VM Baseline): Generic Ubuntu VM Template, smoke VM, and workload-ready VM template
 
 ### Quick recap (Phase 04)
 
@@ -348,40 +348,51 @@ This gives the repository a real delivery baseline before moving to the final in
 
 Before moving the application path toward the long-lived target environment, the project first needed a proven VM baseline on the provided Proxmox host.
 
-### Chosen path: Use the CLI-driven Proxmox Cloud-Init template workflow - via Proxmox’s command-line VM manager `qm`
+#### Chosen path: first prove a generic Proxmox Cloud-Init template workflow (VM Template `9000` + Smoke VM `9100`), then qualify it for as sock-shop deployment target (VM Template `9010`)  
 
-The chosen baseline was:
+#### Phase 04 first standardized on the Proxmox Cloud-Init template workflow teh VM Template `9000` and the Smoke VM `9100`:
 
-- stage an Ubuntu 24.04 Cloud-Init image on the Proxmox host
-- convert it into reusable VM template `9000`
-- clone reference smoke VM `9100` from that template
-- verify the result on the Proxmox host and inside the guest
+1. stage a Cloud-Init-capable Ubuntu image on the host
+2. convert that image into a reusable Proxmox VM template (**VM template `9000`**)
+3. clone a smoke VM from that template (**Smoke VM `9100`**)
+4. verify the result on the host and inside the guest
+    - successful guest login
+    - successful Cloud-Init completion
+    - visible enlarged guest root filesystem
+    - working outbound connectivity from inside the guest
 
-The Proxmox GUI was inspected during discovery, but the documented baseline was standardized on the CLI-driven `qm` path because it makes the workflow easier to reproduce, verify, and carry forward into later automation work.
+This established the generic reusable VM baseline cleanly - following the base workflow Proxmox itself recommends for fast rollout of reusable VM instances.
 
-#### Chosen smoke-VM profile: minimal guest with working outbound access
+#### The phase then finalized a workload-ready baseline VM template before Phase 05 (VM Template `9010`) as base for Phase 05 
 
-The reference smoke VM was configured as:
+Notable features of VM template `9010`:
 
-- clone from template `9000`
-- Cloud-Init guest bootstrap
-- `virtio` NIC without bridge attachment
-- enlarged root disk before first boot
+- private host-bridged guest network via `vmbr1`
+- host-side NAT, with forwarding and masquerading out through `vmbr0`
+- stable private guest addressing (`10.10.10.10/24`) and deterministic routing via default gateway `10.10.10.1`
+- deterministic DNS via resolver `1.1.1.1`
+- working outbound HTTPS reachability for later bootstrap, package-retrieval and target-side setup tasks
+- guest-agent capability
+- more practical disk / CPU / memory baseline
+- cleaned Cloud-Init state before template conversion
+- persisted host-side `vmbr1` network configuration and NAT rules
 
-That produced a compact validation VM suitable for proving the baseline cleanly.
+This gives the project a real workload-ready Proxmox VM baseline that later phases can build on.
 
-#### Verified result: reusable template + working smoke VM
+#### Final artifact roles
 
-Phase 04 successfully proved:
+- `9000` = generic Ubuntu cloud-image baseline template
+- `9100` = initial smoke-validation clone from the generic baseline
+- `9010` = workload-ready baseline template variant finalized during Phase 04 - as base for Phase 05
+
+#### Verified result
+
+Phase 04 now proves:
 
 - reusable Proxmox VM template `9000`
 - smoke VM `9100` cloned from that template
-- successful guest login
-- successful Cloud-Init completion
-- visible enlarged guest root filesystem
-- working outbound connectivity from inside the guest
-
-This gives the project its first real Proxmox-backed VM baseline.
+- successful generic smoke validation
+- workload-ready baseline template `9010` finalized before Phase 05
 
 ## Primary evidence (Phase 04)
 - Reusable template created:
@@ -390,6 +401,12 @@ This gives the project its first real Proxmox-backed VM baseline.
   `project-docs/04-proxmox-vm-baseline/evidence/px/10-PX-Smoke-Test-VM-Clone-9100-created.png`
 - Guest verification inside the smoke VM:
   `project-docs/04-proxmox-vm-baseline/evidence/px/11-PX-Smoke-VM-9100_guest-login-and-cloud-init-success.png`
+- Workload-ready prep VM created on `vmbr1`:
+  `project-docs/04-proxmox-vm-baseline/evidence/px/12-PX-Workload-Ready-Prep-VM-9010-created-on-vmbr1.png`
+- Guest-agent and baseline helper tools verified:
+  `project-docs/04-proxmox-vm-baseline/evidence/px/13-PX-Workload-Ready-Prep-VM-9010_guest-agent-and-baseline-tools-success.png`
+- Workload-ready template finalized:
+  `project-docs/04-proxmox-vm-baseline/evidence/px/14-PX-Workload-Ready-Template-9010-finalized.png`
 
 ## Further details
 - Discovery:
@@ -402,8 +419,8 @@ This gives the project its first real Proxmox-backed VM baseline.
   `project-docs/04-proxmox-vm-baseline/DECISIONS.md`
 
 ## Conclusion + Next steps
-- Phase 04 proved the first reusable Proxmox-backed VM baseline cleanly.
-- The next major step is to move from VM baseline proof to real target-side application deployment and codify the stable target/bootstrap pieces where that adds clear value.
+- Phase 04 proved the generic Proxmox baseline and then finalized a workload-ready template variant inside the same phase.
+- The next major step is to start target-side application deployment from `9010`.
 
 ---
 
