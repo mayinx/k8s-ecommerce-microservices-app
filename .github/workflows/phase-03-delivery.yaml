@@ -1,9 +1,16 @@
 # Phase 03 delivery smoke workflow
+#
 # Purpose:
-# - validate the dev/prod Kustomize overlays
-# - build and push a repo-owned support image to GHCR
-# - deploy a dev smoke environment automatically
-# - deploy a prod smoke environment after approval
+# - (1) Validate the dev/prod Kustomize overlays
+# - (2) Build and push a selected repo-owned support image (healthcheck) to GHCR
+#   (building + pushing the sock-shop-microsoervices themselves is out of scope, 
+#   since it would require intensive refactoring of 8-year-old legacy upstream services)  
+# - (3) Deploy a dev smoke environment automatically
+#   (Image Logic: Kubernetes reads the manifests and dynamically pulls the 13 core 
+#   app images from the official upstream Docker Hub registry 'weaveworksdemos' - while  
+#   our custom 'healthcheck' image is pulled from our GHCR)
+# - (4) Deploy a prod smoke environment after approval
+#   (Environment Parity: Prod runs the exact same container images as Dev)
 #
 # Design choices:
 # - stays on GitHub-hosted runners for this phase
@@ -97,6 +104,12 @@ jobs:
 
       # Build the Docker image and push it to the target registry
       # I.e. build the selected repo-owned image target (i.e. 'healthcheck') and push it to GHCR using the commit SHA as the image tag
+
+      # Build the Docker image and push it to the target registry
+      # I.e. build only the selected repo-owned image target (i.e. 'healthcheck') and push it to GHCR 
+      # (using the commit SHA as the image tag).
+      # FYI: In a microservices architecture, we build what we actively maintain. So we skip building 
+      # the other 13 services from source because we will pull their official, pre-built images during deployment.
       - name: Build and push image
         uses: docker/build-push-action@v6
         with:
@@ -140,6 +153,8 @@ jobs:
       # The overlay is the real deployment definition for this environment:
       # it reuses the manifest base, applies the environment namespace,
       # and patches the storefront Service behavior where needed.
+      # IMAGE LOGIC: Executing this apply command is what triggers Kubernetes to reach out to 
+      # Docker Hub, pull the 13 official 'weaveworksdemos' app images, and orchestrate the full application.
       - name: Apply dev overlay
         run: kubectl apply -k deploy/kubernetes/kustomize/overlays/dev
 
@@ -187,6 +202,9 @@ jobs:
           kubectl get pods -A
 
       # Use the prod overlay as the actual deployment input
+      # IMAGE LOGIC: Just like in dev and following teh environment parity rule, this triggers 
+      # Kubernetes to pull the same core microservice images from the upstream Docker Hub registry 
+      # into the prod namespace.     
       - name: Apply prod overlay
         run: kubectl apply -k deploy/kubernetes/kustomize/overlays/prod
 
