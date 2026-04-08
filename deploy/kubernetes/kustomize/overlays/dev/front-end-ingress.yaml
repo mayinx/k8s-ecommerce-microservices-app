@@ -1,0 +1,27 @@
+# `deploy/kubernetes/kustomize/overlays/dev/front-end-ingress.yaml`
+
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: front-end
+  namespace: sock-shop-dev
+spec:
+  # Explicitly tell Kubernetes to use Traefik to execute this routing rule.
+  # This prevents conflicts if multiple ingress controllers exist on the cluster.
+  ingressClassName: traefik
+  rules:
+    # The external hostname that Traefik listens for. 
+    # Traffic hitting the VM with this 'Host' header will trigger this rule.
+    - host: dev.sockshop.local
+      http:
+        paths:
+          # Match all traffic (Prefix '/') under this hostname.
+          - path: /
+            pathType: Prefix
+            # The internal destination: route the matched traffic to 
+            # port 80 of the 'front-end' ClusterIP service.
+            backend:
+              service:
+                name: front-end
+                port:
+                  number: 80                  

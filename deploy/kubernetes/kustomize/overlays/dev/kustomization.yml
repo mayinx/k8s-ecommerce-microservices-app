@@ -15,9 +15,11 @@ kind: Kustomization
 # Overlay input:
 # - a namespace object for sock-shop-dev
 # - the shared reusable manifest base
+# - the environment-specific ingress rule to route external traffic to the storefront
 resources:
   - namespace.yaml
   - ../../../manifests
+  - front-end-ingress.yaml
 
 # Apply this namespace to namespaced resources rendered by the overlay
 namespace: sock-shop-dev

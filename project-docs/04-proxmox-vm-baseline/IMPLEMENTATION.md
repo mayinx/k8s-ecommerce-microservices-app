@@ -341,7 +341,7 @@ vmdata:vm-9000-cloudinit raw     images       4194304 9000
 
 The Ubuntu 24.04 cloud image was successfully converted into a **reusable Proxmox CloudInit VM template**.
 
-The successful end state is shown by these concrete post-conversion signals:
+The successful end state is shown by these concrete signals:
 
 - `qm config 9000` now  
   - shows a Cloud-Init drive `vmdata` on `ide2` 
