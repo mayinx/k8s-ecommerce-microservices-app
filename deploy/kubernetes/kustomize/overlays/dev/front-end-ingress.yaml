@@ -15,7 +15,7 @@ spec:
   rules:
     # The external hostname that Traefik listens for. 
     # Traffic hitting the VM with this 'Host' header will trigger this rule.
-    - host: dev.sockshop.local
+    - host: dev.sockshop.cdco.dev
       http:
         paths:
           # Match all traffic (Prefix '/') under this hostname.
