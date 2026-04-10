@@ -1,10 +1,10 @@
-# `deploy/kubernetes/kustomize/overlays/dev/front-end-ingress.yaml`
+# `deploy/kubernetes/kustomize/overlays/prod/front-end-ingress.yaml`
 
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: front-end
-  namespace: sock-shop-dev
+  namespace: sock-shop-prod
 spec:
   # Route this ingress object / routing rule through the built-in K3s Traefik controller:  
   # (explicitly tells Kubernetes to use Traefik to execute this routing rule 
@@ -15,7 +15,7 @@ spec:
   rules:
     # The external hostname that Traefik listens for. 
     # Traffic hitting the VM with this 'Host' header will trigger this rule.
-    - host: dev.sockshop.local
+    - host: prod.sockshop.local
       http:
         paths:
           # Match all traffic (Prefix '/') under this hostname.
