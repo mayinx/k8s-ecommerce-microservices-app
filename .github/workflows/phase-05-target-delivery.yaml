@@ -23,27 +23,21 @@
 # - GitHub-hosted runners
 # - see project-docs/03-ci-cd-baseline/IMPLEMENTATION.md for rationale and source links
 
-name: phase-03-delivery
+name: phase-05-proxmox-target-delivery
 
 on:
-  # Optional manual workflow trigger only 
-  # (enables manual workflow runs from the GitHub Actions UI) 
-  workflow_dispatch:
-
-  # FYI: The following was commented as the Phase 05 delivery workflow was introduced - to ensure this
-  # Phase 03 workflow can be trigered manually only and doesn't cause conflicts with the new workflow.
-  # This way we can keep this Phase 03 as a frozen baseline to preserve the "chronological build story" 
-  # which allows manual re-runs, but prevents it from auto-triggering on every push.
-  #
-  # # Branch-driven automatic execution   
-  # push:
-  #   branches:
-  #     - master # final intended branch
-  #     - feat/ci-github-actions-dev-prod-gate # temporary feature-branch trigger used while proving this phase
+  # Branch-driven automatic execution   
+  push:
+    branches:
+      - master # Final intended trigger
+      - feat/proxmox-target-delivery # Temporary feature-branch trigger used while proving this phase
+  # Optional manual execution 
+  workflow_dispatch: # Enables the manual "Run workflow" button in the GitHub UI
 
 # Minimum token permissions needed here:
 # - read repository contents
 # - push packages to GHCR
+# - OAuth-client 
 permissions:
   contents: read
   packages: write
@@ -136,22 +130,29 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # Start a temporary kind Kubernetes cluster for the smoke deployment
-      # The workflow needs a Kubernetes target to prove the deployment path.
-      # In this phase, kind provides a disposable CI-friendly cluster for this smoke test.
-      # (engineerd/setup-kind creates a temporary `kind` Kubernetes cluster inside the workflow job)
-      - name: Start Kind cluster
-        uses: engineerd/setup-kind@v0.5.0
+      # 1. Join the private Tailnet as an ephemeral CI node using the Tailscale OAuth Client secrets
+      - name: Connect runner to tailnet
+        uses: tailscale/github-action@v4
         with:
-          version: v0.20.0
+          oauth-client-id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
+          oauth-secret: ${{ secrets.TS_OAUTH_SECRET }}
+          tags: tag:ci
+          ping: 100.72.5.85
 
-      # Wait until the cluster system pods are ready
-      - name: Wait for cluster readiness
+      # 2. Provide the Target Cluster Kubeconfig admin keys so kubectl can authorize against the cluster     
+      - name: Write target kubeconfig
         run: |
-          until [ "$(kubectl get pods -A --no-headers | grep -cEv '([0-9]+)/\1')" -eq 0 ]; do
-            sleep 5
-          done
-          kubectl get pods -A
+          mkdir -p ~/.kube
+          cat > ~/.kube/config <<'EOF'
+          ${{ secrets.KUBECONFIG_PROXMOX_TARGET }}
+          EOF
+          chmod 600 ~/.kube/config
+
+      # 3. Verify the cluster connection and ensure the target namespace exists
+      - name: Show target cluster access
+        run: |
+          kubectl get nodes -o wide
+          kubectl get namespace sock-shop-dev
 
       # Use the dev overlay as the actual deployment input
       # The overlay is the real deployment definition for this environment:
@@ -162,13 +163,9 @@ jobs:
       - name: Apply dev overlay
         run: kubectl apply -k deploy/kubernetes/kustomize/overlays/dev
 
-      # Verify the key app rollouts that matter for the storefront path
-      - name: Verify key dev rollouts
-        run: |
-          kubectl rollout status deployment/front-end -n sock-shop-dev --timeout=180s
-          kubectl rollout status deployment/catalogue -n sock-shop-dev --timeout=180s
-          kubectl rollout status deployment/payment -n sock-shop-dev --timeout=180s
-          kubectl rollout status deployment/user -n sock-shop-dev --timeout=180s
+      # Wait for all dev microservices to become fully available
+      - name: Wait for dev deployments to become available
+        run: kubectl wait --namespace sock-shop-dev --for=condition=available deployment --all --timeout=300s
 
       # Show the resulting dev resources for quick proof/debugging
       - name: Show dev resources
@@ -192,18 +189,29 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # Start a temporary kind Kubernetes cluster for the smoke deployment inside the workflow job
-      - name: Start Kind cluster
-        uses: engineerd/setup-kind@v0.5.0
+      # 1. Join the private Tailnet as an ephemeral CI node using the Tailscale OAuth Client secrets
+      - name: Connect runner to tailnet
+        uses: tailscale/github-action@v4
         with:
-          version: v0.20.0
+          oauth-client-id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
+          oauth-secret: ${{ secrets.TS_OAUTH_SECRET }}
+          tags: tag:ci
+          ping: 100.72.5.85
 
-      - name: Wait for cluster readiness
+      # 2. Provide the Target Cluster Kubeconfig admin keys so kubectl can authorize against the cluster      
+      - name: Write target kubeconfig
         run: |
-          until [ "$(kubectl get pods -A --no-headers | grep -cEv '([0-9]+)/\1')" -eq 0 ]; do
-            sleep 5
-          done
-          kubectl get pods -A
+          mkdir -p ~/.kube
+          cat > ~/.kube/config <<'EOF'
+          ${{ secrets.KUBECONFIG_PROXMOX_TARGET }}
+          EOF
+          chmod 600 ~/.kube/config
+
+      # 3. Verify the cluster connection and ensure the target namespace exists
+      - name: Show target cluster access
+        run: |
+          kubectl get nodes -o wide
+          kubectl get namespace sock-shop-prod
 
       # Use the prod overlay as the actual deployment input
       # IMAGE LOGIC: Just like in dev and following teh environment parity rule, this triggers 
@@ -212,12 +220,9 @@ jobs:
       - name: Apply prod overlay
         run: kubectl apply -k deploy/kubernetes/kustomize/overlays/prod
 
-      - name: Verify key prod rollouts
-        run: |
-          kubectl rollout status deployment/front-end -n sock-shop-prod --timeout=180s
-          kubectl rollout status deployment/catalogue -n sock-shop-prod --timeout=180s
-          kubectl rollout status deployment/payment -n sock-shop-prod --timeout=180s
-          kubectl rollout status deployment/user -n sock-shop-prod --timeout=180s
+      # Wait for all prod microservices to become fully available  
+      - name: Wait for prod deployments to become available
+        run: kubectl wait --namespace sock-shop-prod --for=condition=available deployment --all --timeout=300s
 
       - name: Show prod resources
         run: kubectl get deploy,pods,svc -n sock-shop-prod -o wide
