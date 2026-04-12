@@ -29,8 +29,7 @@ on:
   # Branch-driven automatic execution   
   push:
     branches:
-      - master # Final intended trigger
-      - feat/proxmox-target-delivery # Temporary feature-branch trigger used while proving this phase
+      - master # triggers only on push to master
   # Optional manual execution 
   workflow_dispatch: # Enables the manual "Run workflow" button in the GitHub UI
 
