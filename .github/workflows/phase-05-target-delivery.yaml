@@ -137,7 +137,6 @@ jobs:
           oauth-client-id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
           oauth-secret: ${{ secrets.TS_OAUTH_SECRET }}
           tags: tag:ci
-          ping: 100.72.5.85
 
       # 2. Provide the Target Cluster Kubeconfig admin keys so kubectl can authorize against the cluster     
       - name: Write target kubeconfig
@@ -196,7 +195,6 @@ jobs:
           oauth-client-id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
           oauth-secret: ${{ secrets.TS_OAUTH_SECRET }}
           tags: tag:ci
-          ping: 100.72.5.85
 
       # 2. Provide the Target Cluster Kubeconfig admin keys so kubectl can authorize against the cluster      
       - name: Write target kubeconfig
