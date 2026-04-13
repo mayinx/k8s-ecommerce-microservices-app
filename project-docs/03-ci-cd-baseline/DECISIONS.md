@@ -65,6 +65,22 @@ For the CI/CD runtime, the chosen baseline was:
 
 This gave the project a real delivery proof **without depending on the final long-lived Proxmox target yet**.
 
+
+### CI/CD runtime choice: GitHub Actions + hosted runners + kind
+
+For the CI/CD runtime, the chosen baseline was:
+
+- GitHub Actions
+- GitHub-hosted runners
+- `kind` (Kubernetes in Docker) as an ephemeral "dummy" cluster (only living in the ephemeral GitHub Actions runners) for safe smoke-testing
+- GitHub Environments for:
+  - `dev`
+  - `prod`
+- "required reviewers" on `prod` for the approval gate
+
+This gave the project a **real delivery proof in a temporary, isolated sandbox** before depending on the final persistent Proxmox target (see Phase 05).
+
+
 ### Obstacle 2: The repo-owned `openapi` image target failed and had to be deferred / excluded from workflow  
 
 The first workflow run surfaced a legacy problem in the repo-owned `openapi` image target.
@@ -139,13 +155,19 @@ This gives the repository a real delivery baseline before moving to the final in
 
 ## Decision (P03-D03): CI/CD runtime = GitHub Actions + GitHub-hosted runners + kind
 
-- **Decision:** Use GitHub Actions with GitHub-hosted runners and `kind` as the temporary Kubernetes smoke target for the CI/CD baseline.
+- **Decision:** Use GitHub Actions with GitHub-hosted runners and **`kind` (Kubernetes in Docker)** to spin up an ephemeral "dummy" cluster for the CI/CD baseline.
 - **Context / problem:** The phase needed a working CI/CD baseline before moving to the real long-lived Proxmox target.
 - **Options considered:**
   - move directly to Proxmox
   - use a self-hosted runner on the local machine
   - use GitHub-hosted runners with `kind` ✅
-- **Chosen option + why:** This repository is a public fork, so attaching a self-hosted runner to a personal machine would add unnecessary risk. `kind` provides a disposable, CI-friendly Kubernetes target that proves the delivery mechanics without depending on the final target infrastructure yet.
+- **Chosen option + why:** 
+  - This repository is a public fork, so attaching a self-hosted runner to a personal machine would add unnecessary risk. Relying on GitHub-hosted runners provides a fresh, isolated VM for every run. 
+  - Inside this runner, `kind` instantly creates a throwaway cluster that lives entirely in memory, giving us a safe, CI-friendly sandbox to prove our delivery mechanics without depending on the final, persistent infrastructure yet.
+
+  > [!NOTE] **🧩 Info box — kind (The "Dummy" Cluster)**
+  > `kind` creates a temporary Kubernetes cluster inside Docker containers. It acts as our **ephemeral "dummy" cluster**, living entirely inside the GitHub Actions runner for just a few minutes. It has no persistent storage and is destroyed automatically when the job finishes. It is used here purely as a clean, isolated **smoke-test target** to prove the deployment logic works before transitioning to the real Proxmox VM.
+
 - **Verification / evidence:**
   - workflow file added at:
     - `.github/workflows/phase-03-delivery.yaml`
@@ -157,8 +179,6 @@ This gives the repository a real delivery baseline before moving to the final in
 - **Consequences / follow-ups:**
   - the delivery logic is proven now
   - later retargeting to Proxmox mainly requires swapping the temporary cluster setup for the real kubeconfig / cluster-access path
-
----
 
 ## Decision (P03-D04): production gate = GitHub Environment with required reviewer
 

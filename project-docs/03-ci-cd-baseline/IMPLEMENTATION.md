@@ -41,11 +41,11 @@
   - environment modeling
   - approval flow
 
-### GitHub-hosted runners + Kind (instead of a self-hosted runner)
+### GitHub-hosted runners + `kind` (instead of a self-hosted runner)
 
-- This repository is a **public fork**, so using a self-hosted runner attached to a personal machine would introduce an unnecessary security risk for this phase. This was a deliberate risk-reduction choice for the CI/CD baseline, not a limitation of GitHub Actions itself.
-- GitHub-hosted runners are a better fit here because they run workflow jobs in fresh hosted VMs, while `kind` provides a clean temporary Kubernetes target that is explicitly suited to local development and CI.
-- This gives us a strong **delivery smoke-test path** now, while keeping the later transition to Proxmox straightforward.
+- This repository is a **public fork**, so **attaching a self-hosted runner on a personal machine would introduce an unnecessary security risk**. Relying on **GitHub-hosted runners** is a deliberate risk-reduction choice for this baseline phase, not a limitation of GitHub Actions. On top of that GitHub-hosted are ephemeral and provide a fresh, isolated VM for every workflow execution. 
+- Inside this runner, we use **`kind` (Kubernetes in Docker)** to instantly spin up an **ephemeral "dummy" cluster**. This **"throwaway cluster" lives only for a few minutes in the runner's memory** and is destroyed automatically when the job finishes, ensuring a completely clean slate for every run.
+- This approach provides a **safe, highly reliable delivery smoke-test path**. It allows to prove that the Kustomize logic and deployment steps work flawlessly in an isolated sandbox, making the later transition to the permanent, persistent Proxmox target cluster (Phase 05) straightforward.
 
 ### Why not move directly to Proxmox in this phase
 
@@ -56,7 +56,7 @@
   - CI/CD logic
 - A more disciplined DevOps move is to validate the **pipeline + deploy mechanics** first in a clean temporary Kubernetes target, then retarget the same delivery flow later to the real environment.
 
-> [!NOTE] **🧩 Info box — CI/CD pipeline**
+> [!NOTE] **🧩 CI/CD pipeline**
 >
 > A **CI/CD pipeline** is an automated workflow that runs defined delivery steps after a trigger such as a push or a manual start.  
 > In this phase, the important elements are:
@@ -65,18 +65,27 @@
 > - deployment smoke tests for `dev` and `prod`
 > - an approval gate before the `prod` deployment step
 
-> [!NOTE] **🧩 Info box — GitHub-hosted runner**
+> [!NOTE] **🧩 GitHub-hosted runner**
 >
-> A **GitHub-hosted runner** is a GitHub-provided VM used to run workflow jobs.  
+> A **GitHub-hosted runner** is a **GitHub-provided VM** used to **run workflow jobs**.  
 > In this phase, hosted runners are used for all jobs because the repository is public and the goal is to avoid attaching a self-hosted runner to a personal machine.
 
-> [!NOTE] **🧩 Info box — kind**
+> [!NOTE] **🧩 kind**
 >
 > `kind` = **Kubernetes in Docker**.  
 > `kind` creates a temporary Kubernetes cluster inside Docker containers and is explicitly designed for local development and CI.  
 > In this phase, `kind` is used as a **clean deployment smoke-test target** for `dev` and `prod`.
 
-> [!NOTE] **🧩 Info box — GHCR**
+> [!NOTE] **🧩 Info box — kind (The "Dummy" Cluster)**
+>
+> `kind` = **Kubernetes in Docker**.  
+> `kind` creates a temporary Kubernetes cluster inside Docker containers and is explicitly designed for local testing and CI pipelines.  
+>
+> In this phase, `kind` acts as an **ephemeral "dummy" cluster**. It **lives entirely and only inside the GitHub Actions runner** for just a few minutes, has no persistent storage, and is **never exposed to the public internet**. Once the workflow finishes, **the cluster is completely destroyed**.
+> 
+> It is used here **purely as a safe, isolated smoke-test target** to prove that the `dev` and `prod` deployment logic works perfectly before we move on to a real, persistent Proxmox VM with a real k3s target cluster.
+
+> [!NOTE] **🧩 GHCR**
 >
 > **GHCR** = **GitHub Container Registry**.  
 > It stores container images under the GitHub account / repository ecosystem and can be used directly from GitHub Actions with `GITHUB_TOKEN`.
@@ -209,7 +218,7 @@ For this Phase 03 baseline and since Helm is optional for this project, the alre
 
 Helm remains a valid **later enhancement candidate** once the CI/CD baseline is stable.
 
-> [!NOTE] **🧩 Info box — Helm vs "raw manifests"**
+> [!NOTE] **🧩 Helm vs "raw manifests"**
 >
 >
 > **Helm** is a Kubernetes package manager and templating layer. A Helm chart bundles related Kubernetes resources into one reusable package, adds values-based configuration, and can make multi-resource application deployment much easier to repeat across environments.  
@@ -416,12 +425,12 @@ Kustomize is working as the right minimal environment layer for this phase:
 - keeps upstream manifests untouched
 - adds `dev` / `prod` separation in a minimal and reviewable way
 
-> **🧩 Info box — Kustomize**
+> **🧩 Kustomize**
 >
 > **Kustomize** is a **Kubernetes-native configuration tool** used to **customize a base set of Kubernetes resources** without copying and rewriting all manifests. 
 > In this phase, it is used to turn the already proven raw manifest baseline into reusable environment-specific deployment inputs for `dev` and `prod`. Kubernetes documents Kustomize explicitly in terms of bases, overlays, resources, and patches.
 
-> [!NOTE] **🧩 Info box — Kustomize overlay**
+> [!NOTE] **🧩 Kustomize overlay**
 >
 > A **Kustomize overlay** is a thin customization layer on top of a base set of Kubernetes resources.  
 > In this phase, the overlays are used to:
@@ -523,7 +532,7 @@ Why the repository owner was set as reviewer here:
 
 This establishes the **manual promotion checkpoint** between `dev` and `prod`, and it does so in the place where GitHub actually enforces deployment protection rules: the repository’s environment settings.
 
-> **🧩 Info box — GitHub Environment**
+> **🧩 GitHub Environment**
 >
 > A **GitHub Environment** is a named deployment target in GitHub Actions, such as `dev` or `prod`.  
 > It can hold protection rules like required reviewers and is used here to pause the `prod` smoke deployment until it is explicitly approved.
@@ -691,11 +700,11 @@ Ergo: The Kustomize layer is the bridge between:
 - the already proven raw manifest baseline
 - and the new GitHub Actions delivery workflow
 
-> **🧩 Info box — workflow_dispatch**
+> **🧩 workflow_dispatch**
 >
 > `workflow_dispatch` is the **GitHub Actions event** for **manual workflow starts** from the GitHub UI. For this event inputs/values are optional - i.e. the key can be present without nested values. It only receives events when the workflow file is on the default branch.
 
-> **🧩 Info box — "upstream" vs "downstream" (workflow graph)**
+> **🧩 "upstream" vs "downstream" (workflow graph)**
 >
 > In the workflow graph, **upstream jobs** run earlier and **downstream jobs** depend on them via `needs:`.  
 > Example: if `build-push-support-images` fails, the deploy jobs are downstream and do not run.
@@ -727,7 +736,7 @@ Relevant workflow signal from the GitHub Actions build log:
 - the repo-owned `healthcheck` image builds and pushes successfully
 - but the also repo-owned `openapi` image build fails during `npm install`
 
-> **🧩 Info box — repo-owned image target**
+> **🧩 repo-owned image target**
 > A **repo-owned image target** is a Docker build target defined inside this repository itself (for example `healthcheck/` or `openapi/`), rather than one of the main Sock Shop runtime images that are pulled from an external upstream registry.
 > - both healthcheck and openapi are build contexts/directories that live inside this repository (see `healthcheck/Dockerfile` + `openapi/Dockerfile`), they are not external images that can be pulled as upstream images during the smoke deployment
 > - they are auxiliary images that can be built and published by the workflow
