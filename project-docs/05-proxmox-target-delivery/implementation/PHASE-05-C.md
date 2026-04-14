@@ -1,5 +1,27 @@
+# 📑 Subphase 05-C — Environment Modeling, Ingress Routing & Private Tailnet Access
 
-# Phjase 05-C - Environment-aware redeploy, ingress path, and private cluster access preparation
+---
+> [!TIP] **Navigation**  
+> **[⬅️ Phase 05-B](./PHASE-05-B.md)** | **[🏠 Phase 05 Home](../IMPLEMENTATION.md)** | **[Next: Phase 05-D ➡️](./PHASE-05-D.md)**
+---
+
+## 🎯 Subphase goal
+
+Move from the first raw target deployment to a structured `dev` / `prod` cluster model with working Traefik ingress and private Tailscale-based operator access.
+
+## 📌 Index
+
+- [Step 12 — Inspect the dev overlay and render the target-side deployment input before the first environment-aware redeploy](#step-12--inspect-the-dev-overlay-and-render-the-target-side-deployment-input-before-the-first-environment-aware-redeploy)
+- [Step 13 — Redeploy the application into the `sock-shop-dev` namespace from the Phase-05 source state](#step-13--redeploy-the-application-into-the-sock-shop-dev-namespace-from-the-phase-05-source-state)
+- [Step 14 — Confirm the current target-side ingress controller path before introducing the first public `dev` entry](#step-14--confirm-the-current-target-side-ingress-controller-path-before-introducing-the-first-public-dev-entry)
+- [Step 15 — Create the `dev` ingress rule for the front end and verify it locally through Traefik](#step-15--create-the-dev-ingress-rule-for-the-front-end-and-verify-it-locally-through-traefik)
+- [Step 16 — Bring the target VM onto the tailnet and verify private network reachability for the later CI/CD deploy path](#step-16--bring-the-target-vm-onto-the-tailnet-and-verify-private-network-reachability-for-the-later-cicd-deploy-path)
+- [Step 17 — Prepare the tailnet-based K3s kubeconfig and verify cluster access material for the later workflow integration](#step-17--prepare-the-tailnet-based-k3s-kubeconfig-and-verify-cluster-access-material-for-the-later-workflow-integration)
+- [Step 18 — Verify tailnet-based cluster access from the local workstation before wiring the workflow to the real target](#step-18--verify-tailnet-based-cluster-access-from-the-local-workstation-before-wiring-the-workflow-to-the-real-target)
+- [Step 19 — Create the missing `sock-shop-prod` namespace from source control and complete the planned two-environment cluster shape](#step-19--create-the-missing-sock-shop-prod-namespace-from-source-control-and-complete-the-planned-two-environment-cluster-shape)
+- [Step 20 — Create the `prod` ingress rule for the front end and verify it locally through Traefik](#step-20--create-the-prod-ingress-rule-for-the-front-end-and-verify-it-locally-through-traefik)
+
+---
 
 
 # Step 12 — Inspect the dev overlay and render the target-side deployment input before the first environment-aware redeploy
@@ -1085,5 +1107,10 @@ These signals show that:
 - the `prod` overlay now contains a working ingress rule
 - Traefik now routes both application environments locally by hostname
 - both in-cluster ingress paths are in place before the public Cloudflare edge is added
+
+---
+
+> [!TIP] **Navigation**  
+> **[⬅️ Previous: Phase 05-B](./PHASE-05-B.md)** | **[⬆️ Top (Index)](#index)** | **[Next: Phase 05-D ➡️](./PHASE-05-D.md)**
 
 ---

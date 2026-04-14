@@ -1,4 +1,24 @@
-# PHASE 05B - first real application deployment, MongoDB remediation, and initial storefront proof
+# 📑 Subphase 05-B — First Application Deployment, Runtime Compatibility Fix, and Initial Target-Side Proof
+
+---
+> [!TIP] **Navigation**  
+> **[⬅️ Phase 05-A](./PHASE-05-A.md)** | **[🏠 Phase 05 Home](../IMPLEMENTATION.md)** | **[Next: Phase 05-C ➡️](./PHASE-05-C.md)**
+---
+
+## 🎯 Subphase goal
+
+Deploy the application for the first time on the real target cluster, isolate and fix the MongoDB compatibility blocker, and prove the storefront on the real Proxmox-backed node.
+
+## 📌 Index
+
+- [Step 6 — Deploy the Sock Shop raw manifest baseline to the real target cluster and verify the initial application state](#step-6--deploy-the-sock-shop-raw-manifest-baseline-to-the-real-target-cluster-and-verify-the-initial-application-state)
+- [Step 7 — Triage the two crashing MongoDB-backed pods](#step-7--triage-the-two-crashing-mongodb-backed-pods)
+- [Step 8 — Persist the MongoDB image pin in source control and realign the target checkout](#step-8--persist-the-mongodb-image-pin-in-source-control-and-realign-the-target-checkout)
+- [Step 9 — Confirm the MongoDB image mismatch, patch both MongoDB-backed deployments to `mongo:3.4` (VM Hotfix), and verify full application convergence](#step-9--confirm-the-mongodb-image-mismatch-patch-both-mongodb-backed-deployments-to-mongo34-vm-hotfix-and-verify-full-application-convergence)
+- [Step 10 — Prove that the storefront responds on the real target via NodePort](#step-10--prove-that-the-storefront-responds-on-the-real-target-via-nodeport)
+- [Step 11 — Render the storefront in the local browser through an SSH tunnel](#step-11--render-the-storefront-in-the-local-browser-through-an-ssh-tunnel)
+
+---
 
 # Step 6 — Deploy the Sock Shop raw manifest baseline to the real target cluster and verify the initial application state
 
@@ -552,3 +572,9 @@ The successful end state is shown by these signals / verification points:
   rendered the Sock Shop storefront
 - the first full browser-rendered proof of the real Proxmox-backed target was captured successfully
 
+---
+
+> [!TIP] **Navigation**  
+> **[⬅️ Previous: Phase 05-A](./PHASE-05-A.md)** | **[⬆️ Top (Index)](#index)** | **[Next: Phase 05-C ➡️](./PHASE-05-C.md)**
+
+---

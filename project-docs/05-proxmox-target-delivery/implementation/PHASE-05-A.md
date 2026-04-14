@@ -1,4 +1,24 @@
-# Phase 05A — target VM bootstrap and first cluster bring-up
+# 📑 Subphase 05-A — Target VM Bootstrap & First Cluster Setup
+
+---
+> [!TIP] **Navigation**  
+> **[⬅️🏠 Phase 05 Home](../IMPLEMENTATION.md)** | **[Next: Phase 05-B ➡️](./PHASE-05-B.md)**
+---
+
+## 🎯 Subphase goal
+
+Create the real Proxmox-backed target VM, validate the guest baseline, install K3s, and bring the target to its first usable cluster state.
+
+## 📌 Index
+
+- [Step 1 — Create the real target VM `9200` from the workload-ready template `9010`](#step-1--create-the-real-target-vm-9200-from-the-workload-ready-template-9010)
+- [Step 2 — Boot VM `9200` and prove the cloned target inherited the expected baseline](#step-2--boot-vm-9200-and-prove-the-cloned-target-inherited-the-expected-baseline)
+- [Step 3 — Install a helper package baseline on the target VM](#step-3--install-a-helper-package-baseline-on-the-target-vm)
+- [Step 4 — Install K3s on VM `9200` as a single-node server and prove the node came up correctly](#step-4--install-k3s-on-vm-9200-as-a-single-node-server-and-prove-the-node-came-up-correctly)
+- [Step 5 — Clone the project repository onto the target VM](#step-5--clone-the-project-repository-onto-the-target-vm)
+
+---
+<br>
 
 # Step 1 — Create the real target VM `9200` from the workload-ready template `9010`
 
@@ -106,6 +126,7 @@ The successful end state is shown by these signals / verification points:
 ***Figure 1*** *Proxmox inventory view showing the newly cloned VM `9200` (`ubuntu-2404-k3s-target-01`) as the K3s deployment target created from the workload-ready Phase 04 template.*
 
 ---
+<br>
 
 # Step 2 — Boot VM `9200` and prove the cloned target inherited the expected baseline
 
@@ -452,3 +473,7 @@ This establishes the target-side repository checkout that later deployment and r
 
 ---
 
+> [!TIP] **Navigation**  
+> **[⬅️ 🏠 Previous: Phase 05 Home](../IMPLEMENTATION.md)** | **[⬆️ Top (Index)](#index)** | **[Next: Phase 05-B ➡️](./PHASE-05-B.md)**
+
+---

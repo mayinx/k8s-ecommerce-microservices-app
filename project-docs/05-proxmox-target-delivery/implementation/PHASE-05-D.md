@@ -1,5 +1,21 @@
+# 📑 Subphase 05-D — Public Edge Exposure via Cloudflare and CI/CD Workflow Retargeting to the Real Target Cluste
 
-# Phase 05D — public edge and real CI/CD target delivery
+---
+> [!TIP] **Navigation**  
+> **[⬅️ Phase 05-C](./PHASE-05-C.md)** | **[🏠 Phase 05 Home](../IMPLEMENTATION.md)**
+---
+
+## 🎯 Subphase goal
+
+Complete the real target-delivery path by exposing both environments through Cloudflare Tunnel and retargeting GitHub Actions to the private Proxmox-backed cluster.
+
+## 📌 Index
+
+- [Step 21 — Cloudfare: Publish the public `dev` and `prod` hostnames through a Cloudflare Tunnel and point them at the existing Traefik entrypoint](#step-21--cloudfare-publish-the-public-dev-and-prod-hostnames-through-a-cloudflare-tunnel-and-point-them-at-the-existing-traefik-entrypoint)
+- [Step 22 — Prepare the GitHub-side Deployment Access Path (Tailscale OAuth, K8s Config & Secrets)](#step-22--prepare-the-github-side-deployment-access-path-tailscale-oauth-k8s-config--secrets)
+- [Step 23 — Create a dedicated Phase-05 workflow and prove the real target delivery path: automated `dev` deployment plus approval-gated `prod` deployment on the Proxmox-backed cluster](#step-23--create-a-dedicated-phase-05-workflow-and-prove-the-real-target-delivery-path-automated-dev-deployment-plus-approval-gated-prod-deployment-on-the-proxmox-backed-cluster)
+
+---
 
 # Step 21 — Cloudfare: Publish the public `dev` and `prod` hostnames through a Cloudflare Tunnel and point them at the existing Traefik entrypoint
 
@@ -937,3 +953,10 @@ These signals show that:
 - the new Phase-05 workflow now represents the active target-delivery path
 - automated `dev` deployment and approval-gated `prod` deployment are both proven on the real Proxmox-backed cluster
 - **the Phase-05 target-delivery objective is complete**
+
+---
+
+> [!TIP] **Navigation**  
+> **[⬅️ Previous: Phase 05-C](./PHASE-05-C.md)** | **[⬆️ Top (Index)](#index)** | **[🏠 Phase 05 Home](../IMPLEMENTATION.md)**
+
+---
