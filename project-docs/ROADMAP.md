@@ -23,13 +23,13 @@
 ## Current position
 
 - Current proven phase:
-  - Phase 04 — Proxmox VM baseline
+  - Phase 05 — Proxmox target delivery
 - Primary next target:
-  - Phase 05 — Target deployment on Proxmox + selective Terraform / IaC
+  - Phase 06 — Observability
 - Main current objective:
-  - move from the proven Proxmox VM baseline to real application deployment on the target and continue the remaining core DevOps layers cleanly
+  - build the first useful observability baseline on top of the already proven real target-delivery platform
 - Important planning note:
-  - the project should preserve room for strong extensions (see below Tier B), but the core path must stay stable first
+  - the real target path is now in place, so the next phases should build on that stable foundation rather than reopening target-bootstrap work unless a real blocker appears
 
 ---
 
@@ -137,64 +137,79 @@
   - [Runbook](./04-proxmox-vm-baseline/RUNBOOK.md)
   - [Decisions](./04-proxmox-vm-baseline/DECISIONS.md)
 
-### Phase 05 — Target deployment on Proxmox + selective Terraform / IaC
+### Phase 05 — Proxmox target delivery
 - status:
-  - next core phase
+  - done
 - purpose:
-  - move from the proven VM baseline to real application deployment on the Proxmox-backed target and codify the stable target/bootstrap pieces that are worth automating now
-- likely work:
-  - choose the most realistic target-side Kubernetes deployment path
-  - deploy Sock Shop on the target
-  - codify the stable target/bootstrap pieces where Terraform adds clear value
-  - retarget the already proven delivery mechanics toward the real target
-- open questions:
-  - exact target-cluster shape
-  - exact target-cluster access path
-  - how much of the current GitHub Actions structure can stay unchanged
-  - which target/bootstrap pieces should be codified first in Terraform
-  - whether manifest-touching work in this phase should already include the deprecated node selector cleanup
+  - move from the proven Proxmox VM baseline to a real long-lived target-delivery platform
+- already proven:
+  - real Proxmox-backed target VM `9200` cloned from workload-ready template `9010`
+  - single-node K3s control plane on the target VM
+  - source-controlled MongoDB compatibility fix for the target runtime
+  - namespace-based `dev` / `prod` target model
+  - working Traefik ingress for both environments
+  - private tailnet-based operator and CI/CD cluster access
+  - public HTTPS exposure through Cloudflare Tunnel
+  - dedicated Phase 05 workflow for the real target cluster
+  - automated `dev` deployment
+  - approval-gated `prod` deployment
+- docs:
+  - [Setup](./05-proxmox-target-delivery/SETUP.md)
+  - [Implementation](./05-proxmox-target-delivery/IMPLEMENTATION.md)
+  - [Runbook](./05-proxmox-target-delivery/RUNBOOK.md)
+  - [Decisions](./05-proxmox-target-delivery/DECISIONS.md)
 
 ### Phase 06 — Observability
 - status:
-  - core phase still open
+  - next core phase
 - purpose:
-  - add monitoring / visibility
+  - add the first useful monitoring and visibility layer to the real Proxmox-backed target
 - likely work:
-  - Prometheus / Grafana
-  - health and service metrics
-  - at least one business-facing or operationally meaningful dashboard view
+  - deploy Prometheus and Grafana on or alongside the current target environment
+  - collect basic cluster and workload health signals
+  - expose at least one useful service/application dashboard for Sock Shop
+  - document the minimum verification path for observability on the long-lived target
 - open questions:
-  - what minimum useful dashboards should exist before project evaluation
+  - what is the smallest defensible observability baseline before evaluation
+  - which metrics are the highest-value proof first:
+    - cluster / node health
+    - workload health
+    - ingress / request visibility
+    - application-level service behavior
+  - whether alerting should already enter this phase or remain a later follow-up
 
-### Phase 07 — Security hardening
+### Phase 07 — Security baseline & testing
 - status:
   - core phase still open
 - purpose:
-  - add stronger security / workflow hardening
+  - add stronger security / workflow hardening and satisfy the minimum test requirement
 - likely work:
-  - scanning
-  - workflow hardening
-  - secrets-handling improvements
-- open questions:
-  - what fits the project scope best before evaluation
-  - what should be deferred to extension work
-  - Tighten repository allowed-actions settings
-  - Pin third-party GitHub Actions to full commit SHAs
-  - Add workflow protection such as `CODEOWNERS`
-  - Re-check `GITHUB_TOKEN` permissions job-by-job  
+  - Trivy vulnerability scanning in GitHub Actions
+  - Dependabot configuration
+  - explicit documentation of GitHub Secrets (no hard-coded secrets)
+  - implement the smallest defensible unit-test path (Capstone minimum requirement)
 
-### Phase 08 — DR / rollback
+### Phase 08 — Infrastructure as Code (Terraform)
 - status:
   - core phase still open
 - purpose:
-  - document and prove recovery thinking
+  - codify the stable target/bootstrap pieces using the Capstone-recommended IaC tool
 - likely work:
-  - rollback path
-  - redeploy-from-IaC path
-  - backup / restore thinking
-- open questions:
-  - what can be practically demonstrated versus documented
+  - do *not* rebuild the entire Proxmox VM layer to avoid timeline risk
+  - use Terraform (and the Terraform Helm Provider) to manage Kubernetes namespaces
+  - codify the Phase 06 monitoring stack installation via Terraform
+- why it matters:
+  - safely satisfies the IaC requirement while demonstrating senior-level add-on management.
 
+### Phase 09 — DR / rollback baseline
+- status:
+  - core phase still open
+- purpose:
+  - document and prove recovery thinking (Capstone requirement)
+- likely work:
+  - demonstrate how to roll back a deployment to a previous version
+  - outline database backup and persistent-storage strategies
+  - document the redeploy-from-IaC path
 ---
 
 ## Extension tracks
@@ -290,23 +305,31 @@
   - restrict allowed actions
   - pin third-party actions to full SHAs
   - add workflow protection such as `CODEOWNERS`
-- ...
+- the guest-session storefront persistence bug remains tracked as an upstream application issue and is currently out of scope for infrastructure phases
+- the current Cloudflare edge path still hands traffic from `cloudflared` to Traefik over HTTP on the local origin side; later hardening may add end-to-end TLS via cert-manager or an equivalent origin-side certificate path
 
 ---
 
 ## Open planning questions
 
-- What is the most realistic minimum target-deployment scope for Phase 05?
-- Which target/bootstrap pieces should be codified first in Terraform during Phase 05?
+- What is the most defensible minimum observability baseline for Phase 06 on the current real target?
+- Which first dashboards create the strongest proof value soonest:
+  - cluster/node health
+  - namespace/workload health
+  - ingress/request visibility
+  - service/application behavior
+- Should alerting enter directly in Phase 06, or follow after the basic dashboard baseline is stable?
 - Which test layer gives the strongest value soonest:
   - pipeline smoke checks
   - Playwright
   - service-level tests
 - Should the custom Python microservice be implemented before or after the first full observability baseline?
 - Is an AWS extension realistic before evaluation, or better kept for post-bootcamp portfolio work?
-- Which later extension gives the strongest hiring signal "per hour of effort" ;-) :
+- Which later extension gives the strongest hiring signal per hour of effort:
   - Argo CD
   - Python microservice
   - stronger testing
   - AWS target
-  - ...
+
+---
+

@@ -36,7 +36,8 @@ This repository demonstrates an iterative DevOps delivery path built around Sock
 - GHCR image publishing
 - approval-gated promotion flow
 - evidence-oriented technical documentation
-- a delivery path that can later be retargeted to a long-lived infrastructure platform
+- a real Proxmox-backed target-delivery platform
+- a delivery path that now spans local proof, CI/CD proof, and a long-lived target environment
 
 Current proven highlights include:
 
@@ -50,6 +51,13 @@ Current proven highlights include:
 - reusable Proxmox VM template baseline
 - verified Proxmox smoke VM with host-side and guest-side proof
 - workload-ready Proxmox baseline variant for target-side deployment
+- real target VM `9200`, cloned from workload-ready template `9010`
+- single-node K3s control plane on the real target
+- source-controlled MongoDB compatibility fix for the target runtime
+- working `dev` / `prod` deployment model on the real target cluster
+- private tailnet-based operator and CI/CD access path
+- public HTTPS exposure through Cloudflare Tunnel
+- dedicated Phase 05 workflow for automated `dev` and approval-gated `prod` deployment on the real target cluster
 
 ## Architecture direction
 
@@ -60,15 +68,19 @@ The current architecture direction is:
 - **Kubernetes deploy input:** raw manifests with environment overlays
 - **CI/CD platform:** GitHub Actions
 - **container registry:** GHCR
-- **temporary CI/CD smoke target:** `kind`
-- **later long-lived target:** Proxmox-based environment
-  - **current Proxmox target baseline (realized):**
-    - generic baseline template `9000`
-    - smoke-validation clone `9100`
-    - workload-ready baseline template variant `9010`
-  - **next target step:** application deployment on the Proxmox-backed environment- **later planned layers:** monitoring, security hardening, DR, and selective IaC-driven target codification
+- **historical CI/CD smoke target:** `kind` (Phase 03 baseline)
+- **current long-lived target:** Proxmox-backed VM + K3s
+  - **current realized target shape:**
+    - workload-ready baseline template `9010`
+    - target VM `9200`
+    - single-node K3s control plane
+    - `sock-shop-dev` and `sock-shop-prod`
+    - Traefik ingress
+    - Tailscale private access path
+    - Cloudflare Tunnel public edge
+- **later planned layers:** observability, security hardening, DR, and selective IaC-driven codification of stable target/bootstrap pieces
 
-This means the project is already proving the delivery mechanics now, while remaining open for the next infrastructure and operations layers.
+This means the project is no longer only proving delivery mechanics in isolation; it is now also proving those mechanics against a real long-lived target environment.
 
 ## Documentation (start here)
 
@@ -87,8 +99,20 @@ Depending on the phase, a folder may contain:
 - `evidence/`
 
 ### Current phase docs
+- Phase 05 setup:
+  - [project-docs/05-proxmox-target-delivery/SETUP.md](project-docs/05-proxmox-target-delivery/SETUP.md)
+- Phase 05 implementation log:
+  - [project-docs/05-proxmox-target-delivery/IMPLEMENTATION.md](project-docs/05-proxmox-target-delivery/IMPLEMENTATION.md)
+- Phase 05 runbook:
+  - [project-docs/05-proxmox-target-delivery/RUNBOOK.md](project-docs/05-proxmox-target-delivery/RUNBOOK.md)
+- Phase 05 decisions:
+  - [project-docs/05-proxmox-target-delivery/DECISIONS.md](project-docs/05-proxmox-target-delivery/DECISIONS.md)
+
+### Previous phase docs
 - Phase 04 discovery:
   - [project-docs/04-proxmox-vm-baseline/DISCOVERY.md](project-docs/04-proxmox-vm-baseline/DISCOVERY.md)
+- Phase 04 setup:
+  - [project-docs/04-proxmox-vm-baseline/SETUP.md](project-docs/04-proxmox-vm-baseline/SETUP.md)
 - Phase 04 implementation log:
   - [project-docs/04-proxmox-vm-baseline/IMPLEMENTATION.md](project-docs/04-proxmox-vm-baseline/IMPLEMENTATION.md)
 - Phase 04 runbook:
@@ -96,22 +120,14 @@ Depending on the phase, a folder may contain:
 - Phase 04 decisions:
   - [project-docs/04-proxmox-vm-baseline/DECISIONS.md](project-docs/04-proxmox-vm-baseline/DECISIONS.md)
 
-### Previous phase docs
-- Phase 03 setup:
-  - [project-docs/03-ci-cd-baseline/SETUP.md](project-docs/03-ci-cd-baseline/SETUP.md)
-- Phase 03 implementation log:
-  - [project-docs/03-ci-cd-baseline/IMPLEMENTATION.md](project-docs/03-ci-cd-baseline/IMPLEMENTATION.md)
-- Phase 03 runbook:
-  - [project-docs/03-ci-cd-baseline/RUNBOOK.md](project-docs/03-ci-cd-baseline/RUNBOOK.md)
-- Phase 03 decisions:
-  - [project-docs/03-ci-cd-baseline/DECISIONS.md](project-docs/03-ci-cd-baseline/DECISIONS.md)
-
 ### Cross-phase docs
 
 - Summarized project decisions:
   - [project-docs/DECISIONS.md](project-docs/DECISIONS.md)
 - Project roadmap / planning:
   - [project-docs/ROADMAP.md](project-docs/ROADMAP.md)
+- Project Debug Log & Incident Reports:
+  - [project-docs/DEBUG-LOG.md](project-docs/DEBUG-LOG.md)
 - Architecture Decision Records (ADRs):
   - [adr/](adr/)
 
@@ -180,10 +196,26 @@ The repository currently contains proven work across these phases:
     - guest-agent capability
   - docs:
     - [Discovery](project-docs/04-proxmox-vm-baseline/DISCOVERY.md)
+    - [Setup](project-docs/04-proxmox-vm-baseline/SETUP.md)
     - [Implementation](project-docs/04-proxmox-vm-baseline/IMPLEMENTATION.md)
     - [Runbook](project-docs/04-proxmox-vm-baseline/RUNBOOK.md)
-    - [Setup](project-docs/04-proxmox-vm-baseline/SETUP.md)
     - [Decisions](project-docs/04-proxmox-vm-baseline/DECISIONS.md)
+
+- **Phase 05 — Proxmox target delivery**
+  - real target VM `9200` cloned from workload-ready template `9010`
+  - single-node K3s control plane on the target VM
+  - source-controlled MongoDB compatibility fix for the target runtime
+  - environment-separated `dev` / `prod` deployment model on the real target cluster
+  - working Traefik ingress for both environments
+  - private Tailscale-based operator and CI/CD access path
+  - public HTTPS exposure through Cloudflare Tunnel
+  - dedicated Phase 05 workflow for automated `dev` and approval-gated `prod` deployment on the real target
+  - docs:
+    - [Setup](project-docs/05-proxmox-target-delivery/SETUP.md)
+    - [Implementation](project-docs/05-proxmox-target-delivery/IMPLEMENTATION.md)
+    - [Runbook](project-docs/05-proxmox-target-delivery/RUNBOOK.md)
+    - [Decisions](project-docs/05-proxmox-target-delivery/DECISIONS.md)
+
 
 This section is intentionally a moving summary, not the final shape of the project.
 
@@ -199,6 +231,10 @@ Current or already chosen technology in this project includes:
 - GitHub Actions
 - GHCR
 - `kind`
+- Proxmox VE
+- Cloud-Init
+- Tailscale
+- Cloudflare Tunnel
 
 Additional planned layers include:
 
@@ -224,21 +260,16 @@ The full evidence index for each phase is documented inside the corresponding `I
 
 ## Current notable decisions
 
-- Helm was evaluated but deferred for the current CI/CD baseline because the chart path still depends on legacy incompatible API usage.
-- The CI/CD baseline uses GitHub-hosted runners and `kind`, not a self-hosted runner on a personal machine.
+- Helm was evaluated but deferred because the chart path still introduces legacy compatibility friction.
+- The CI/CD baseline uses GitHub-hosted runners, not a self-hosted runner on a personal machine.
 - `openapi` is excluded for now because it is a legacy auxiliary build target and not required for proving the main delivery path.
-- The project remains phase-based so later infrastructure retargeting and hardening can build on already proven delivery mechanics.
-
-## Current notable decisions
-
-- Helm was evaluated but deferred for the current CI/CD baseline because the chart path still depends on legacy incompatible API usage.
-- The CI/CD baseline uses GitHub-hosted runners and `kind`, not a self-hosted runner on a personal machine.
-- `openapi` is excluded for now because it is a legacy auxiliary build target and not required for proving the main delivery path.
-
-- The Proxmox baseline is standardized on the official Cloud-Init template workflow via `qm` (Proxmox’s command-line VM manager).
+- The Proxmox baseline is standardized on the official Cloud-Init template workflow via `qm`.
 - Phase 04 proves the target VM baseline through both host-side and guest-side verification, not through inventory visibility alone.
-
-- The project remains phase-based so later deployment, automation, and hardening work can build on already proven mechanics.
+- Phase 05 keeps the Kubernetes/Kustomize deployment path and evolves it onto the real Proxmox-backed target instead of switching deployment models midstream.
+- The real target cluster is reached privately through Tailscale, not by exposing the Kubernetes API publicly.
+- Public application exposure is handled through Cloudflare Tunnel and Traefik, not by opening inbound application ports directly on the VM.
+- The historical Phase 03 workflow is preserved, while the Phase 05 workflow is the active real-target delivery path.
+- The project remains phase-based so later observability, security, and DR work can build on already proven mechanics.
 
 ## Repository structure (high level)
 
@@ -252,12 +283,10 @@ The full evidence index for each phase is documented inside the corresponding `I
 This README is intentionally kept open for the next implementation phases.
 
 ### Core phases still to complete
-- application deployment on the primary Proxmox-backed target environment
-- IaC for that target environment (Terraform) 
-  - selective Terraform / Infrastructure as Code work for stable target/bootstrap pieces
-- monitoring / observability
+- observability on the real Proxmox-backed target
 - security hardening
 - disaster recovery / rollback strategy
+- selective IaC codification of stable target/bootstrap pieces
 
 ### Strong stretch goals before evaluation, if time allows
 - **Testing track:**
@@ -273,8 +302,8 @@ This README is intentionally kept open for the next implementation phases.
 ### Later portfolio extensions
 - GitOps layer (for example Argo CD)
 - stronger secret-management integration
-- Optional AWS target as an additional Terraform-driven deployment track
-- Recruiter-facing live dashboard / situation-room style proof layer
+- optional AWS target as an additional Terraform-driven deployment track
+- recruiter-facing live dashboard / situation-room style proof layer
 
 For the fuller internal planning view, see:
 - [project-docs/ROADMAP.md](project-docs/ROADMAP.md)

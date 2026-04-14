@@ -1,155 +1,230 @@
+# Decision Log — Phase 05 (Proxmox Target Delivery): real target VM, environment model, public edge, and workflow-driven delivery
 
-## `DECISIONS.md` for Phase 05
-
-```markdown
-# 🧠 Decisions — Phase 05: Proxmox Target Delivery
-
-## Purpose
-
-This document captures the **phase-specific implementation decisions** that shaped Phase 05.
-
-For the full execution story, see **[IMPLEMENTATION.md](./IMPLEMENTATION.md)**.  
-For the short rerun path, see **[RUNBOOK.md](./RUNBOOK.md)**.
-
-## Index
-
-- [P05-01 — Use a real Proxmox-backed target VM for delivery validation](#p05-01--use-a-real-proxmox-backed-target-vm-for-delivery-validation)
-- [P05-02 — Use a single-node K3s control plane on the target VM](#p05-02--use-a-single-node-k3s-control-plane-on-the-target-vm)
-- [P05-03 — Keep the Kubernetes deployment path Kustomize-based](#p05-03--keep-the-kubernetes-deployment-path-kustomize-based)
-- [P05-04 — Pin MongoDB to `mongo:3.4` on Kubernetes](#p05-04--pin-mongodb-to-mongo34-on-kubernetes)
-- [P05-05 — Standardize on `sock-shop-dev` and `sock-shop-prod` namespaces](#p05-05--standardize-on-sock-shop-dev-and-sock-shop-prod-namespaces)
-- [P05-06 — Use built-in K3s Traefik as the ingress controller](#p05-06--use-built-in-k3s-traefik-as-the-ingress-controller)
-- [P05-07 — Use Tailscale for private operator and CI/CD cluster access](#p05-07--use-tailscale-for-private-operator-and-cicd-cluster-access)
-- [P05-08 — Use Cloudflare Tunnel for public edge exposure](#p05-08--use-cloudflare-tunnel-for-public-edge-exposure)
-- [P05-09 — Split the delivery workflows into a preserved Phase 03 baseline and an active Phase 05 target workflow](#p05-09--split-the-delivery-workflows-into-a-preserved-phase-03-baseline-and-an-active-phase-05-target-workflow)
-- [P05-10 — Keep the guest-session storefront bug out of scope for this phase](#p05-10--keep-the-guest-session-storefront-bug-out-of-scope-for-this-phase)
+> ## 👤 About
+> This document is the **phase-local decision log** for **Phase 05 (Proxmox Target Delivery)**.  
+> It captures the full decision story for this phase without overloading the shorter project-wide summary in **[project-docs/DECISIONS.md](../DECISIONS.md)**.  
+> For the full chronological build diary and subphase trail, see: **[IMPLEMENTATION.md](./IMPLEMENTATION.md)**.  
+> For the short happy-path rerun flow, see: **[RUNBOOK.md](./RUNBOOK.md)**.  
+> For setup-only preparation around Cloudflare, Tailscale, and GitHub-side access, see: **[SETUP.md](./SETUP.md)**.  
+> For the recorded technical anomalies discovered during this phase, see: **[DEBUG-LOG.md](../DEBUG-LOG.md)**.
 
 ---
 
-## P05-01 — Use a real Proxmox-backed target VM for delivery validation
+## 📌 Index (top-level)
 
-**Decision**  
-Instantiate a real target VM from the Phase 04 workload-ready template and use that VM as the Phase 05 delivery target.
-
-**Why**  
-Phase 05 needed to move beyond smoke-style local validation and prove the delivery path on real Proxmox-backed infrastructure.
-
-**Consequence**  
-All later verification in this phase is tied to a persistent target rather than to an ephemeral local-only path.
-
----
-
-## P05-02 — Use a single-node K3s control plane on the target VM
-
-**Decision**  
-Install K3s as a single-node control-plane cluster on the real target VM.
-
-**Why**  
-This keeps the platform simple enough for the capstone scope while still proving a real Kubernetes-based target environment.
-
-**Consequence**  
-The phase proves real cluster behavior without introducing multi-node complexity too early.
+- [**Quick recap (Phase 05)**](#quick-recap-phase-05)
+- [**P05-D01 — Real target artifact model = Proxmox-backed VM `9200` cloned from workload-ready template `9010`**](#p05-d01--real-target-artifact-model--proxmox-backed-vm-9200-cloned-from-workload-ready-template-9010)
+- [**P05-D02 — Target cluster shape = single-node K3s control plane on the real target VM**](#p05-d02--target-cluster-shape--single-node-k3s-control-plane-on-the-real-target-vm)
+- [**P05-D03 — Deployment model = keep the Kustomize-based Kubernetes path**](#p05-d03--deployment-model--keep-the-kustomize-based-kubernetes-path)
+- [**P05-D04 — MongoDB compatibility fix = pin `carts-db` and `orders-db` to `mongo:3.4`**](#p05-d04--mongodb-compatibility-fix--pin-carts-db-and-orders-db-to-mongo34)
+- [**P05-D05 — Environment model = explicit `sock-shop-dev` and `sock-shop-prod` namespaces**](#p05-d05--environment-model--explicit-sock-shop-dev-and-sock-shop-prod-namespaces)
+- [**P05-D06 — Ingress model = built-in K3s Traefik with host-based routing for both environments**](#p05-d06--ingress-model--built-in-k3s-traefik-with-host-based-routing-for-both-environments)
+- [**P05-D07 — Private access model = Tailscale for operator and CI/CD access to the cluster API**](#p05-d07--private-access-model--tailscale-for-operator-and-cicd-access-to-the-cluster-api)
+- [**P05-D08 — Public edge model = Cloudflare Tunnel with first-level environment hostnames**](#p05-d08--public-edge-model--cloudflare-tunnel-with-first-level-environment-hostnames)
+- [**P05-D09 — Workflow model = preserve Phase 03 as historical baseline and create a dedicated Phase 05 target-delivery workflow**](#p05-d09--workflow-model--preserve-phase-03-as-historical-baseline-and-create-a-dedicated-phase-05-target-delivery-workflow)
+- [**P05-D10 — Scope boundary = keep the guest-session storefront bug out of the Phase 05 infrastructure scope**](#p05-d10--scope-boundary--keep-the-guest-session-storefront-bug-out-of-the-phase-05-infrastructure-scope)
+- [**Next-step implications recorded by this phase**](#next-step-implications-recorded-by-this-phase)
 
 ---
 
-## P05-03 — Keep the Kubernetes deployment path Kustomize-based
+## Quick recap (Phase 05)
 
-**Decision**  
-Continue using Kustomize overlays and `kubectl apply -k` as the main deployment path.
+Phase 05 moved the project from the local baseline (Pahses 00 - 03) and the reusable Proxmox VM baseline established in Phase 04 to a **real target-delivery platform** on private Proxmox infrastructure.
 
-**Why**  
-That path was already established earlier in the project and supports environment-aware overlays cleanly.
+### Starting point: the project needed a real delivery target beyond the reusable VM baseline
 
-**Consequence**  
-Phase 05 reuses a consistent deployment model for both `dev` and `prod`.
+Phase 04 ended with the **workload-ready Proxmox VM template `9010`**, but the project still did not have:
+
+- a real target VM for application delivery
+- a real Kubernetes control plane on that target
+- a public edge for `dev` / `prod`
+- or a CI/CD workflow reaching the long-lived environment
+
+Phase 05 therefore needed to turn the reusable VM baseline into a **persistent, externally reachable, workflow-driven target platform**.
+
+### First obstacle: the first target-side application deployment surfaced a MongoDB runtime incompatibility
+
+The first application deployment on the real target cluster showed that the overall stack came up almost completely, but `carts-db` and `orders-db` failed with a **MongoDB AVX/runtime incompatibility**.
+
+This revealed an important target-side difference between the local proof path and the real Proxmox-backed delivery target:
+
+- the unpinned Kubernetes image reference `mongo`
+- pulled a newer MongoDB image
+- which required AVX support
+- that was not available or not exposed on the target VM CPU path
+
+The fix was first proven as a live-cluster hotfix and then persisted into source control by pinning both affected Deployments to:
+
+- `mongo:3.4`
+
+### Chosen deployment model: keep the proven Kubernetes manifest path and evolve it into a real environment model
+
+Instead of changing the overall Kubernetes deployment model in the middle of the target move, Phase 05 kept the already proven Kubernetes/Kustomize path and built the real target-delivery story on top of it.
+
+That meant:
+
+- keep the Kustomize-based deployment path
+- standardize on explicit environment namespaces:
+  - `sock-shop-dev`
+  - `sock-shop-prod`
+- add host-based ingress rules for both environments
+- reuse the built-in K3s Traefik ingress controller
+- prove both environments on the real target cluster
+
+This preserved continuity with the earlier phases while allowing the target environment to become properly environment-aware.
+
+### Access and exposure model: separate the private operator path from the public application path
+
+Phase 05 also had to solve two different access problems cleanly:
+
+1. **private administrative / CI access to the Kubernetes API**
+2. **public HTTPS access to the storefront environments**
+
+Those were deliberately separated:
+
+- **Tailscale** became the private path for:
+  - workstation access
+  - external `kubectl` verification
+  - and later GitHub Actions runner access to the cluster API
+- **Cloudflare Tunnel** became the public edge for:
+  - `dev-sockshop.cdco.dev`
+  - `prod-sockshop.cdco.dev`
+
+This avoided direct public exposure of the Kubernetes API and avoided opening inbound application ports directly on the VM.
+
+### Workflow model: preserve the earlier CI/CD milestone, but introduce a dedicated real-target workflow
+
+Phase 03 had already proven a real CI/CD baseline, but only against the temporary smoke target.
+
+Phase 05 therefore did **not** overwrite that earlier story. Instead, it:
+
+- preserved the Phase 03 workflow as a historical baseline
+- created a dedicated Phase 05 workflow for the real Proxmox-backed target
+- proved automated `dev` deployment
+- and completed the approval-gated `prod` deployment path on the real cluster
+
+This keeps the chronology understandable:
+
+- Phase 03 = delivery mechanics baseline
+- Phase 05 = real target-delivery path
+
+### Verified result: real target VM, real cluster, real public edge, and real workflow-driven delivery
+
+By the end of Phase 05, the project now proves:
+
+- real target VM `9200`, cloned from workload-ready template `9010`
+- single-node K3s control plane running on that target
+- source-controlled MongoDB compatibility fix
+- environment-separated `dev` / `prod` deployment model
+- working Traefik ingress for both environments
+- public HTTPS access through Cloudflare Tunnel
+- private tailnet-based cluster access from outside the VM
+- a real GitHub Actions target-delivery workflow:
+  - automated `dev`
+  - approval-gated `prod`
+
+### Why this matters next
+
+Phase 05 no longer leaves the project in “target bootstrap mode”.
+
+The real target-delivery foundation now exists, so the next phases can focus on the remaining higher-level DevOps layers, especially:
+
+- observability
+- security hardening
+- DR / rollback
+- and final documentation / presentation polish
 
 ---
 
-## P05-04 — Pin MongoDB to `mongo:3.4` on Kubernetes
+## Key Phase Decisions
 
-**Decision**  
-Pin the `carts-db` and `orders-db` Deployments to `mongo:3.4`.
+### P05-D01 — Real target artifact model = Proxmox-backed VM `9200` cloned from workload-ready template `9010`
 
-**Why**  
-The unpinned `mongo` image introduced a runtime compatibility problem on the target VM because newer MongoDB versions require AVX support.
+- **Decision:** Instantiate a real target VM (`9200`) from the Phase 04 workload-ready Proxmox template (`9010`) and use that VM as the delivery target for this phase.
+- **Why:** Phase 05 needed to move beyond reusable-baseline proof and prove the delivery path on a persistent Proxmox-backed target.
+- **Proof:** VM `9200` is created from `9010`, booted successfully, and later becomes the live K3s target throughout the phase.
+- **Next-step impact:** Later deployment, access, and workflow verification in this phase all anchor to the same persistent target instead of to a local-only or ad-hoc VM path.
 
-**Consequence**  
-The application converges on the target runtime, and the fix is preserved in source control to avoid future drift.
+### P05-D02 — Target cluster shape = single-node K3s control plane on the real target VM
 
----
+- **Decision:** Install K3s as a single-node control-plane cluster on the real target VM.
+- **Why:** This keeps the target platform simple enough for the project scope while still proving a real Kubernetes-based long-lived environment.
+- **Proof:** K3s starts successfully on the target, the node reports `Ready`, and the core cluster services, including Traefik, come up correctly.
+- **Next-step impact:** The project now has a real Kubernetes target that later phases can observe, harden, and recover rather than a temporary-only smoke cluster.
 
-## P05-05 — Standardize on `sock-shop-dev` and `sock-shop-prod` namespaces
+### P05-D03 — Deployment model = keep the Kustomize-based Kubernetes path
 
-**Decision**  
-Use explicit namespace separation for the two target environments.
+- **Decision:** Continue using the existing Kubernetes manifest base plus Kustomize overlays as the main deployment path on the real target cluster.
+- **Why:** That path was already established earlier in the project and supports environment-aware overlays cleanly without introducing a second deployment model during the target transition.
+- **Proof:** The target-side environment deployments are applied successfully through `kubectl apply -k` for both `dev` and `prod`.
+- **Next-step impact:** The same deployment model now spans local proof, CI/CD proof, and real-target delivery, which reduces conceptual drift across phases.
 
-**Why**  
-The target-delivery path needed a proper environment model before workflow retargeting and public exposure made sense.
+### P05-D04 — MongoDB compatibility fix = pin `carts-db` and `orders-db` to `mongo:3.4`
 
-**Consequence**  
-The cluster now supports environment-aware deployment, verification, ingress, and later CI/CD behavior.
+- **Decision:** Pin the `carts-db` and `orders-db` Deployments to `mongo:3.4`.
+- **Why:** The unpinned `mongo` image pulled a newer MongoDB version that failed on the target runtime because of the AVX requirement.
+- **Proof:** The first target-side deployment isolates the failure to the two MongoDB-backed services; after pinning to `mongo:3.4`, both services roll out successfully and the fix is then persisted in source control.
+- **Next-step impact:** The deployment path becomes reproducible on the real target instead of depending on a one-off live-cluster patch.
 
----
+### P05-D05 — Environment model = explicit `sock-shop-dev` and `sock-shop-prod` namespaces
 
-## P05-06 — Use built-in K3s Traefik as the ingress controller
+- **Decision:** Standardize on explicit namespace separation for the two target environments.
+- **Why:** The target-delivery path needed a real environment model before ingress, public exposure, and workflow-driven delivery could be treated as `dev` / `prod` concerns instead of as one raw namespace.
+- **Proof:** Both environment namespaces are created and both overlays are deployed successfully on the real target cluster.
+- **Next-step impact:** Later verification, observability, security, and DR work can reason about environment boundaries explicitly.
 
-**Decision**  
-Keep the built-in K3s Traefik controller and build the ingress path on top of it.
+### P05-D06 — Ingress model = built-in K3s Traefik with host-based routing for both environments
 
-**Why**  
-Traefik was already present and healthy on the target after K3s installation, so it provided the fastest and cleanest ingress controller path.
+- **Decision:** Keep the built-in K3s Traefik controller and build the environment ingress path on top of it.
+- **Why:** Traefik was already present and healthy after K3s installation, so it provided the fastest and cleanest ingress-controller path without introducing another ingress stack.
+- **Proof:** Host-based routing is created and verified for both `dev` and `prod`, first locally through the target-side Traefik entrypoint and later through the public hostnames.
+- **Next-step impact:** Both environments now share one consistent ingress model that later public-edge and monitoring work can build on.
 
-**Consequence**  
-Both `dev` and `prod` ingress rules were implemented without introducing a second ingress stack.
+### P05-D07 — Private access model = Tailscale for operator and CI/CD access to the cluster API
 
----
+- **Decision:** Use Tailscale as the private reachability layer for the workstation and for later GitHub Actions runner access to the cluster API.
+- **Why:** This avoids direct public exposure of the Kubernetes API and removes the need for brittle inbound access rules or public-IP based administrative access.
+- **Proof:** The target VM joins the tailnet successfully, a tailnet-ready kubeconfig is prepared, and external `kubectl` access from the workstation succeeds.
+- **Next-step impact:** The same private path can now be used both by human operators and by CI/CD runners.
 
-## P05-07 — Use Tailscale for private operator and CI/CD cluster access
+### P05-D08 — Public edge model = Cloudflare Tunnel with first-level environment hostnames
 
-**Decision**  
-Use Tailscale as the private reachability layer for the workstation and later for ephemeral GitHub Actions runners.
+- **Decision:** Use Cloudflare Tunnel as the public edge and standardize on first-level environment hostnames:
+  - `dev-sockshop.cdco.dev`
+  - `prod-sockshop.cdco.dev`
+- **Why:** This provides a public HTTPS edge without opening inbound application ports directly on the VM and avoids the certificate friction of deeper nested hostname patterns.
+- **Proof:** The ingress hosts are aligned to the final public hostnames, the Cloudflare Tunnel is healthy, and both public HTTPS endpoints return successful responses.
+- **Next-step impact:** The project now has stable public environment URLs that can be used in docs, demos, and later operational dashboards.
 
-**Why**  
-This avoids direct public exposure of the Kubernetes API and removes the need for brittle inbound access rules.
+### P05-D09 — Workflow model = preserve Phase 03 as historical baseline and create a dedicated Phase 05 target-delivery workflow
 
-**Consequence**  
-The target cluster is reachable privately through a tailnet-based access path, and a tailnet-ready kubeconfig becomes part of the workflow design.
+- **Decision:** Preserve the Phase 03 workflow as a manual-only historical baseline and create a dedicated Phase 05 workflow for the real target-delivery path.
+- **Why:** This keeps the project chronology understandable while preventing the older smoke-target workflow from conflicting with the real-target behavior.
+- **Proof:** The Phase 03 workflow is retained, the new Phase 05 workflow is introduced, and the real target-delivery path is proven through automated `dev` deployment and approval-gated `prod` deployment.
+- **Next-step impact:** The repository now preserves both the historical CI/CD milestone and the active real-target delivery path cleanly.
 
----
+### P05-D10 — Scope boundary = keep the guest-session storefront bug out of the Phase 05 infrastructure scope
 
-## P05-08 — Use Cloudflare Tunnel for public edge exposure
-
-**Decision**  
-Use Cloudflare Tunnel to publish the public `dev` and `prod` hostnames.
-
-**Why**  
-This provides a public edge without opening inbound application ports directly on the VM.
-
-**Consequence**  
-Public application access is separated from private operator / CI access, and the origin exposure is reduced significantly for this path.
-
----
-
-## P05-09 — Split the delivery workflows into a preserved Phase 03 baseline and an active Phase 05 target workflow
-
-**Decision**  
-Preserve the Phase 03 workflow as a manual-only historical artifact and create a dedicated Phase 05 workflow for the real target-delivery path.
-
-**Why**  
-This keeps the project chronology understandable while preventing the old workflow from conflicting with the new target behavior.
-
-**Consequence**  
-The project retains its earlier CI/CD milestone while clearly promoting the real target-delivery workflow as the active path.
+- **Decision:** Document the guest-session persistence bug as an upstream application issue instead of trying to patch it inside Phase 05.
+- **Why:** Phase 05 is focused on target delivery, ingress, access, and workflow retargeting rather than on application-code repair of a legacy demo behavior.
+- **Proof:** The infrastructure path is otherwise healthy, the environments deploy and route correctly, and the known bug is isolated and recorded separately in `DEBUG-LOG.md`.
+- **Next-step impact:** The infrastructure delivery path remains complete and defensible, while the legacy application bug stays visible but scoped appropriately.
 
 ---
 
-## P05-10 — Keep the guest-session storefront bug out of scope for this phase
+## Next-step implications recorded by this phase
 
-**Decision**  
-Document the guest-session persistence bug as an upstream legacy application issue instead of trying to patch it inside Phase 05.
-
-**Why**  
-Phase 05 is focused on target delivery, ingress, access, and workflow retargeting rather than application-code repair of legacy demo behavior.
-
-**Consequence**  
-The infrastructure delivery path remains complete and defensible, while the known application bug is tracked separately in `DEBUG-LOG.md`.
+- Phase 05 establishes the **real target-delivery platform** on Proxmox, not just another local or smoke-only proof path.
+- The next major phase does not need to re-solve:
+  - target VM creation
+  - first cluster bootstrap
+  - environment separation
+  - public edge setup
+  - or workflow access to the real cluster
+- Phase 06 can therefore focus on **observability** on top of an already working long-lived target path.
+- Later hardening and DR work should build on the now-proven:
+  - `dev` / `prod` namespace model
+  - Traefik ingress layer
+  - Tailscale operator / CI access path
+  - Cloudflare public edge
+  - Phase 05 workflow-driven delivery path
