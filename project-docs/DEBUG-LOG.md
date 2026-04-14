@@ -4,7 +4,56 @@ This document tracks technical anomalies discovered during deployment, the inves
 
 ---
 
-## [Issue 01] Guest Session Persistence (Phase 05)
+## [Issue 01] MongoDB AVX Compatibility / CrashLoop (Phase 05)
+
+During the initial deployment of the Sock Shop baseline to the Proxmox K3s cluster, two specific backend services failed to initialize.
+
+### Observed Behavior
+While the majority of the stack entered a `Running` state immediately, the database pods for the Carts and Orders services remained trapped in a restart cycle.
+
+~~~bash
+$ sudo kubectl get pods -n sock-shop
+NAME                            READY   STATUS             RESTARTS
+carts-db-544c5bc9c8-2jtgs       0/1     CrashLoopBackOff   10 (57s ago)
+orders-db-5d7db99c6-7bmtb       0/1     CrashLoopBackOff   10 (70s ago)
+~~~
+
+### Investigation & Triage
+Logs were pulled from the failing containers to determine if the issue was related to K8s networking or the application runtime.
+
+~~~bash
+$ sudo kubectl logs -n sock-shop deployment/carts-db
+...
+[image-entrypoint] Initializing MongoDB v7.0...
+FATAL: MongoDB 5.0+ requires a CPU with AVX support.
+~~~
+
+**Diagnosis:** The unpinned `mongo` image reference in the raw manifests pulled the latest version (7.0+). Issue: Modern MongoDB versions require the **AVX (Advanced Vector Extensions)** CPU instruction set. The Proxmox VM, depending on its CPU host type or physical hardware, **did not expose these required instruction set to the guest OS**.
+
+### Resolution (Hotfix)
+The **deployments were patched live to explicitly use a legacy MongoDB version (`3.4`)** that does not require AVX, restoring parity with the original Sock Shop design baseline.
+
+~~~bash
+# Patch the carts-db + orders-db deployments to a specific MongoDB version 
+$ sudo kubectl set image deployment/carts-db -n sock-shop carts-db=mongo:3.4
+$ sudo kubectl set image deployment/orders-db -n sock-shop orders-db=mongo:3.4
+~~~
+
+**Result:** Both pods successfully transitioned to `Running` on `MongoDB v3.4.24`. This confirmed that the issue was a specific instruction-set incompatibility rather than a cluster resource or networking failure.
+
+### Permanent Fix & Prevention
+To prevent "Configuration Drift" (where the live cluster differs from the code in Git), the fix was codified back into the repository. 
+
+**Changes applied to `deploy/kubernetes/manifests/`:**
+- `03-carts-db-dep.yaml`: Updated image from `mongo` to `mongo:3.4`
+- `13-orders-db-dep.yaml`: Updated image from `mongo` to `mongo:3.4`
+
+**Result:** Subsequent deployments via the CI/CD pipeline or `kubectl apply -k` now default to the compatible image, ensuring the fix survives cluster recreations or redeployments.
+
+
+---
+
+## [Issue 02] Guest Session Persistence (Phase 05)
 
 During final verification of the `dev` and `prod` environments, a **legacy application bug** was identified regarding **anonymous (guest) session handling**.
 
@@ -44,7 +93,6 @@ Error: Can't set headers after they are sent.
 ~~~    
  
 The logs confirmed that the frontend is receiving the request but **crashing during the response phase**.
-
 
 **Diagnosis:** This is a **Double Reverse Proxy** conflict. The legacy Node.js code tries to negotiate session cookies while **behind both Cloudflare and Traefik**. It attempts to send a "Set-Cookie" header and an error response simultaneously, causing the response to fail.
 

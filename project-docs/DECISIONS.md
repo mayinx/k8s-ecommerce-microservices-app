@@ -316,20 +316,6 @@ The successfulyl implemented CI/CD smoke path works like this:
 
 This gives the repository a real delivery baseline before moving to the final infrastructure target.
 
-## Primary evidence (Phase 03)   
-- First failed workflow run (before `openapi` scope correction):  
-  `project-docs/03-ci-cd-baseline/evidence/gh/10-gh-pipeline-failed.png`
-- Production gate waiting for approval:  
-  `project-docs/03-ci-cd-baseline/evidence/gh/17-gh-prod-.waiting-for-review.png`
-- Successful production smoke deployment:  
-  `project-docs/03-ci-cd-baseline/evidence/gh/19-gh-prod-success.png`
-
-## Further details 
-- Setup guide: `project-docs/03-ci-cd-baseline/SETUP.md`
-- Implementation log: `project-docs/03-ci-cd-baseline/IMPLEMENTATION.md`
-- Runbook: `project-docs/03-ci-cd-baseline/RUNBOOK.md`
-- Full phase-local decisions: `project-docs/03-ci-cd-baseline/DECISIONS.md`
-
 ## Conclusion + Next steps  
 - Phase 03 proved the delivery mechanics cleanly without depending on the final target environment yet.
 - The next major step is to retarget the proven delivery path toward the real long-lived environment and continue with the remaining requirements:
@@ -369,7 +355,7 @@ Notable features of VM template `9010`:
 
 - private host-bridged guest network via `vmbr1`
 - host-side NAT, with forwarding and masquerading out through `vmbr0`
-- stable private guest addressing (`10.10.10.10/24`) and deterministic routing via default gateway `10.10.10.1`
+- stable private guest addressing (`<redacted-gateway-ip>0/24`) and deterministic routing via default gateway `<redacted-gateway-ip>`
 - deterministic DNS via resolver `1.1.1.1`
 - working outbound HTTPS reachability for later bootstrap, package-retrieval and target-side setup tasks
 - guest-agent capability
@@ -394,34 +380,87 @@ Phase 04 now proves:
 - successful generic smoke validation
 - workload-ready baseline template `9010` finalized before Phase 05
 
-## Primary evidence (Phase 04)
-- Reusable template created:
-  `project-docs/04-proxmox-vm-baseline/evidence/px/09-PX-Base-VM-Template-Image-9000-created.png`
-- Smoke VM created from the template:
-  `project-docs/04-proxmox-vm-baseline/evidence/px/10-PX-Smoke-Test-VM-Clone-9100-created.png`
-- Guest verification inside the smoke VM:
-  `project-docs/04-proxmox-vm-baseline/evidence/px/11-PX-Smoke-VM-9100_guest-login-and-cloud-init-success.png`
-- Workload-ready prep VM created on `vmbr1`:
-  `project-docs/04-proxmox-vm-baseline/evidence/px/12-PX-Workload-Ready-Prep-VM-9010-created-on-vmbr1.png`
-- Guest-agent and baseline helper tools verified:
-  `project-docs/04-proxmox-vm-baseline/evidence/px/13-PX-Workload-Ready-Prep-VM-9010_guest-agent-and-baseline-tools-success.png`
-- Workload-ready template finalized:
-  `project-docs/04-proxmox-vm-baseline/evidence/px/14-PX-Workload-Ready-Template-9010-finalized.png`
-
-## Further details
-- Discovery:
-  `project-docs/04-proxmox-vm-baseline/DISCOVERY.md`
-- Implementation log:
-  `project-docs/04-proxmox-vm-baseline/IMPLEMENTATION.md`
-- Runbook:
-  `project-docs/04-proxmox-vm-baseline/RUNBOOK.md`
-- Full phase-local decisions:
-  `project-docs/04-proxmox-vm-baseline/DECISIONS.md`
-
 ## Conclusion + Next steps
 - Phase 04 proved the generic Proxmox baseline and then finalized a workload-ready template variant inside the same phase.
 - The next major step is to start target-side application deployment from `9010`.
 
 ---
+
+## Phase 05 (Proxmox Target Delivery): Real target VM, public edge, and workflow-driven delivery
+
+### Quick recap (Phase 05)
+
+#### Starting point: Phase 05 needed to turn the proven Proxmox VM baseline into a real delivery target
+
+Phase 04 ended with the **workload-ready Proxmox template `9010`**, but the project still needed a persistent target VM, a real Kubernetes control plane on that target, a public edge for the two environments, and a CI/CD path that reached the long-lived platform instead of a temporary smoke target.
+
+#### First obstacle: the first target-side deployment surfaced a MongoDB AVX/runtime incompatibility
+
+The first application deployment on the real target cluster showed that the overall stack almost converged, but `carts-db` and `orders-db` failed because the unpinned Kubernetes image reference `mongo` pulled a newer MongoDB version that required AVX support.
+
+That issue was resolved by pinning both affected Deployments to:
+
+- `mongo:3.4`
+
+and then persisting that fix in source control.
+
+#### Chosen path: keep the proven Kubernetes/Kustomize deployment model and evolve it into a real `dev` / `prod` target layout
+
+Instead of changing the deployment model during the target move, Phase 05 kept the proven Kubernetes/Kustomize path and built the real target-delivery story on top of it:
+
+- real target VM `9200`, cloned from workload-ready template `9010`
+- K3s as single-node control plane on that target
+- explicit environment namespaces:
+  - `sock-shop-dev`
+  - `sock-shop-prod`
+- built-in K3s Traefik as ingress controller
+- host-based routing for both environments
+
+#### Private access and public exposure were deliberately separated
+
+Phase 05 also standardized on two distinct traffic models:
+
+- **Tailscale** for private operator and CI/CD access to the cluster API
+- **Cloudflare Tunnel** for public HTTPS exposure of:
+  - `dev-sockshop.cdco.dev`
+  - `prod-sockshop.cdco.dev`
+
+This avoided public exposure of the Kubernetes API and avoided opening inbound application ports directly on the VM.
+
+#### Workflow model: preserve the earlier CI/CD milestone, but create a dedicated real-target workflow
+
+Instead of overwriting the Phase 03 baseline workflow, Phase 05 preserved that earlier CI/CD milestone and added a dedicated Phase 05 workflow for the real target-delivery path.
+
+This keeps the chronology understandable:
+
+- Phase 03 = CI/CD mechanics baseline
+- Phase 05 = real target-delivery workflow
+
+#### Verified result
+
+Phase 05 now proves:
+
+- real target VM `9200`
+- single-node K3s control plane on that target
+- source-controlled MongoDB compatibility fix
+- `dev` / `prod` namespace separation on the real target
+- working Traefik ingress for both environments
+- public HTTPS exposure through Cloudflare Tunnel
+- private tailnet-based external cluster access
+- automated `dev` deployment and approval-gated `prod` deployment on the real target cluster
+
+## Conclusion + Next steps
+
+- Phase 05 completed the move from the reusable Proxmox VM baseline to a **real target-delivery platform**.
+- The next major step is no longer target bootstrap, but **observability** on top of the now-proven long-lived environment.
+- Later security and DR work should build on the already established:
+  - environment model
+  - ingress layer
+  - private access path
+  - public edge
+  - and workflow-driven delivery path
+
+---
+
 
 ## (Further entries will be added to record technical choices)

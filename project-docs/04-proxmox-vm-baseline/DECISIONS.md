@@ -62,7 +62,7 @@ Notable features of VM template `9010`:
 
 - private host-bridged guest network via `vmbr1`
 - host-side NAT, with forwarding and masquerading out through `vmbr0`
-- stable private guest addressing (`10.10.10.10/24`) and deterministic routing via default gateway `10.10.10.1`
+- stable private guest addressing (`<redacted-gateway-ip>0/24`) and deterministic routing via default gateway `<redacted-gateway-ip>`
 - deterministic DNS via resolver `1.1.1.1`
 - working outbound HTTPS reachability for later bootstrap, package-retrieval and target-side setup tasks
 - guest-agent capability
@@ -114,7 +114,7 @@ This gives the project a real workload-ready Proxmox VM baseline that later phas
 
 - **Decision:** Finalize a workload-ready baseline variant (VM Template `9010`) on a private host-bridged guest network (`vmbr1`) with host-side forwarding and masquerading out through `vmbr0`.
 - **Why:** The later deployment needs stable private addressing, deterministic routing, and reliable outbound bootstrap reachability; the earlier smoke-validation path is not sufficient as a final target VM baseline for production use.
-- **Proof:** `9010` uses `10.10.10.10/24`, default route `10.10.10.1`, resolver `1.1.1.1`, working outbound HTTPS reachability, and the host-side `vmbr1` config plus NAT rules are persisted.
+- **Proof:** `9010` uses `<redacted-gateway-ip>0/24`, default route `<redacted-gateway-ip>`, resolver `1.1.1.1`, working outbound HTTPS reachability, and the host-side `vmbr1` config plus NAT rules are persisted.
 - **Next-step impact:** Phase 05 can start from a workload-ready template baseline instead of rebuilding target-side guest networking from scratch.
 
 ### P04-D06 — Final Phase-04 artifact model = generic baseline + smoke clone + workload-ready template variant
