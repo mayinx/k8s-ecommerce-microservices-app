@@ -11,7 +11,7 @@
 > - **[Phase 05-A — Target VM bootstrap and first cluster setup](./implementation/PHASE-05-A.md)**
 > - **[Phase 05-B — First Application Deployment, Runtime Compatibility Fix, and Initial Target-Side Proof](./implementation/PHASE-05-B.md)**
 > - **[Phase 05-C — Environment Modeling, Ingress Routing & Private Tailnet Access](./implementation/PHASE-05-C.md)**
-> - **[Phase 05-D — Public Edge Exposure via Cloudflare and CI/CD Workflow Retargeting to the Real Target Cluste](./implementation/PHASE-05-D.md)**
+> - **[Phase 05-D — Public Edge Exposure via Cloudflare and CI/CD Workflow Retargeting to the Real Target Cluster](./implementation/PHASE-05-D.md)**
 >
 > ## 🔎 Companion documents
 >
@@ -29,10 +29,10 @@
 - [Purpose / Goal](#purpose--goal)
 - [Definition of done](#definition-of-done)
 - [Phase 05 subphase overview](#phase-05-subphase-overview)
-  - [Phase 05-A — Target VM bootstrap and first cluster bring-up](#phase-05-a--target-vm-bootstrap-and-first-cluster-bring-up)
-  - [Phase 05-B — First application deployment, MongoDB recovery, and first rendered target proof](#phase-05-b--first-application-deployment-mongodb-recovery-and-first-rendered-target-proof)
-  - [Phase 05-C — Environment-aware redeploy, private access path, and two-environment cluster shape](#phase-05-c--environment-aware-redeploy-private-access-path-and-two-environment-cluster-shape)
-  - [Phase 05-D — Public edge and workflow retarget to the real cluster](#phase-05-d--public-edge-and-workflow-retarget-to-the-real-cluster)
+  - [Phase 05-A — Target VM bootstrap and first cluster setup](#phase-05-a--target-vm-bootstrap-and-first-cluster-setup)
+  - [Phase 05-B — First Application Deployment, Runtime Compatibility Fix, and Initial Target-Side Proof](#phase-05-b--first-application-deployment-runtime-compatibility-fix-and-initial-target-side-proof)
+  - [Phase 05-C — Environment Modeling, Ingress Routing and Private Tailnet Access](#phase-05-c--environment-modeling-ingress-routing-and-private-tailnet-access)
+  - [Phase 05-D — Public Edge Exposure via Cloudflare and CI/CD Workflow Retargeting to the Real Target Cluster](#phase-05-d--public-edge-exposure-via-cloudflare-and-cicd-workflow-retargeting-to-the-real-target-cluster)
 - [Phase outcome summary](#phase-outcome-summary)
 - [Foundation for later Phases](#foundation-for-later-phases)
 
@@ -115,7 +115,7 @@ Phase 05 is considered done when the following conditions are met:
 
 The detailed execution diary is split into four focused subphase guides. Each subphase advances the target-delivery path by one concrete layer.
 
-### Phase 05-A — Target VM bootstrap and first cluster bring-up
+### Phase 05-A — Target VM bootstrap and first cluster setup
 
 **Detailed file:** [./implementation/PHASE-05-A.md](./implementation/PHASE-05-A.md)
 
@@ -127,7 +127,7 @@ The detailed execution diary is split into four focused subphase guides. Each su
 
 ---
 
-### Phase 05-B — First application deployment, MongoDB recovery, and first rendered target proof
+### Phase 05-B — First Application Deployment, Runtime Compatibility Fix, and Initial Target-Side Proof
 
 **Detailed file:** [./implementation/PHASE-05-B.md](./implementation/PHASE-05-B.md)
 
@@ -139,7 +139,7 @@ The detailed execution diary is split into four focused subphase guides. Each su
 
 ---
 
-### Phase 05-C — Environment-aware redeploy, private access path, and two-environment cluster shape
+### Phase 05-C — Environment Modeling, Ingress Routing and Private Tailnet Access
 
 **Detailed file:** [./implementation/PHASE-05-C.md](./implementation/PHASE-05-C.md)
 
@@ -151,7 +151,7 @@ The detailed execution diary is split into four focused subphase guides. Each su
 
 ---
 
-### Phase 05-D — Public edge and workflow retarget to the real cluster
+### Phase 05-D — Public Edge Exposure via Cloudflare and CI/CD Workflow Retargeting to the Real Target Cluster
 
 **Detailed file:** [./implementation/PHASE-05-D.md](./implementation/PHASE-05-D.md)
 

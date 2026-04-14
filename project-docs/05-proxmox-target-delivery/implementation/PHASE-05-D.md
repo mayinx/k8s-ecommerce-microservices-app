@@ -1,4 +1,4 @@
-# 📑 Subphase 05-D — Public Edge Exposure via Cloudflare and CI/CD Workflow Retargeting to the Real Target Cluste
+# 📑 Subphase 05-D — Public Edge Exposure via Cloudflare and CI/CD Workflow Retargeting to the Real Target Cluster
 
 ---
 > [!TIP] **Navigation**  
@@ -11,19 +11,22 @@ Complete the real target-delivery path by exposing both environments through Clo
 
 ## 📌 Index
 
-- [Step 21 — Cloudfare: Publish the public `dev` and `prod` hostnames through a Cloudflare Tunnel and point them at the existing Traefik entrypoint](#step-21--cloudfare-publish-the-public-dev-and-prod-hostnames-through-a-cloudflare-tunnel-and-point-them-at-the-existing-traefik-entrypoint)
+- [Step 21 — Cloudflare: Publish the public `dev` and `prod` hostnames through a Cloudflare Tunnel and point them at the existing Traefik entrypoint](#step-21--cloudflare-publish-the-public-dev-and-prod-hostnames-through-a-cloudflare-tunnel-and-point-them-at-the-existing-traefik-entrypoint)
 - [Step 22 — Prepare the GitHub-side Deployment Access Path (Tailscale OAuth, K8s Config & Secrets)](#step-22--prepare-the-github-side-deployment-access-path-tailscale-oauth-k8s-config--secrets)
 - [Step 23 — Create a dedicated Phase-05 workflow and prove the real target delivery path: automated `dev` deployment plus approval-gated `prod` deployment on the Proxmox-backed cluster](#step-23--create-a-dedicated-phase-05-workflow-and-prove-the-real-target-delivery-path-automated-dev-deployment-plus-approval-gated-prod-deployment-on-the-proxmox-backed-cluster)
+- [Sources](#sources)
 
 ---
 
-# Step 21 — Cloudfare: Publish the public `dev` and `prod` hostnames through a Cloudflare Tunnel and point them at the existing Traefik entrypoint
+# Step 21 — Cloudflare: Publish the public `dev` and `prod` hostnames through a Cloudflare Tunnel and point them at the existing Traefik entrypoint
 
 ## Rationale
 
 Both application environments now have a **working ingress path through Traefik on the target VM**. What is still missing is the **public edge** that makes those two **environments reachable from the Internet without opening inbound ports** directly to the VM.
 
-A **Cloudflare Tunnel** fits this ingress requirement well because its `cloudflared` daemon (installed on the VM) creates **outbound-only connections from the VM to Cloudflare**. Incde transformed into a an **"outbound-only device"**, the **VM won't accept any inbound traffic** and **doesn't expose a public IP** to the internet. With Cloudflare, all traffic is routet through the Cloudfare Tunnel, which exposes only a Cloudflare edge IP, keeping the VM's origin IP completely hidden.      
+A **Cloudflare Tunnel** fits this ingress requirement well because its `cloudflared` daemon (installed on the VM) creates **outbound-only connections from the VM to Cloudflare**. This avoids the need to expose inbound application ports directly on the VM for the published app path - so the VM won't accept any inbound traffic. Instead public traffic is terminated and filtered at the Cloudflare edge first, which reduces direct origin exposure significantly before requests are forwarded to the private service behind the tunnel. 
+
+In short: With Cloudflare, all traffic is routet through the Cloudflare Tunnel, which exposes only a Cloudflare edge IP, keeping the VM's origin IP completely hidden.      
 
 > [!NOTE] **🧩 Cloudflare**
 >
@@ -61,7 +64,7 @@ The goal now is:
 - to **apply those updated ingress rules** on the target cluster on the VM `9200`
 - to **create one Cloudflare Tunnel** in the dashboard
 - to **publish public hostnames** for **`dev`** and one for **`prod`**
-- to **point both public hostnames** at the already working **Traefik entrypoint on `10.10.10.20:80`**
+- to **point both public hostnames** at the already working **Traefik entrypoint on `<redacted-vm-ip>:80`**
 
 ### Local Workstation
 
@@ -98,7 +101,7 @@ apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: front-end
-  namespace: sock-shop-dev
+  namespace: sock-shop-prod
 spec:
   ingressClassName: traefik   
   rules:
@@ -151,13 +154,13 @@ ingress.networking.k8s.io/front-end configured
 # Show the dev ingress after the hostname update.
 $ sudo kubectl get ingress -n sock-shop-dev
 NAME        CLASS     HOSTS                   ADDRESS       PORTS   
-front-end   traefik   dev-sockshop.cdco.dev   10.10.10.20   80      
+front-end   traefik   dev-sockshop.cdco.dev   <redacted-vm-ip>   80      
 
 
 # Show the prod ingress after the hostname update.
 $ sudo kubectl get ingress -n sock-shop-prod
 NAME        CLASS     HOSTS                    ADDRESS       PORTS  
-front-end   traefik   prod-sockshop.cdco.dev   10.10.10.20   80     
+front-end   traefik   prod-sockshop.cdco.dev   <redacted-vm-ip>   80     
 
 ~~~
 
@@ -165,20 +168,20 @@ Before Cloudflare is introduced, a local verification is used to ensure that Tra
 
 ~~~bash
 # Check the updated dev hostname against the local Traefik entrypoint.
-# Schema: curl -I -H 'Host: <DEV_PUBLIC_HOSTNAME>' http://10.10.10.20/
-$ curl -I -H 'Host: dev-sockshop.cdco.dev' http://10.10.10.20/
+# Schema: curl -I -H 'Host: <DEV_PUBLIC_HOSTNAME>' http://<redacted-vm-ip>/
+$ curl -I -H 'Host: dev-sockshop.cdco.dev' http://<redacted-vm-ip>/
 HTTP/1.1 200 OK
 
 # Check the updated prod hostname against the local Traefik entrypoint.
-# Schema: curl -I -H 'Host: <PROD_PUBLIC_HOSTNAME>' http://10.10.10.20/
-$ curl -I -H 'Host: prod-sockshop.cdco.dev' http://10.10.10.20/
+# Schema: curl -I -H 'Host: <PROD_PUBLIC_HOSTNAME>' http://<redacted-vm-ip>/
+$ curl -I -H 'Host: prod-sockshop.cdco.dev' http://<redacted-vm-ip>/
 HTTP/1.1 200 OK
 
 ~~~
 
 ### Cloudflare dashboard
 
-To proceed, it is necessary to have both a Target Domain with the necessary DNS-Setup ready as well as a Cloudfare account, to **enable an Tunnel via Cloudflare's Zero Trust Dashboard**:  
+To proceed, it is necessary to have both a Target Domain with the necessary DNS-Setup ready as well as a Cloudflare account, to **enable an Tunnel via Cloudflare's Zero Trust Dashboard**:  
 
 > [!INFO] **🌍 Cloudflare Zero Trust: Secure Edge Orchestration**
 > 
@@ -193,7 +196,7 @@ To proceed, it is necessary to have both a Target Domain with the necessary DNS-
 > 
 > Failure to complete these infrastructure-level tasks will result in failed handshakes and routing errors during verification.
 > 
-> 📘 For a detailed walkthrough of the domain onboarding process and installation of the `cloudflared` connector service on the VM, see the [Cloudflare Infrastructure Setup Guide](./SETUP.md). 
+> 📘 For a detailed walkthrough of the domain onboarding process and installation of the `cloudflared` connector service on the VM, see the [Cloudflare Infrastructure Setup Guide](../SETUP.md). 
 
 
 A **successful installtion of the `cloudflared` connector on the target VM** can be verified in the GUI and via the VM's Terminal:  
@@ -215,12 +218,12 @@ $ cloudflared --version
 cloudflared version 2026.3.0 (built 2026-03-09-14:08 UTC)
 ~~~
 
-Once the tunnel is healthy, the following **Public Hostname** routes must be added to the tunnel configuration (which is also adderssed in the [Cloudflare Infrastructure Setup Guide](./SETUP.md)):
+Once the tunnel is healthy, the following **Public Hostname** routes must be added to the tunnel configuration (which is also adderssed in the [Cloudflare Infrastructure Setup Guide](../SETUP.md)):
 
 | Subdomain | Domain | Service Type | Internal URL |
 | :--- | :--- | :--- | :--- |
-| `dev-sockshop` | `cdco.dev` | HTTP | `10.10.10.20:80` |
-| `prod-sockshop` | `cdco.dev` | HTTP | `10.10.10.20:80` |
+| `dev-sockshop` | `cdco.dev` | HTTP | `<redacted-vm-ip>:80` |
+| `prod-sockshop` | `cdco.dev` | HTTP | `<redacted-vm-ip>:80` |
 
 
 **Cloudflare Tunnel Connector Handshake**
@@ -277,7 +280,7 @@ Finally we verify both URLs in the browser:
 
 > [!NOTE] **🔒 HTTPS and SSL Offloading**
 >
-> In the Cloudflare Tunnel configuration, the public routes are intentionally pointed to unencrypted HTTP on port 80 (`http://10.10.10.20:80`). 
+> In the Cloudflare Tunnel configuration, the public routes are intentionally pointed to unencrypted HTTP on port 80 (`http://<redacted-vm-ip>:80`). 
 >
 > It is not necessary to configure TLS certificates locally because Cloudflare performs **SSL Offloading**, meaning Cloudflare carries the "burden of HTTPS" (i.e. the computational heavy lifting etc. required to handle HTTPS) - thus offloading that task from the VM. 
 > - Cloudflare **automatically provisions and serves a valid public HTTPS certificate** to the end user.
@@ -332,8 +335,7 @@ The "Add to Cart" feature fails to persist items in the UI for anonymous (guest)
     - As the core infrastructure (K8s, Ingress, Tunnel, and Persistence) is confirmed healthy, patching the upstream Node.js source code for this legacy demo was deemed **Out of Scope** for this deployment phase.
 
 > [!IMPORTANT] **Deep-Dive Investigation**
-> For the full technical breakdown, including terminal logs and database evidence, see the **[Phase 05 Debug Log Entries](./DEBUG-LOG.md#issue-01-guest-session-persistence)**.
-
+> For the full technical breakdown, including terminal logs and database evidence, see the **[Phase 05 Debug Log Entries](../DEBUG-LOG.md#issue-01-guest-session-persistence)**.
 
 # Step 22 — Prepare the GitHub-side Deployment Access Path (Tailscale OAuth, K8s Config & Secrets)
 
@@ -361,8 +363,8 @@ Note: The **necessary Workflow YAML adjustments** will be made later on (the cur
 > [!NOTE] **🗝️ What is a Kubeconfig?**
 > A `kubeconfig` is the administrative credential and connection file used to control a Kubernetes cluster. It combines two important pieces of information **necessary for k8s cluster access and manipulation**:
 > 
-> 1. **The Map** which contains the cluster's API URL - i.e. the **exact address of the cluster's API server** - in our case `https://100.72.5.85:6443`:
-    - **Target VM Tailscale IP**: `100.72.5.85`
+> 1. **The Map** which contains the cluster's API URL - i.e. the **exact address of the cluster's API server** - in our case `https://<redacted-tailnet-ip>:6443`:
+    - **Target VM Tailscale IP**: `<redacted-tailnet-ip>`
     - **Kubernetes API port**: `6443`
 > 2. **The Master Key** which contains the **cryptographic admin certificates and tokens** that proves that the owner of this key acts a **cluster administrator**.
 > 
@@ -380,7 +382,7 @@ The goal now is:
 
 - To prepare a Tailnet identity for GitHub Actions, we need to open the **Tailscale admin console** under [https://login.tailscale.com/admin/](https://login.tailscale.com/admin/).
 - In the admin console, the nav item **Access Controls** (top navbar) offers a Visual Editor view and a JSON Editor view to edit Access Controls and Policies. 
-- We are going to use the JSON Editor view to declare for GitHub Action runner nodes a **Tailscale ID badge in the form of a tag** - here the tag `tag:ci` as CI tag owner - and ensure it has **permission** to hit the **Tailscale IP of the VM 9200** on the **default Kubernetes API port `6443`** (i.e. `100.72.5.85:6443`):
+- We are going to use the JSON Editor view to declare for GitHub Action runner nodes a **Tailscale ID badge in the form of a tag** - here the tag `tag:ci` as CI tag owner - and ensure it has **permission** to hit the **Tailscale IP of the VM 9200** on the **default Kubernetes API port `6443`** (i.e. `<redacted-tailnet-ip>:6443`):
 
 #### 1. Define the CI tag owner
 
@@ -407,7 +409,7 @@ To do so, we need to find the **`"tagOwners"`** block in the JSON editor and cha
 
 - Next it is necessary to ensure that the `tag:ci` identity will be able to reach the target cluster API on the Proxmox VM.
 - For this phase, the important destination is:
-    - **Target VM Tailscale IP**: `100.72.5.85`
+    - **Target VM Tailscale IP**: `<redacted-tailnet-ip>`
     - **Kubernetes API port**: `6443`
 - Find the `**"grants"`-section** in the JSON-editor
 - If the tailnet policy is already using the default grant here :
@@ -419,10 +421,10 @@ To do so, we need to find the **`"tagOwners"`** block in the JSON editor and cha
 ...this access is already permitted and we are good.
 - **But if the tailnet policy is restricted**, we need to **explicitly add or confirm a rule** that allows:
     - source: `tag:ci`
-    - destination: `100.72.5.85:6443`
+    - destination: `<redacted-tailnet-ip>:6443`
 .. i.e. like this::
 ~~~json
-`{"src": ["tag:ci"], "dst": ["100.72.5.85:6443"]}`
+`{"src": ["tag:ci"], "dst": ["<redacted-tailnet-ip>:6443"]}`
 ~~~
 
 #### 3. Create the OAuth client
@@ -461,18 +463,18 @@ To do so, we need to find the **`"tagOwners"`** block in the JSON editor and cha
 
 ### Local workstation
 
-The target kubeconfig that already worked from the workstation in the earlier phase should now be checked one more time before it is copied into GitHub. If the expected remote k8s API endpoint is anchored in the kubeconfig as `server: https://100.72.5.85:6443` and we can access the remote k8s nodes and namespaces using that kubeconfig, we are good to go in that regard:  
+The target kubeconfig that already worked from the workstation in the earlier phase should now be checked one more time before it is copied into GitHub. If the expected remote k8s API endpoint is anchored in the kubeconfig as `server: https://<redacted-tailnet-ip>:6443` and we can access the remote k8s nodes and namespaces using that kubeconfig, we are good to go in that regard:  
 
 
 ~~~bash
 # Confirm the current k8s API server line in the prepared workstation kubeconfig.
 $ grep 'server:' ~/.kube/config-proxmox-dev.yaml
-server: https://100.72.5.85:6443
+server: https://<redacted-tailnet-ip>:6443
 
 # Confirm that the kubeconfig still reaches the real target cluster from the workstation.
 $ KUBECONFIG=~/.kube/config-proxmox-dev.yaml kubectl get nodes -o wide
 NAME                        STATUS   ROLES           INTERNAL-IP   EXTERNAL-IP   OS-IMAGE             KERNEL-VERSION      CONTAINER-RUNTIME
-ubuntu-2404-k3s-target-01   Ready    control-plane   10.10.10.20   <none>        Ubuntu 24.04.4 LTS   6.8.0-107-generic   containerd://2.2.2-bd1.34
+ubuntu-2404-k3s-target-01   Ready    control-plane   <redacted-vm-ip>   <none>        Ubuntu 24.04.4 LTS   6.8.0-107-generic   containerd://2.2.2-bd1.34
 
 # Confirm that both application namespaces still exist.
 $ KUBECONFIG=~/.kube/config-proxmox-dev.yaml kubectl get namespace sock-shop-dev sock-shop-prod
@@ -514,12 +516,12 @@ The **GitHub-side deployment access path** for the remote target cluster on the 
 The successful end state is shown by these signals / verification points:
 
 - `grep 'server:' ~/.kube/config-proxmox-dev.yaml` confirmed that the prepared workstation kubeconfig still points to:
-  - `server: https://100.72.5.85:6443`
+  - `server: https://<redacted-tailnet-ip>:6443`
 - `KUBECONFIG=~/.kube/config-proxmox-dev.yaml kubectl get nodes -o wide` returned the real Phase-05 target node:
   - `ubuntu-2404-k3s-target-01`
   - `Ready`
   - `control-plane`
-  - internal IP `10.10.10.20`
+  - internal IP `<redacted-vm-ip>`
 - `KUBECONFIG=~/.kube/config-proxmox-dev.yaml kubectl get namespace sock-shop-dev sock-shop-prod` confirmed that both planned application environments still exist:
   - `sock-shop-dev   Active`
   - `sock-shop-prod  Active`
@@ -635,7 +637,7 @@ In **both jobs**, those steps must be replaced with the following:
           oauth-client-id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
           oauth-secret: ${{ secrets.TS_OAUTH_SECRET }}
           tags: tag:ci
-          ping: 100.72.5.85
+          ping: <redacted-tailnet-ip>
 
       # 2. Provide the Target Cluster Kubeconfig admin keys so kubectl can authorize against the cluster      
       - name: Write target kubeconfig
@@ -793,7 +795,7 @@ pod/user-db-7bd86cdcd-xwm7b         1/1     Running   10.42.0.103   ubuntu-2404-
 # Show the dev ingress after the GitHub Actions deployment.
 $ KUBECONFIG=~/.kube/config-proxmox-dev.yaml kubectl get ingress -n sock-shop-dev -o wide
 NAME        CLASS     HOSTS                   ADDRESS       PORTS   
-front-end   traefik   dev-sockshop.cdco.dev   10.10.10.20   80      
+front-end   traefik   dev-sockshop.cdco.dev   <redacted-vm-ip>   80      
 ~~~
 
 
@@ -871,7 +873,7 @@ deployment.apps/user-db        1/1     1            1           2d9h   user-db  
 # Show the prod ingress after the approved GitHub Actions deployment.
 $ KUBECONFIG=~/.kube/config-proxmox-dev.yaml kubectl get ingress -n sock-shop-prod -o wide
 NAME        CLASS     HOSTS                    ADDRESS       PORTS   
-front-end   traefik   prod-sockshop.cdco.dev   10.10.10.20   80      
+front-end   traefik   prod-sockshop.cdco.dev   <redacted-vm-ip>   80      
 
 # Check the public prod hostname after the approved deployment.
 $ curl -I https://prod-sockshop.cdco.dev
@@ -914,12 +916,6 @@ This final closure proof is successful if:
 
 ***Figure 19*** *Successful completion of the approval-gated `deploy-prod-smoke` job against the real Proxmox-backed target cluster.*
 
-**Target Cluster — Approved Prod Deployment Verification**
-
-![Target Cluster — Approved Prod Deployment Verification](../evidence/18-PX-Prod-namespace-after-approved-deployment.png)
-
-***Figure 18*** *Post-deployment verification of the `sock-shop-prod` namespace after the approved GitHub Actions run, confirming healthy workloads on the real target cluster.*
-
 ## Result
 
 This step **successfully established a fully functioning, automated delivery workflow for the Kubernetes-based Sock Shop microservices**, securely bridging GitHub Actions and the private Proxmox VM 9200. It also served as the complete `dev` and `prod` deployment proof on the real target cluster.
@@ -953,6 +949,70 @@ These signals show that:
 - the new Phase-05 workflow now represents the active target-delivery path
 - automated `dev` deployment and approval-gated `prod` deployment are both proven on the real Proxmox-backed cluster
 - **the Phase-05 target-delivery objective is complete**
+
+---
+
+## Sources
+
+- [Cloudflare Tunnel](https://developers.cloudflare.com/cloudflare-one/networks/connectors/cloudflare-tunnel/)  
+  Cloudflare Tunnel as a connector model that avoids the need for a publicly routable origin IP and uses outbound-only connections from `cloudflared`.
+
+- [Create a tunnel (dashboard)](https://developers.cloudflare.com/cloudflare-one/networks/connectors/cloudflare-tunnel/get-started/create-remote-tunnel/)  
+  Official guide for the remotely managed dashboard-based tunnel flow used in this phase.
+
+- [Connectivity options - Cloudflare One](https://developers.cloudflare.com/cloudflare-one/networks/connectivity-options/)  
+  Network model and outbound-only tunnel behavior.
+
+- [Universal SSL](https://developers.cloudflare.com/ssl/edge-certificates/universal-ssl/)  
+  Cloudflare-managed edge certificates on proxied hostnames.
+
+- [Create subdomain records](https://developers.cloudflare.com/dns/manage-dns-records/how-to/create-subdomain/)  
+  Cloudflare Universal SSL covers first-level subdomains.
+
+- [Flexible SSL/TLS encryption mode](https://developers.cloudflare.com/ssl/origin-configuration/ssl-modes/flexible/)  
+  Browser-to-Cloudflare encrypted / Cloudflare-to-origin HTTP pattern.
+
+- [Cloudflare Origin CA](https://developers.cloudflare.com/ssl/origin-configuration/origin-ca/)  
+  Stronger future option of encrypting traffic between Cloudflare and the origin.
+
+- [Full (strict) SSL/TLS encryption mode](https://developers.cloudflare.com/ssl/origin-configuration/ssl-modes/full-strict/)  
+  Stricter end-to-end certificate validation model (later hardening option).
+
+- [Tailscale GitHub Action](https://tailscale.com/docs/integrations/github/github-action)  
+  Joining GitHub-hosted runners to a tailnet during workflow execution.
+
+- [OAuth clients](https://tailscale.com/docs/features/oauth-clients)  
+  Tailscale OAuth clients to authorize CI nodes.
+
+- [Group devices with tags](https://tailscale.com/docs/features/tags)  
+  Tag-based runner identity (see `tag:ci`).
+
+- [Tailscale Access Control](https://tailscale.com/docs/features/access-control)  
+  Tailnet policy management.
+
+- [Manage permissions using ACLs](https://tailscale.com/docs/features/access-control/acls)  
+  Source/destination based policy rules relevant to CI-to-cluster access.
+
+- [Secrets](https://docs.github.com/en/actions/concepts/security/secrets)  
+  What are Actions secrets and how workflows consume them.
+
+- [Using secrets in GitHub Actions](https://docs.github.com/actions/security-guides/using-secrets-in-github-actions)  
+  Storing and using repository secrets in workflows.
+
+- [Deployments and environments](https://docs.github.com/en/actions/reference/workflows-and-actions/deployments-and-environments)  
+  GitHub environments, deployment protection rules, and required reviewers.
+
+- [Reviewing deployments](https://docs.github.com/actions/managing-workflow-runs/reviewing-deployments)  
+  Approval-gated deployment review flows in GitHub Actions.
+
+- [Deploying with GitHub Actions](https://docs.github.com/actions/deployment/about-deployments/deploying-with-github-actions)  
+  Environment-targeted workflow deployments and deployment approvals.
+
+- [K3s Cluster Access](https://docs.k3s.io/cluster-access)  
+  Kubeconfig handling + admin access semantics.
+
+- [Kubernetes Ingress](https://kubernetes.io/docs/concepts/services-networking/ingress/)  
+  Host-based routing layer to point Cloudflare through Traefik.
 
 ---
 

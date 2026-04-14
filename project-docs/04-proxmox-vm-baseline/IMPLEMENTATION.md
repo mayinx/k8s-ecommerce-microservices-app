@@ -627,7 +627,7 @@ To answer that, Phase 04 now **extends the generic baseline into a workload-read
 >
 > In this Phase-04 setup, `vmbr1` is **not** attached to a physical NIC.
 > Instead:
-> - the **host-side bridge address `10.10.10.1`** acts as the **guest default gateway**
+> - the **host-side bridge address `<redacted-gateway-ip>`** acts as the **guest default gateway**
 > - the guest remains on the private subnet `10.10.10.0/24`
 > - host-side forwarding + NAT then let guest traffic leave through the existing public bridge `vmbr0`
 
@@ -650,9 +650,9 @@ To answer that, Phase 04 now **extends the generic baseline into a workload-read
 
 > [!NOTE] **🧩 Chosen guest IP and gateway**
 >
-> `10.10.10.10/24` is a chosen private guest address inside the private subnet `10.10.10.0/24`.
+> `<redacted-gateway-ip>0/24` is a chosen private guest address inside the private subnet `10.10.10.0/24`.
 >
-> `10.10.10.1` is used as the guest gateway because the host-side bridge `vmbr1` itself holds that address.
+> `<redacted-gateway-ip>` is used as the guest gateway because the host-side bridge `vmbr1` itself holds that address.
 > In this design, the guest therefore sends traffic for outside destinations to the host-side bridge address, which then forwards and NATs that traffic onward through `vmbr0`.
 
 To extend the generic baseline VM into a workload-ready prep VM we need  
@@ -675,10 +675,10 @@ Device "vmbr1" does not exist.
 $ ip link add name vmbr1 type bridge
 
 # Assign the host-side gateway address to the bridge.
-# 10.10.10.1/24 means:
-# - bridge address = 10.10.10.1
+# <redacted-gateway-ip>/24 means:
+# - bridge address = <redacted-gateway-ip>
 # - subnet mask    = /24 = 255.255.255.0
-$ ip addr add 10.10.10.1/24 dev vmbr1
+$ ip addr add <redacted-gateway-ip>/24 dev vmbr1
 
 # Bring the new bridge interface up so it can actually carry traffic.
 $ ip link set vmbr1 up
@@ -712,7 +712,7 @@ $ iptables -A FORWARD -i vmbr0 -o vmbr1 -m conntrack --ctstate ESTABLISHED,RELAT
 
 # Confirm that vmbr1 now exists and has the expected host-side bridge address.
 $ ip -br addr show vmbr1
-vmbr1            UNKNOWN        10.10.10.1/24 ...
+vmbr1            UNKNOWN        <redacted-gateway-ip>/24 ...
 
 # --- (2) Clone the workload-ready prep VM from the generic baseline template ---
 $ qm clone 9000 9010 --name ubuntu-2404-workload-ready-template-v1 --full 1
@@ -723,7 +723,7 @@ $ qm set 9010 --net0 virtio,bridge=vmbr1
 # Set Cloud-Init bootstrap values
 $ qm set 9010 --ciuser ubuntu
 $ qm set 9010 --cipassword 'CHANGE_TO_A_FRESH_TEMP_PASSWORD'
-$ qm set 9010 --ipconfig0 ip=10.10.10.10/24,gw=10.10.10.1
+$ qm set 9010 --ipconfig0 ip=<redacted-gateway-ip>0/24,gw=<redacted-gateway-ip>
 $ qm set 9010 --nameserver 1.1.1.1
 
 # Enable the guest-agent feature on the Proxmox side
@@ -749,13 +749,13 @@ $ qm list --full
 
 The **generic baseline has now been extended** into a **workload-ready prep VM candidate** with these host-side features:
 
-- **`vmbr1`** exists as a **private bridge** with **host-side address `10.10.10.1/24`**
+- **`vmbr1`** exists as a **private bridge** with **host-side address `<redacted-gateway-ip>/24`**
 - **host-side forwarding + masquerading rules** exist for `10.10.10.0/24`
 - **`9010`** exists as a **full clone from `9000`**
 - **`9010`** is configured with:
   - `bridge=vmbr1`
-  - static private guest IP `10.10.10.10/24`
-  - gateway `10.10.10.1`
+  - static private guest IP `<redacted-gateway-ip>0/24`
+  - gateway `<redacted-gateway-ip>`
   - explicit DNS resolver `1.1.1.1`
   - guest-agent feature enabled
   - `40G` root disk
@@ -766,7 +766,7 @@ The **generic baseline has now been extended** into a **workload-ready prep VM c
 >
 > - private host-bridged guest network via `vmbr1`
 > - host-side NAT, with forwarding and masquerading out through `vmbr0`
-> - stable private guest addressing (`10.10.10.10/24`) and deterministic routing via default gateway `10.10.10.1`
+> - stable private guest addressing (`<redacted-gateway-ip>0/24`) and deterministic routing via default gateway `<redacted-gateway-ip>`
 > - deterministic DNS via resolver `1.1.1.1`
 > - working outbound HTTPS reachability for later bootstrap, package-retrieval, and target-side setup tasks
 > - guest-agent capability
@@ -830,14 +830,14 @@ ubuntu-2404-workload-ready-template-v1
 # - ip -brief     = short interface summary
 # - show dev eth0 = restrict output to the primary NIC
 $ ip -brief address show dev eth0
-eth0             UP             10.10.10.10/24 ...
+eth0             UP             <redacted-gateway-ip>0/24 ...
 
 # Identify primary outbound paths to verify network connectivity:
 # - Default route (the "Gateway" to other networks)
 # - Primary local route (the directly connected private subnet)
 $ ip route | head -n 2
-default via 10.10.10.1 dev eth0 proto static
-10.10.10.0/24 dev eth0 proto kernel scope link src 10.10.10.10
+default via <redacted-gateway-ip> dev eth0 proto static
+10.10.10.0/24 dev eth0 proto kernel scope link src <redacted-gateway-ip>0
 
 # Confirm DNS resolution by displaying the current DNS settings 
 # and server status via systemd-resolved
@@ -849,7 +849,7 @@ DNS Servers: 1.1.1.1
 # Confirm gateway and raw outbound IPv4 reachability
 # Confirm that the guest can reach its own host-side gateway and then an outside IPv4 address.
 # -c 2 sends exactly two ICMP echo requests.
-$ ping -c 2 10.10.10.1
+$ ping -c 2 <redacted-gateway-ip>
 $ ping -c 2 1.1.1.1
 
 # Confirm DNS resolution for later bootstrap endpoints
@@ -938,7 +938,7 @@ $ qm guest cmd 9010 network-get-interfaces
     "name": "eth0",
     "ip-addresses": [
       {
-        "ip-address": "10.10.10.10",
+        "ip-address": "<redacted-gateway-ip>0",
         "ip-address-type": "ipv4",
         "prefix": 24
       }
@@ -959,8 +959,8 @@ The **workload-ready prep VM** is now **qualified inside the guest**.
 
 The guest-side acceptance criteria are:
 
-- `eth0` uses `10.10.10.10/24`
-- the default route points to `10.10.10.1`
+- `eth0` uses `<redacted-gateway-ip>0/24`
+- the default route points to `<redacted-gateway-ip>`
 - `resolvectl` shows `1.1.1.1`
 - DNS resolution works for GitHub and `get.k3s.io`
 - outbound HTTPS works for later bootstrap endpoints
@@ -1000,7 +1000,7 @@ $ cat <<'EOF' >> /etc/network/interfaces
 
 auto vmbr1
 iface vmbr1 inet static
-    address 10.10.10.1/24
+    address <redacted-gateway-ip>/24
     bridge_ports none
     bridge_stp off
     bridge_fd 0
@@ -1144,7 +1144,7 @@ qm clone 9000 9010 --name ubuntu-2404-workload-ready-template-v1 --full 1
 qm set 9010 --net0 virtio,bridge=vmbr1
 qm set 9010 --ciuser ubuntu
 qm set 9010 --cipassword 'CHANGE_TO_A_FRESH_TEMP_PASSWORD'
-qm set 9010 --ipconfig0 ip=10.10.10.10/24,gw=10.10.10.1
+qm set 9010 --ipconfig0 ip=<redacted-gateway-ip>0/24,gw=<redacted-gateway-ip>
 qm set 9010 --nameserver 1.1.1.1
 qm set 9010 --agent enabled=1
 qm resize 9010 scsi0 40G

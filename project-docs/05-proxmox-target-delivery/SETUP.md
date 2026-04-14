@@ -39,7 +39,7 @@
   - `dev-sockshop.cdco.dev`
   - `prod-sockshop.cdco.dev`
 - Route both hostnames to the existing Traefik entrypoint on the target VM:
-  - `10.10.10.20:80`
+  - `<redacted-vm-ip>:80`
 
 ---
 
@@ -55,8 +55,8 @@ The setup is considered done when the following conditions are met:
 - the VM-side `cloudflared` connector is installed and runs as a service
 - the Zero Trust dashboard shows the tunnel connector as healthy
 - the following published application routes exist:
-  - `dev-sockshop.cdco.dev` -> `http://10.10.10.20:80`
-  - `prod-sockshop.cdco.dev` -> `http://10.10.10.20:80`
+  - `dev-sockshop.cdco.dev` -> `http://<redacted-vm-ip>:80`
+  - `prod-sockshop.cdco.dev` -> `http://<redacted-vm-ip>:80`
 
 ---
 
@@ -68,7 +68,7 @@ The setup is considered done when the following conditions are met:
 - access to the domain registrar dashboard is available
 - the target VM is already running and reachable
 - the target VM already has a working Traefik ingress entrypoint on:
-  - `10.10.10.20:80`
+  - `<redacted-vm-ip>:80`
 - the Phase-05 local ingress checks for `dev` and `prod` already work before public exposure
 
 ---
@@ -337,7 +337,7 @@ In the Cloudflare Tunnel wizard or the later tunnel edit screen:
    - Domain: `cdco.dev`
    - Path: leave blank
    - Service type: `HTTP`
-   - URL: `10.10.10.20:80`
+   - URL: `<redacted-vm-ip>:80`
 
 3. Add the **prod** route:
 
@@ -345,7 +345,7 @@ In the Cloudflare Tunnel wizard or the later tunnel edit screen:
    - Domain: `cdco.dev`
    - Path: leave blank
    - Service type: `HTTP`
-   - URL: `10.10.10.20:80`
+   - URL: `<redacted-vm-ip>:80`
 
 4. Save both routes.
 
@@ -354,7 +354,7 @@ In the Cloudflare Tunnel wizard or the later tunnel edit screen:
 This step is successful if:
 
 - both published routes are present
-- both public hostnames point at `10.10.10.20:80`
+- both public hostnames point at `<redacted-vm-ip>:80`
 
 ---
 

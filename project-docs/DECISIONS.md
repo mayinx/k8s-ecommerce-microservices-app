@@ -369,7 +369,7 @@ Notable features of VM template `9010`:
 
 - private host-bridged guest network via `vmbr1`
 - host-side NAT, with forwarding and masquerading out through `vmbr0`
-- stable private guest addressing (`10.10.10.10/24`) and deterministic routing via default gateway `10.10.10.1`
+- stable private guest addressing (`<redacted-gateway-ip>0/24`) and deterministic routing via default gateway `<redacted-gateway-ip>`
 - deterministic DNS via resolver `1.1.1.1`
 - working outbound HTTPS reachability for later bootstrap, package-retrieval and target-side setup tasks
 - guest-agent capability

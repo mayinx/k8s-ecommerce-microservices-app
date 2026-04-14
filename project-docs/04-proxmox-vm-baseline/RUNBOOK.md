@@ -230,7 +230,7 @@ curl -I --max-time 10 https://example.com
 ~~~bash
 # Create the private guest bridge and temporary NAT rules
 ip link add name vmbr1 type bridge
-ip addr add 10.10.10.1/24 dev vmbr1
+ip addr add <redacted-gateway-ip>/24 dev vmbr1
 ip link set vmbr1 up
 sysctl -w net.ipv4.ip_forward=1
 iptables -t nat -A POSTROUTING -s 10.10.10.0/24 -o vmbr0 -j MASQUERADE
@@ -242,7 +242,7 @@ qm clone 9000 9010 --name ubuntu-2404-workload-ready-template-v1 --full 1
 qm set 9010 --net0 virtio,bridge=vmbr1
 qm set 9010 --ciuser ubuntu
 qm set 9010 --cipassword 'CHANGE_TO_A_FRESH_TEMP_PASSWORD'
-qm set 9010 --ipconfig0 ip=10.10.10.10/24,gw=10.10.10.1
+qm set 9010 --ipconfig0 ip=<redacted-gateway-ip>0/24,gw=<redacted-gateway-ip>
 qm set 9010 --nameserver 1.1.1.1
 qm set 9010 --agent enabled=1
 qm resize 9010 scsi0 40G
@@ -250,10 +250,10 @@ qm set 9010 --cores 4 --memory 4096
 ~~~
 
 **Success looks like:**
-- `vmbr1` exists with `10.10.10.1/24`
+- `vmbr1` exists with `<redacted-gateway-ip>/24`
 - forwarding + NAT rules exist
 - `qm config 9010` shows `bridge=vmbr1`
-- `qm config 9010` shows `ipconfig0: ip=10.10.10.10/24,gw=10.10.10.1`
+- `qm config 9010` shows `ipconfig0: ip=<redacted-gateway-ip>0/24,gw=<redacted-gateway-ip>`
 - `qm config 9010` shows `40G`, `4` cores, and `4096 MB`
 
 ## Step 6 — Qualify and finalize the workload-ready template (`9010`)
@@ -317,7 +317,7 @@ qm list --full
 ~~~
 
 **Success looks like:**
-- `9010` keeps `10.10.10.10/24` after reboot
+- `9010` keeps `<redacted-gateway-ip>0/24` after reboot
 - the guest reaches GitHub / `get.k3s.io`
 - `qm guest cmd 9010 network-get-interfaces` returns guest interface data
 - `qm template 9010` succeeds
@@ -361,7 +361,7 @@ qm clone 9000 9010 --name ubuntu-2404-workload-ready-template-v1 --full 1
 qm set 9010 --net0 virtio,bridge=vmbr1
 qm set 9010 --ciuser ubuntu
 qm set 9010 --cipassword 'CHANGE_TO_A_FRESH_TEMP_PASSWORD'
-qm set 9010 --ipconfig0 ip=10.10.10.10/24,gw=10.10.10.1
+qm set 9010 --ipconfig0 ip=<redacted-gateway-ip>0/24,gw=<redacted-gateway-ip>
 qm set 9010 --nameserver 1.1.1.1
 qm set 9010 --agent enabled=1
 qm resize 9010 scsi0 40G

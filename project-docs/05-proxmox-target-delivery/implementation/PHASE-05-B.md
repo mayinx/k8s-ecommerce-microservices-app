@@ -13,12 +13,15 @@ Deploy the application for the first time on the real target cluster, isolate an
 
 - [Step 6 — Deploy the Sock Shop raw manifest baseline to the real target cluster and verify the initial application state](#step-6--deploy-the-sock-shop-raw-manifest-baseline-to-the-real-target-cluster-and-verify-the-initial-application-state)
 - [Step 7 — Triage the two crashing MongoDB-backed pods](#step-7--triage-the-two-crashing-mongodb-backed-pods)
-- [Step 8 — Persist the MongoDB image pin in source control and realign the target checkout](#step-8--persist-the-mongodb-image-pin-in-source-control-and-realign-the-target-checkout)
-- [Step 9 — Confirm the MongoDB image mismatch, patch both MongoDB-backed deployments to `mongo:3.4` (VM Hotfix), and verify full application convergence](#step-9--confirm-the-mongodb-image-mismatch-patch-both-mongodb-backed-deployments-to-mongo34-vm-hotfix-and-verify-full-application-convergence)
+- [Step 8 — VM Hotfix: Confirm the MongoDB image mismatch and cause, patch both MongoDB-backed deployments to `mongo:3.4`, and verify full application convergence](#step-8--vm-hotfix-confirm-the-mongodb-image-mismatch-and-cause-patch-both-mongodb-backed-deployments-to-mongo34-and-verify-full-application-convergence)
+- [Step 9 — Persist the MongoDB image pin in source control and realign the target checkout](#step-9--persist-the-mongodb-image-pin-in-source-control-and-realign-the-target-checkout)
 - [Step 10 — Prove that the storefront responds on the real target via NodePort](#step-10--prove-that-the-storefront-responds-on-the-real-target-via-nodeport)
 - [Step 11 — Render the storefront in the local browser through an SSH tunnel](#step-11--render-the-storefront-in-the-local-browser-through-an-ssh-tunnel)
+- [Sources](#sources)
 
 ---
+
+<br>
 
 # Step 6 — Deploy the Sock Shop raw manifest baseline to the real target cluster and verify the initial application state
 
@@ -44,24 +47,6 @@ namespace/sock-shop created
 
 # Apply the Sock Shop raw manifest baseline through the Kustomize base entrypoint.
 $ sudo kubectl apply -k deploy/kubernetes/manifests
-service/carts unchanged
-service/carts-db unchanged
-...
-service/front-end unchanged
-service/orders unchanged
-service/orders-db unchanged
-..
-service/user unchanged
-service/user-db unchanged
-deployment.apps/carts unchanged
-deployment.apps/carts-db unchanged
-...
-deployment.apps/front-end unchanged
-deployment.apps/orders unchanged
-deployment.apps/orders-db unchanged
-...
-deployment.apps/user unchanged
-deployment.apps/user-db unchanged
 
 # Show the application pods in the Sock Shop namespace.
 $ sudo kubectl get pods -n sock-shop
@@ -149,7 +134,7 @@ With the overall application stack mostly healthy, it is time to investigate the
 > 2. **The Loop:** Kubernetes sees the failure and tries to restart the pod automatically.
 > 3. **The BackOff:** Because the pod keeps failing, Kubernetes starts waiting longer and longer between restart attempts (e.g., 10s, 20s, 40s...) to avoid hammering the node's CPU.
 >
-> To find the *actual* cause, it is neccessary to look "inside" the loop using:
+> To find the *actual* cause, it is necessary to look "inside" the loop using:
 > - `kubectl logs --previous`: To see why the last attempt failed.
 > - `kubectl describe pod`: To see if the system (Kubelet) killed it due to memory or setup issues.
 
@@ -163,7 +148,7 @@ With the overall application stack mostly healthy, it is time to investigate the
 export CARTS_DB_POD=$(sudo kubectl get pods -n sock-shop -o name | grep carts-db)     # => pod/carts-db-<pod-id>
 export ORDERS_DB_POD=$(sudo kubectl get pods -n sock-shop -o name | grep orders-db)   # => pod/orders-db-<pod-id>
 
-# (2) Insepct the current + previous pod logs from carts-db + order-db.
+# (2) Inspect the current + previous pod logs from carts-db + orders-db.
 # --previous: Retrieves logs from the container that just crashed / the last failed instance; 
 #   essential for debugging crashes that happen immediately on startup (like 'CrashLoopBackOff').
 $ sudo kubectl logs -n sock-shop $CARTS_DB_POD
@@ -244,7 +229,7 @@ services:
 
 **2. The Kubernetes Manifests**
 
-An audit of the Kubernetes manifests reveales both a Configuration Drift between the different deployment specifications (Docker Compose vs K8s Deployment Manifests) - and the source of the failure. Both `carts-db` + `orders-db` services are left with a **generic, unpinned reference**:
+An audit of the Kubernetes manifests reveals both a Configuration Drift between the different deployment specifications (Docker Compose vs K8s Deployment Manifests) - and the source of the failure. Both `carts-db` + `orders-db` services are left with a **generic, unpinned reference**:
 
 **Intended Kubernetes Baseline:**
 ~~~yaml
@@ -342,10 +327,10 @@ user-db-7bd86cdcd-p4pjt         1/1     Running   0          51m
 export CARTS_DB_POD=$(sudo kubectl get pods -n sock-shop -o name | grep carts-db)
 export ORDERS_DB_POD=$(sudo kubectl get pods -n sock-shop -o name | grep orders-db)
 
-# 4.2 Check the current carts-db- + order-db pod-logs for this success signals: 
+# 4.2 Check the current carts-db- + orders-db pod-logs for this success signals: 
 # - "db version v3.4.24" 
 # - "waiting for connections on port..." 
-§ sudo kubectl logs -n sock-shop $CARTS_DB_POD | grep -E "version|waiting"
+$ sudo kubectl logs -n sock-shop $CARTS_DB_POD | grep -E "version|waiting"
 2026-04-06T20:46:27.098+0000 I CONTROL  [initandlisten] MongoDB starting : pid=1 port=27017 dbpath=/data/db 64-bit host=carts-db-568c6d98bc-m7sj6
 2026-04-06T20:46:27.099+0000 I CONTROL  [initandlisten] db version v3.4.24
 2026-04-06T20:46:27.484+0000 I NETWORK  [thread1] waiting for connections on port 27017
@@ -371,7 +356,7 @@ The **MongoDB image mismatch was confirmed, the deployments were patched on the 
 
 ---
 
-# Step 9 — Persist the MongoDB image pin in source control and align the target checkout with the Phase-05 branch
+# Step 9 — Persist the MongoDB image pin in source control and realign the target checkout
 
 ## Rationale
 
@@ -387,9 +372,9 @@ Otherwise, the Configuration Drift remains and the next redeploy risks reintrodu
 - to **persist the MongoDB image pin locally in Git**, commit it on the new Phase-05 feature branch, and push that branch to GitHub. 
 - to **update the target VM checkout to the same branch** so the **next deployment comes from source** rather than from a one-off live patch
 
-### Local Worskation
+### Local Workstation
 
-Checking teh relevant k8s deployment manifest files for the `carts-db` + `orders-db` services reveals the unpinned mango image entries:  
+Checking teh relevant k8s deployment manifest files for the `carts-db` + `orders-db` services reveals the unpinned Mongo image entries:  
 
 ~~~yaml
 # `deploy/kubernetes/manifests/03-carts-db-dep.yaml`
@@ -423,11 +408,11 @@ containers:
     image: mongo:3.4
 ~~~
  
-Then we stage, commit + push those echanges
+Then we stage, commit + push thosee changes:
 
 ~~~bash
 # Stage only the two MongoDB manifest changes.
-git add deploy/kubernetes/manifests/03-carts-db-dep.yaml deploy/kubernetes/manifests/09-orders-db-dep.yaml
+git add deploy/kubernetes/manifests/03-carts-db-dep.yaml deploy/kubernetes/manifests/13-orders-db-dep.yaml
 
 # Commit the source-controlled MongoDB image pin.
 git commit -m "fix(k8s): pin sock-shop MongoDB deployments to mongo:3.4"
@@ -443,7 +428,7 @@ After the branch is pushed, the repository checkout on the K3s target VM needs t
 From the repository checkout on the target VM `9200`:
 
 ~~~bash
-# cd into the procject folder
+# cd into the project folder
 
 # Fetch the newest branch state from GitHub.
 git fetch origin
@@ -479,7 +464,7 @@ This confirms that the front-end is not only deployed, but **also actually reach
 
 ~~~bash
 # Check the storefront via the target VM's NodePort.
-$ curl -I http://10.10.10.20:30001/
+$ curl -I http://<redacted-vm-ip>:30001/
 HTTP/1.1 200 OK
 X-Powered-By: Express
 Content-Type: text/html; charset=UTF-8
@@ -487,7 +472,7 @@ Content-Length: 8688
 ...
 
 # Fetch the first lines of the storefront HTML.
-$ curl -s http://10.10.10.20:30001/ | head -n 10
+$ curl -s http://<redacted-vm-ip>:30001/ | head -n 10
 <!DOCTYPE html>
 <html lang="en">
 
@@ -506,17 +491,17 @@ The storefront responded successfully on the real Proxmox-backed K3s target via 
 
 The successful end state is shown by these signals / verification points:
 
-- `curl -I http://10.10.10.20:30001/` returned:
+- `curl -I http://<redacted-vm-ip>:30001/` returned:
   - `HTTP/1.1 200 OK`
 - the response headers showed the expected Express-powered front-end response
-- `curl -s http://10.10.10.20:30001/ | head -n 10` returned real Sock Shop HTML starting with:
+- `curl -s http://<redacted-vm-ip>:30001/ | head -n 10` returned real Sock Shop HTML starting with:
   - `<!DOCTYPE html>`
 
 **Storefront reachable on the real target via NodePort**
 
 ![Storefront reachable on the real target via NodePort](../evidence/05-PX-Sock-Shop-9200_nodeport-terminal-success.png)
 
-***Figure 4*** *Terminal-side proof that the Sock Shop storefront responded successfully on the real target node through `http://10.10.10.20:30001/`, confirming that the application was reachable after the MongoDB image fix.*
+***Figure 4*** *Terminal-side proof that the Sock Shop storefront responded successfully on the real target node through `http://<redacted-vm-ip>:30001/`, confirming that the application was reachable after the MongoDB image fix.*
 
 ---
 
@@ -544,8 +529,8 @@ Because the target VM sits behind the Proxmox host on the private bridge, the cl
 # -N: Opens the tunnel without starting a remote shell session.
 # -L: Maps the local laptop address to the private bridge IP of the target VM 9200.
 ssh -4 -N -o ExitOnForwardFailure=yes \
-  -L 127.0.0.1:30001:10.10.10.20:30001 \
-  proxmox-capstone
+  -L 127.0.0.1:30001:<redacted-vm-ip>:30001 \
+  <SSH alias>
 ~~~
 
 Then open the following URL in the local browser:
@@ -573,6 +558,31 @@ The successful end state is shown by these signals / verification points:
 - the first full browser-rendered proof of the real Proxmox-backed target was captured successfully
 
 ---
+
+## Sources
+
+- [Declarative Management of Kubernetes Objects Using Kustomize](https://kubernetes.io/docs/tasks/manage-kubernetes-objects/kustomization/)  
+  `kustomization.yaml`-based deployment + use of `kubectl kustomize` / `kubectl apply -k`.
+
+- [kubectl kustomize](https://kubernetes.io/docs/reference/kubectl/generated/kubectl_kustomize/)  
+  Rendering a kustomization target from a directory.
+
+- [Kubernetes Service](https://kubernetes.io/docs/concepts/services-networking/service/)  
+  Service behavior, including the Service model used by the Sock Shop deployment.
+
+- [Using a Service to Expose Your App](https://kubernetes.io/docs/tutorials/kubernetes-basics/expose/expose-intro/)  
+  Service exposure types (`ClusterIP` + `NodePort`).
+
+- [kubectl rollout status](https://kubernetes.io/docs/reference/kubectl/generated/kubectl_rollout/kubectl_rollout_status/)  
+  Rollout verification of Kubernetes Deployments.
+
+- [MongoDB Production Notes for Self-Managed Deployments](https://www.mongodb.com/docs/manual/administration/production-notes/)  
+  Official MongoDB reference for platform/runtime requirements, including the AVX requirement introduced for MongoDB 5.0+ on x86_64.
+
+- [Kubernetes Deployments](https://kubernetes.io/docs/concepts/workloads/controllers/deployment/)  
+  Deployment behavior and rollout semantics.
+
+---  
 
 > [!TIP] **Navigation**  
 > **[⬅️ Previous: Phase 05-A](./PHASE-05-A.md)** | **[⬆️ Top (Index)](#index)** | **[Next: Phase 05-C ➡️](./PHASE-05-C.md)**

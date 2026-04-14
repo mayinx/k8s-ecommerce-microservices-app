@@ -2,7 +2,7 @@
 
 ---
 > [!TIP] **Navigation**  
-> **[⬅️🏠 Phase 05 Home](../IMPLEMENTATION.md)** | **[Next: Phase 05-B ➡️](./PHASE-05-B.md)**
+> **[⬅️ 🏠 Phase 05 Home](../IMPLEMENTATION.md)** | **[Next: Phase 05-B ➡️](./PHASE-05-B.md)**
 ---
 
 ## 🎯 Subphase goal
@@ -16,6 +16,7 @@ Create the real Proxmox-backed target VM, validate the guest baseline, install K
 - [Step 3 — Install a helper package baseline on the target VM](#step-3--install-a-helper-package-baseline-on-the-target-vm)
 - [Step 4 — Install K3s on VM `9200` as a single-node server and prove the node came up correctly](#step-4--install-k3s-on-vm-9200-as-a-single-node-server-and-prove-the-node-came-up-correctly)
 - [Step 5 — Clone the project repository onto the target VM](#step-5--clone-the-project-repository-onto-the-target-vm)
+- [Sources](#sources)
 
 ---
 <br>
@@ -64,8 +65,8 @@ $ qm set 9200 --cipassword '********'
 update VM 9200: -cipassword <hidden>
 
 # Assign a distinct stable private IPv4 address and gateway for this clone.
-$ qm set 9200 --ipconfig0 ip=10.10.10.20/24,gw=10.10.10.1
-update VM 9200: -ipconfig0 ip=10.10.10.20/24,gw=10.10.10.1
+$ qm set 9200 --ipconfig0 ip=<redacted-vm-ip>/24,gw=<redacted-gateway-ip>
+update VM 9200: -ipconfig0 ip=<redacted-vm-ip>/24,gw=<redacted-gateway-ip>
 
 # Keep explicit DNS for deterministic name resolution.
 $ qm set 9200 --nameserver 1.1.1.1
@@ -78,7 +79,7 @@ boot: order=scsi0
 ciuser: ubuntu
 cores: 4
 ide2: vmdata:vm-9200-cloudinit,media=cdrom,size=4M
-ipconfig0: ip=10.10.10.20/24,gw=10.10.10.1
+ipconfig0: ip=<redacted-vm-ip>/24,gw=<redacted-gateway-ip>
 memory: 8192
 name: ubuntu-2404-k3s-target-01
 nameserver: 1.1.1.1
@@ -113,7 +114,7 @@ The successful end state is shown by these signals / verification points:
   - `memory: 8192`
   - `cores: 4`
   - `net0: ... bridge=vmbr1`
-  - `ipconfig0: ip=10.10.10.20/24,gw=10.10.10.1`
+  - `ipconfig0: ip=<redacted-vm-ip>/24,gw=<redacted-gateway-ip>`
   - `nameserver: 1.1.1.1`
   - `agent: enabled=1`
 - `qm cloudinit pending 9200` showed the expected pending Cloud-Init values
@@ -176,12 +177,12 @@ ubuntu-2404-k3s-target-01
 
 # Show the main guest interface.
 $ ip -brief address show dev eth0
-eth0   UP   10.10.10.20/24 fe80::<redacted>/64
+eth0   UP   <redacted-vm-ip>/24 fe80::<redacted>/64
 
 # Show the relevant IPv4 routes.
 $ ip route | sed -n '1,2p'
-default via 10.10.10.1 dev eth0 proto static
-10.10.10.0/24 dev eth0 proto kernel scope link src 10.10.10.20
+default via <redacted-gateway-ip> dev eth0 proto static
+10.10.10.0/24 dev eth0 proto kernel scope link src <redacted-vm-ip>
 
 # Prove DNS resolution works on the cloned target VM.
 $ getent ahosts github.com | awk 'NR==1 { print }'
@@ -202,7 +203,7 @@ $ nproc
 4
 
 # Confirm memory seen by the guest.
-$ free -h | sed head -n 3
+$ free -h | head -n 3
                total        used        free      shared  buff/cache   available
 Mem:           7.8Gi       424Mi       7.0Gi       1.0Mi       604Mi       7.3Gi
 Swap:             0B          0B          0B
@@ -221,9 +222,9 @@ The successful end state is shown by these signals / verification points:
 - `hostname` returned:
   - `ubuntu-2404-k3s-target-01`
 - `ip -brief address show dev eth0` showed:
-  - `10.10.10.20/24`
+  - `<redacted-vm-ip>/24`
 - `ip route` showed:
-  - `default via 10.10.10.1`
+  - `default via <redacted-gateway-ip>`
 - `getent ahosts github.com` returned a valid IP line
 - `curl -I https://get.k3s.io` returned an HTTP response
 - `df -h /` showed a usable root filesystem of about 38 GB
@@ -291,7 +292,7 @@ qm guest cmd 9200 network-get-interfaces
     "name": "eth0",
     "hardware-address": "<redacted>",
     "ip-addresses": [
-      { "ip-address": "10.10.10.20", "ip-address-type": "ipv4", "prefix": 24 },
+      { "ip-address": "<redacted-vm-ip>", "ip-address-type": "ipv4", "prefix": 24 },
       { "ip-address": "<redacted>", "ip-address-type": "ipv6", "prefix": 64 }
     ]
   }
@@ -310,7 +311,7 @@ The successful end state is shown by these signals / verification points:
 - `systemctl status qemu-guest-agent --no-pager` showed the service as active/running
 - `qm guest cmd 9200 network-get-interfaces` returned guest interface data including:
   - `eth0`
-  - `10.10.10.20/24`
+  - `<redacted-vm-ip>/24`
 
 This also confirms that the Proxmox host could communicate with the running guest through the QEMU Guest Agent path.
 
@@ -338,7 +339,7 @@ The step validates also the cluster-side health signals:
 > [!NOTE] **🧩 `write-kubeconfig-mode: "0644"`**
 >
 > K3s writes its kubeconfig to `/etc/rancher/k3s/k3s.yaml`.
-> Setting `write-kubeconfig-mode: "0644"` makes  file readable outside the root-only default path.that
+> Setting `write-kubeconfig-mode: "0644"`makes the file readable outside the root-only default path.
 >
 > This is useful later when the cluster access is prepared for external verification and CI/CD integration.
 
@@ -350,7 +351,7 @@ sudo mkdir -p /etc/rancher/k3s
 # write-kubeconfig-mode: "0644" makes that config file readable 
 # outside the root-only default path (relevant fdor CI/CD integration)
 sudo tee /etc/rancher/k3s/config.yaml >/dev/null <<'EOF'
-write-kubeconfig-mode: "0644" # 
+write-kubeconfig-mode: "0644"  
 EOF
 
 # Install K3s as a single-node server.
@@ -377,7 +378,7 @@ $ sudo systemctl status k3s --no-pager --full | sed -n '1,20p'
 # Confirm that the node registered successfully.
 $ sudo kubectl get nodes -o wide
 NAME                        STATUS   ROLES           AGE     VERSION        INTERNAL-IP   EXTERNAL-IP   OS-IMAGE             KERNEL-VERSION      CONTAINER-RUNTIME
-ubuntu-2404-k3s-target-01   Ready    control-plane   7m11s   v1.34.6+k3s1   10.10.10.20   <none>        Ubuntu 24.04.4 LTS   6.8.0-107-generic   containerd://2.2.2-bd1.34
+ubuntu-2404-k3s-target-01   Ready    control-plane   7m11s   v1.34.6+k3s1   <redacted-vm-ip>   <none>        Ubuntu 24.04.4 LTS   6.8.0-107-generic   containerd://2.2.2-bd1.34
 
 # Confirm that the core K3s system pods are healthy.
 # Long-running components should be Running; one-shot install jobs may show Completed.
@@ -390,11 +391,16 @@ kube-system   traefik-c5c8bf4ff-pvlz9                   1/1     Running     0   
 kube-system   svclb-traefik-4f73496a-bd5wp              2/2     Running     0          7m36s
 kube-system   helm-install-traefik-crd-mczsm            0/1     Completed   0          8m3s
 kube-system   helm-install-traefik-jmxfd                0/1     Completed   1          8m3s
+
+# Confirm the built-in Traefik service exposure.
+$ sudo kubectl get svc traefik -n kube-system -o wide
+NAME      TYPE           CLUSTER-IP    EXTERNAL-IP   PORT(S)                      
+traefik   LoadBalancer   10.43.9.204   <redacted-vm-ip>   80:30890/TCP,443:30286/TCP    
 ~~~
 
 ## Result
 
-**K3s was installed successfully on the target VM, and the single-node control plane came up correctly.****
+**K3s was installed successfully on the target VM, and the single-node control plane came up correctly.**
 
 The successful end state is shown by these signals / verification points:
 
@@ -407,7 +413,7 @@ The successful end state is shown by these signals / verification points:
   - `ubuntu-2404-k3s-target-01`
   - `STATUS: Ready`
   - `ROLES: control-plane`
-  - `INTERNAL-IP: 10.10.10.20`
+  - `INTERNAL-IP: <redacted-vm-ip>`
 - `sudo kubectl get pods -A` showed the expected core K3s system pods in a healthy state, including:
   - `coredns`
   - `local-path-provisioner`
@@ -415,7 +421,7 @@ The successful end state is shown by these signals / verification points:
   - `traefik`
   - `svclb-traefik`
 - the built-in Traefik path was already active and assigned the target VM address:
-  - `10.10.10.20`
+  - `<redacted-vm-ip>`
 
 At this point, the target VM had moved from a prepared Ubuntu baseline to a **real single-node Kubernetes control-plane host**.
 
@@ -431,7 +437,7 @@ At this point, the target VM had moved from a prepared Ubuntu baseline to a **re
 
 ## Rationale
 
-With the target cluster running, the **application source now needs to be cloned from th remote erepo onto the target VM** so the deployment path can continue from the repository state.
+With the target cluster running, the **application source now needs to be cloned from the remote repository onto the target VM** so the deployment path can continue from the repository state.
 
 This keeps the later deployment work grounded in source control rather than in ad-hoc copied files.
 
@@ -470,6 +476,31 @@ The successful end state is shown by these signals / verification points:
 - `git branch -a` showed the expected remote branch references
 
 This establishes the target-side repository checkout that later deployment and reconciliation steps could now use directly.
+
+---
+
+## Sources
+
+- [Proxmox VE `qm` manual](https://pve.proxmox.com/pve-docs/qm.1.html)  
+  `qm clone`, `qm config`, `qm cloudinit pending`, and other VM lifecycle commands used in the target-VM provisioning flow.
+
+- [Proxmox VE Administration Guide](https://pve.proxmox.com/pve-docs/pve-admin-guide.html)  
+  Proxmox VM administration concepts, including VM configuration and guest integration.
+
+- [K3s Quick-Start Guide](https://docs.k3s.io/quick-start)  
+  Basic K3s installation path, generated kubeconfig location, installed utilities, and single-node bootstrap expectations.
+
+- [K3s Configuration Options](https://docs.k3s.io/installation/configuration)  
+  Configuration-file driven K3s setup and early cluster configuration patterns.
+
+- [K3s Server CLI Reference](https://docs.k3s.io/cli/server)  
+  `write-kubeconfig-mode` and server-side configuration options (relevant to the initial K3s setup).
+
+- [K3s Cluster Access](https://docs.k3s.io/cluster-access)  
+  Default admin kubeconfig path + cluster-access behavior.
+
+- [Kubernetes Service](https://kubernetes.io/docs/concepts/services-networking/service/)  
+  Cluster networking concepts that appear once K3s and system components are up.
 
 ---
 

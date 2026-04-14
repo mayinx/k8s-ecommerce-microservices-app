@@ -20,6 +20,7 @@ Move from the first raw target deployment to a structured `dev` / `prod` cluster
 - [Step 18 — Verify tailnet-based cluster access from the local workstation before wiring the workflow to the real target](#step-18--verify-tailnet-based-cluster-access-from-the-local-workstation-before-wiring-the-workflow-to-the-real-target)
 - [Step 19 — Create the missing `sock-shop-prod` namespace from source control and complete the planned two-environment cluster shape](#step-19--create-the-missing-sock-shop-prod-namespace-from-source-control-and-complete-the-planned-two-environment-cluster-shape)
 - [Step 20 — Create the `prod` ingress rule for the front end and verify it locally through Traefik](#step-20--create-the-prod-ingress-rule-for-the-front-end-and-verify-it-locally-through-traefik)
+- [Sources](#sources)
 
 ---
 
@@ -74,17 +75,24 @@ grep 'image:' /tmp/dev-rendered.yaml | head -n 20
 grep 'namespace:' /tmp/dev-rendered.yaml | head -n 20
 ~~~
 
-## Expected result / success criteria
+---
 
-This step is successful if:
+## Result
 
-- the target checkout is still clean and on `feat/proxmox-target-delivery`
-- `kubectl kustomize deploy/kubernetes/kustomize/overlays/dev` renders without error
-- the rendered output clearly shows the current namespace model used by the `dev` overlay
-- the rendered output confirms how the front-end service is currently represented
-- the rendered image list confirms which images come from upstream/runtime manifests and which, if any, are overridden from repository-controlled paths
+The `dev` overlay was inspected and rendered successfully from the target-side Phase-05 checkout before the first environment-based redeploy in Step 13.
 
- ---
+The successful end state is shown by these signals / verification points:
+
+- the target checkout remained clean and aligned with:
+  - `feat/proxmox-target-delivery`
+- `kubectl kustomize deploy/kubernetes/kustomize/overlays/dev` rendered without error
+- the rendered output confirmed that the `dev` overlay targets the namespace:
+  - `sock-shop-dev`
+- the rendered output showed how the front-end service is represented in the environment-aware deployment model
+- the rendered image references confirmed that the deployment path still relies primarily on the upstream runtime images already expected from the manifest base
+- the rendered overlay provided a verified target-side deployment preview before the first namespace-based redeploy
+
+---
 
 # Step 13 — Redeploy the application into the `sock-shop-dev` namespace from the Phase-05 source state
 
@@ -148,9 +156,9 @@ sudo kubectl get pods -n sock-shop-dev
 
 ## Result
 
-We have successfully deployed a 14-component microservice architecture to a bare-metal hypervisor.
+The application was **successfully redeployed into the `sock-shop-dev` namespace** on the real Proxmox-backed **K3s target cluster**.”
 
-Success criertia:
+Success criteria:
 
 - `sudo kubectl apply -k deploy/kubernetes/kustomize/overlays/dev` completes without manifest or namespace errors
 - the `sock-shop-dev` namespace contains the expected deployments and services after the apply
@@ -165,7 +173,7 @@ Success criertia:
  
 Status: The app is now running cleanly in the `sock-shop-dev` namespace from the Phase-05 source state, and the `front-end` service is intentionally exposed only as `ClusterIP`. 
 
-In consequence, the `front-end` service is completely locked inside the internal K8s network - and only reachable from inside the cluster via its CluserIP - and no longer directly from the outside via a "NodePort hole". This ensures the application is securely isolated within the internal network, forcing all external traffic to route strictly through our controlled public edge.
+In consequence, the `front-end` service is completely locked inside the internal K8s network - and only reachable from inside the cluster via its ClusterIP - and no longer directly from the outside via a "NodePort hole". This ensures the application is securely isolated within the internal network, forcing all external traffic to route strictly through our controlled public edge.
 
 Before Cloudflare Tunnel is introduced, we need to confirm **which target-side ingress controller path already exists on the K3s VM** and how traffic can be handed to it locally.
 
@@ -196,7 +204,7 @@ The goal now is (on the target VM)
 ### Target VM 9200 (repository checkout)
 
 ~~~bash
-# Show the Traefik controller pods in the kube-system namespace to confirms 
+# Show the Traefik controller pods in the kube-system namespace to confirm 
 # whether the built-in K3s ingress controller is present and running 
 sudo kubectl get pods -n kube-system | grep traefik
 
@@ -209,7 +217,7 @@ sudo kubectl get svc -n kube-system | grep traefik
 sudo kubectl get svc traefik -n kube-system -o wide
 
 # Show any currently existing Ingress objects across all namespaces 
-# to confirms whether the target already has routing rules or whether 
+# to confirm whether the target already has routing rules or whether 
 # the Phase-05 dev ingress will be the first one 
 sudo kubectl get ingress -A
 ~~~
@@ -217,7 +225,7 @@ sudo kubectl get ingress -A
 ## Result
 
 - Traefik is already present and running on the target
-- the Traefik Service already exposes HTTP/HTTPS on the VM IP 10.10.10.20
+- the Traefik Service already exposes HTTP/HTTPS on the VM IP <redacted-vm-ip>
 - but there are currently **no Ingress objects**, so the next step is **to create the first real dev ingress rule** and test it locally before Cloudflare is introduced
 
 This step is successful if:
@@ -235,7 +243,7 @@ This step is successful if:
 
 The earlier ingress-controller check already showed that 
 - **Traefik is running on the target VM** 
-- **HTTP/HTTPS traffic** is already exposed on **`10.10.10.20` (Proxmox VM `9200` IP)**. 
+- **HTTP/HTTPS traffic** is already exposed on **`<redacted-vm-ip>` (Proxmox VM `9200` IP)**. 
 - the **cluster currently contains no Ingress objects** at all.
 
 That makes the next step clear: before Cloudflare Tunnel is introduced, **the cluster first needs a real `dev` routing rule** that **tells Traefik how to forward a hostname to the `front-end` service** in `sock-shop-dev`. A local verification through Traefik then will prove that the in-cluster routing path works before any public edge is added on top.
@@ -245,7 +253,7 @@ That makes the next step clear: before Cloudflare Tunnel is introduced, **the cl
 **The goal now is (from local)**
 - to let the first `dev` ingress rule become part of the Phase-05 source state
 - to update  the target VM checkout from GitHub again 
-- and to applied and test the ingress locally against Traefik.
+- and to apply and test the ingress locally against Traefik.
 
 > [!NOTE] **🧩 Local ingress verification before public exposure**
 >
@@ -352,16 +360,16 @@ sudo kubectl describe ingress front-end -n sock-shop-dev
 
 ### Local ingress verification on the target VM
 
-Once the ingress object exists, it can be testd directly through Traefik on the target VM by sending the intended hostname in the request header.
+Once the ingress object exists, it can be tested directly through Traefik on the target VM by sending the intended hostname in the request header.
 
 ~~~bash
 # Send a request to Traefik on the VM IP while simulating the intended dev hostname.
 # -H 'Host: ...' sets the host header used by Traefik for routing.
-curl -I -H 'Host: dev.sockshop.local' http://10.10.10.20/
+curl -I -H 'Host: dev.sockshop.local' http://<redacted-vm-ip>/
 
 # Fetch the first lines of the returned HTML through the ingress path.
 # This proves that Traefik routes the hostname to the front-end service correctly.
-curl -s -H 'Host: dev.sockshop.local' http://10.10.10.20/ | head -n 10
+curl -s -H 'Host: dev.sockshop.local' http://<redacted-vm-ip>/ | head -n 10
 ~~~
 
 ## Result
@@ -371,21 +379,21 @@ The **first `dev` ingress rule for the Sock Shop front end was created successfu
 The successful end state is shown by these signals / verification points:
 
 - `git status -sb` still showed the target checkout on `feat/proxmox-target-delivery`
-- `git reset --hard origin/feat/proxmox-target-delivery` aligned the VM checkout to commit `ed360f6`, which contains the new `dev` ingress rule
+- `git reset --hard origin/feat/proxmox-target-delivery` aligned the VM checkout, which contains the new `dev` ingress rule
 - `sudo kubectl apply -k deploy/kubernetes/kustomize/overlays/dev` completed successfully and created:
   - `ingress.networking.k8s.io/front-end`
 - `sudo kubectl get ingress -n sock-shop-dev` showed:
   - ingress name `front-end`
   - ingress class `traefik`
   - host `dev.sockshop.local`
-  - address `10.10.10.20`
+  - address `<redacted-vm-ip>`
 - `sudo kubectl describe ingress front-end -n sock-shop-dev` confirmed the intended routing:
   - host `dev.sockshop.local`
   - path `/`
   - backend service `front-end:80`
-- `curl -I -H 'Host: dev.sockshop.local' http://10.10.10.20/` returned:
+- `curl -I -H 'Host: dev.sockshop.local' http://<redacted-vm-ip>/` returned:
   - `HTTP/1.1 200 OK`
-- `curl -s -H 'Host: dev.sockshop.local' http://10.10.10.20/ | head -n 10` returned the Sock Shop storefront HTML
+- `curl -s -H 'Host: dev.sockshop.local' http://<redacted-vm-ip>/ | head -n 10` returned the Sock Shop storefront HTML
 
 These signals show that:
 
@@ -413,8 +421,8 @@ With the local ingress path already working through Traefik, the next useful mov
 > By using Tailscale, we completely bypass the dangerous anti-patterns often found in bad tutorials:
 > 
 > * **No Hypervisor Pollution:** Using Tailscale, it is not necessary to use the bare-metal Proxmox host as a network router or an SSH jump-box. Proxmox remains a pure, untouched Type-1 hypervisor.
-> * **Zero "Hypervisor Escape" Risk:** No ports are opened on the router. By not exposing SSH or the Kubernetes API (`kube-apiserver`) to the internet, the risk of hackers is eliminated, so they can't breach the setup and taking over the physical hardware.
-> * **No Brittle CI/CD:** GitHub Actions runners change IP addresses constantly. Instead of maintaining a nightmare firewall allowlist, the ephemeral runner simply joins the private Tailnet, deploys the code, and disappears.
+> * **Reduced hypervisor exposure:** No ports are opened - by not exposing SSH or the Kubernetes API (`kube-apiserver`) to the public internet, the attack surface is reduced significantly because no direct inbound access to the Kubernetes API or SSH is required.
+> * **Stable & secure CI/CD access:** GitHub Actions runners change IP addresses constantly. Instead of maintaining a complicated and constantly outdated firewall allowlist, the ephemeral runner simply joins the private Tailnet dynamically, deploys the code, and disappears.
 
 The cluster does not need workflow retargeting yet, but the target VM itself now needs to become a reachable node inside the tailnet before kubeconfig preparation and pipeline changes make sense.
 
@@ -437,8 +445,8 @@ The VM-side tailnet presence is the foundation for the later GitHub Actions depl
 > [!NOTE] **🧩 The Networking Story: Cloudflare, Tailscale & The Tailnet**
 >
 > **Tailscale (The Secure Employee Entrance):** A zero-trust mesh VPN built on WireGuard. 
-It **connects any authorized machine (like the local workstation or a GitHub Actions runner) directly to the remote Proxmox VM** as if they were plugged into the exact same physical network switch, regardless of where they are in the world.
-> **Benefits:** No port forwarding, no public static IPs, and no messy firewall rules. The  cluster remains completely invisible to hackers on the internet, yet perfectly accessible to authorized CI/CD runners.
+It **connects any authorized machine (like a local workstation or a GitHub Actions runner) directly to the remote Proxmox VM** as if they were plugged into the exact same physical network switch, regardless of where they are in the world.
+> **Benefits:** No port forwarding, no public static IPs, and no hard to maintain firewall rules. The cluster remains reachable only through authorized tailnet access rather than through direct public API exposure.
 >
 > **The Architecture Boundary:**
 > * **Cloudflare + Traefik** = The public front door (handles incoming customer web traffic).
@@ -451,7 +459,7 @@ It **connects any authorized machine (like the local workstation or a GitHub Act
 > The later CI/CD workflow step is separate:
 >
 > - The GitHub-hosted runner will temporarily join this exact same tailnet using the official Tailscale GitHub Action.
-> - Once both are on the tailnet, the GitHub Action can securely run `kubectl apply` against your VM's private IP, crossing the internet completely safely and undetected.
+> - Once both are on the tailnet, the GitHub Action can securely run `kubectl apply` against the VM's private IP, crossing the internet through an encrypted and access-controlled tailnet path.
 
 ### Target VM `9200`
 
@@ -499,10 +507,10 @@ The successful end state is shown by these signals / verification points:
   - status `Needs login:` before authentication
 - `sudo tailscale up` completed successfully after the browser-based authorization flow
 - `tailscale ip -4` returned the VM tailnet address:
-  - `100.72.5.85`
+  - `<redacted-tailnet-ip>`
 - `tailscale status` showed the target VM as an active node:
   - `ubuntu-2404-k3s-target-01`
-  - `100.72.5.85`
+  - `<redacted-tailnet-ip>`
 
 These signals show that:
 
@@ -551,7 +559,7 @@ After that, the prepared kubeconfig can be moved into the later GitHub secret wo
 
 The current tailnet IPv4 for the target VM is already known from the previous step:
 
-- **Tailscale IP: `100.72.5.85`**
+- **Tailscale IP: `<redacted-tailnet-ip>`**
 
 The kubeconfig preparation therefore focuses on **replacing the default loopback API endpoint** with that **tailnet address** in a dedicated copy.
 
@@ -562,7 +570,7 @@ The kubeconfig preparation therefore focuses on **replacing the default loopback
 # This 100.x.y.z address is the unique IP that GitHub Actions 
 # will use to address the VM
 $ tailscale ip -4
-100.72.5.85
+<redacted-tailnet-ip>
 
 # Inspect the server line in the default K3s kubeconfig to verify the starting state:
 # This confirms whether it still points to the local loopback endpoint.
@@ -605,13 +613,13 @@ $ sudo systemctl restart k3s
 
 # Confirm that the Tailnet IP is now present in the K3s server configuration.
 $ grep 'tls-san:' /etc/rancher/k3s/config.yaml
-tls-san: 100.72.5.85
+tls-san: <redacted-tailnet-ip>
 
 # --- (4) Final Verification ---
 
 # Confirm the 'server' line now reflects the remote-reachable endpoint.
 $ grep 'server:' /home/ubuntu/kubeconfig-proxmox-dev.yaml
-server: https://100.72.5.85:6443
+server: https://<redacted-tailnet-ip>:6443
 
 # Preview the metadata and certificate structure to ensure the YAML integrity 
 # is intact before this is moved  eventually into a GitHub Secret.
@@ -625,16 +633,16 @@ The tailnet-ready K3s kubeconfig was prepared successfully on the target VM.
 The successful end state is shown by these signals / verification points:
 
 - `tailscale ip -4` returned the target VM tailnet address:
-  - `100.72.5.85`
+  - `<redacted-tailnet-ip>`
 - `sudo grep 'server:' /etc/rancher/k3s/k3s.yaml` showed the default local API endpoint:
   - `server: https://127.0.0.1:6443`
 - a writable working copy of the kubeconfig was created at:
   - `/home/ubuntu/kubeconfig-proxmox-dev.yaml`
 - the copied kubeconfig was updated to the tailnet-reachable API endpoint:
-  - `server: https://100.72.5.85:6443`
+  - `server: https://<redacted-tailnet-ip>:6443`
 - the resulting file header remained structurally valid after the server replacement
 - the K3s server configuration was extended with:
-  - `tls-san: 100.72.5.85`
+  - `tls-san: <redacted-tailnet-ip>`
 - `sudo systemctl restart k3s` completed successfully so the updated certificate rules could take effect
 
 These signals show that:
@@ -666,15 +674,15 @@ The goal now is
 > A kubeconfig that only exists on the target VM is not yet enough to justify workflow retargeting.
 > The more useful proof is an external `kubectl` request from another tailnet node, because that mirrors the later deployment shape much more closely than a purely local check on the VM itself.
 
-[!WARNING] 🔐 Precondition: VM-Level SSH Access
-> To copy files from the VM to your workstation, the local workstation's public SSH key must be authorized on the Ubuntu VM itself (the ubuntu user), not just the Proxmox bare-metal host (root).
+> [!WARNING] **🔐 Precondition: VM-Level SSH Access**
+> To copy files from the VM to the lcoal workstation, the workstation's public SSH key must be authorized on the Ubuntu VM itself (here the `ubuntu` user), not just the Proxmox bare-metal host (`root`).
 > - If a custom SSH key was configured specifically for this, the "secure copy" command below (see `scp`) must be explicitly instructed to use that specific key.  
 > - If the VM lacks the workstation's SSH key entirely, it will reject the connection with a `Permission denied (publickey)` error.
-> - **To set up SSH-access both to the bare metal Proxmox Host and the VM 9200**, consult the setup guide in Phase 04 (Proxmox VM Baseline): [Local/workstation preparation and SSH access](../../04-proxmox-vm-baseline/SETUP.md).  
+> - The setup guide in Phase 04 (Proxmox VM Baseline) demonstrates the [local/workstation and SSH access preparations](../../04-proxmox-vm-baseline/SETUP.md) necessary **to set up SSH-access both to the bare metal Proxmox Host and the VM 9200**.  
 
 ### Local workstation
 
-The target VM already reports the tailnet IPv4 address `100.72.5.85`. This address is used below as the SSH and Kubernetes API target:
+The target VM already reports the tailnet IPv4 address `<redacted-tailnet-ip>`. This address is used below as the SSH and Kubernetes API target:
 
 ~~~bash
 
@@ -691,15 +699,15 @@ sudo tailscale up
 # Confirm the laptop-side tailnet state again after login.
 $ tailscale status
 100.90.87.121  <Tailscale-Machine-Name_Workstation>  ...  ...  -  
-100.72.5.85    <Tailscale-Machine-Name_Proxmox-VM>   ...  ...  -  
+<redacted-tailnet-ip>    <Tailscale-Machine-Name_Proxmox-VM>   ...  ...  -  
 
 # Try to ping the VM's secure Telnet IP to verify that workstation 
 # and remote VM 9200 are really connected via Tailnet 
-$ ping -c 4 100.72.5.85
-PING 100.72.5.85 (100.72.5.85) 56(84) bytes of data.
-64 bytes from 100.72.5.85: icmp_seq=1 ttl=64 time=89.0 ms
+$ ping -c 4 <redacted-tailnet-ip>
+PING <redacted-tailnet-ip> (<redacted-tailnet-ip>) 56(84) bytes of data.
+64 bytes from <redacted-tailnet-ip>: icmp_seq=1 ttl=64 time=89.0 ms
 ...
---- 100.72.5.85 ping statistics ---
+--- <redacted-tailnet-ip> ping statistics ---
 4 packets transmitted, 4 received, 0% packet loss, time 3003ms
 
 # --- (2) Securely Retrieve the Kubeconfig ---
@@ -714,11 +722,11 @@ chmod 700 ~/.kube
 # This keeps the source file unchanged on the VM and gives the laptop its own working copy.
 #
 # -> Standard Command (If using the system's default SSH keys):
-scp ubuntu@100.72.5.85:/home/ubuntu/kubeconfig-proxmox-dev.yaml ~/.kube/config-proxmox-dev.yaml
+scp ubuntu@<redacted-tailnet-ip>:/home/ubuntu/kubeconfig-proxmox-dev.yaml ~/.kube/config-proxmox-dev.yaml
 kubeconfig-proxmox-dev.yaml  100% 2939    96.3KB/s   00:00  
 
 # -> Custom key Command (If the VM requires a specific project key, use the -i flag):
-# scp -i ~/.ssh/id_ed25519_proxmox_capstone ubuntu@100.72.5.85:/home/ubuntu/kubeconfig-proxmox-dev.yaml ~/.kube/config-proxmox-dev.yaml
+# scp -i ~/.ssh/id_ed25519_proxmox_capstone ubuntu@<redacted-tailnet-ip>:/home/ubuntu/kubeconfig-proxmox-dev.yaml ~/.kube/config-proxmox-dev.yaml
 
 # Restrict the local kubeconfig permissions so Kubernetes accepts it.
 $ chmod 600 ~/.kube/config-proxmox-dev.yaml
@@ -726,7 +734,7 @@ $ chmod 600 ~/.kube/config-proxmox-dev.yaml
 # Confirm the server line in the copied kubeconfig.
 # This should still point to the VM's Tailscale address.
 $ grep 'server:' ~/.kube/config-proxmox-dev.yaml
-server: https://100.72.5.85:6443
+server: https://<redacted-tailnet-ip>:6443
 
 # --- (3) Test External Cluster Access ---
 
@@ -736,7 +744,7 @@ server: https://100.72.5.85:6443
 # Check if the cluster nodes respond to our external query.
 $ KUBECONFIG=~/.kube/config-proxmox-dev.yaml kubectl get nodes -o wide
 NAME                        STATUS   ROLES           INTERNAL-IP   EXTERNAL-IP   OS-IMAGE             
-ubuntu-2404-k3s-target-01   Ready    control-plane   10.10.10.20   <none>        Ubuntu 24.04.4 LTS   
+ubuntu-2404-k3s-target-01   Ready    control-plane   <redacted-vm-ip>   <none>        Ubuntu 24.04.4 LTS   
 
 # Confirm that the expected namespaces are visible through the same kubeconfig.
 $ KUBECONFIG=~/.kube/config-proxmox-dev.yaml kubectl get namespace sock-shop-dev
@@ -749,23 +757,22 @@ sock-shop-dev   Active
 
 **Zero Trust networking:** 
 
-The **local workstation is now successfully and securely querying the private Kubernetes cluster sitting behind the VPN `9200`** and the Proxmox hypervisor, with zero port-forwarding or public IP exposure: The output above (`EXTERNAL-IP <none>`) proves, that the Kubernetes node does not have a public-facing IP address on the internet.  
+The **local workstation is now successfully and securely querying the private Kubernetes cluster sitting behind the VPN `9200`** and the Proxmox hypervisor, with zero port-forwarding or public IP exposure: The Kubernetes node object does not advertise an external node IP, which is consistent with the intended private-access design.  
 
 The successful end state is shown by these signals / verification points:
 
-- `ping -c 4 100.72.5.85` returned successful replies from the target VM over the tailnet
-- `scp -i ~/.ssh/id_ed25519_proxmox_capstone ubuntu@100.72.5.85:/home/ubuntu/kubeconfig-proxmox-dev.yaml ~/.kube/config-proxmox-dev.yaml` copied the prepared kubeconfig successfully to the workstation
+- `ping -c 4 <redacted-tailnet-ip>` returned successful replies from the target VM over the tailnet
+- `scp -i ~/.ssh/id_ed25519_proxmox_capstone ubuntu@<redacted-tailnet-ip>:/home/ubuntu/kubeconfig-proxmox-dev.yaml ~/.kube/config-proxmox-dev.yaml` copied the prepared kubeconfig successfully to the workstation
 - `grep 'server:' ~/.kube/config-proxmox-dev.yaml` confirmed that the copied kubeconfig points to:
-  - `server: https://100.72.5.85:6443`
+  - `server: https://<redacted-tailnet-ip>:6443`
 - `KUBECONFIG=~/.kube/config-proxmox-dev.yaml kubectl get nodes -o wide` returned the real target cluster state from the workstation
 - the returned node output showed:
   - node `ubuntu-2404-k3s-target-01`
   - status `Ready`
   - role `control-plane`
-  - internal IP `10.10.10.20`
+  - internal IP `<redacted-vm-ip>`
 - `KUBECONFIG=~/.kube/config-proxmox-dev.yaml kubectl get namespace sock-shop-dev sock-shop-prod` confirmed:
   - `sock-shop-dev` exists and is `Active`
-  - `sock-shop-prod` is not yet present
 
 These signals show that:
 
@@ -794,7 +801,7 @@ The goal now is
 
 ### Local workstation
 
-The production namespace manifest already exists in the repository under the `prod` overlay (see  `deploy/kubernetes/kustomize/overlays/prod/namespace.yaml`), so the missing namespace can be created directly from source control, utilizing `kubectl` - and the existing kubeconfig that points it to the remote K3s API server on the VM (`server: https://100.72.5.85:6443`):
+The production namespace manifest already exists in the repository under the `prod` overlay (see  `deploy/kubernetes/kustomize/overlays/prod/namespace.yaml`), so the missing namespace can be created directly from source control, utilizing `kubectl` - and the existing kubeconfig that points it to the remote K3s API server on the VM (`server: https://<redacted-tailnet-ip>:6443`):
 
 > [!NOTE] **🧩 Local workstation `kubectl` vs. the remote cluster**
 >
@@ -806,9 +813,9 @@ The production namespace manifest already exists in the repository under the `pr
 >
 > `kubectl` uses this kubeconfig, which specifies **which Kubernetes API server to talk to**. In this case, the copied kubeconfig points to:
 >
-> `server: https://100.72.5.85:6443`
+> `server: https://<redacted-tailnet-ip>:6443`
 >
-> `100.72.5.85` is the **Tailscale IP of the K3s VM (`9200`)**.  
+> `<redacted-tailnet-ip>` is the **Tailscale IP of the K3s VM (`9200`)**.  
 >
 > So the command flow is:
 >
@@ -827,7 +834,7 @@ The production namespace manifest already exists in the repository under the `pr
 ~~~bash
 # Create the production namespace from the existing source-controlled manifest.
 # `kubectl` runs on the local workstation here, but the kubeconfig points it to
-# the remote K3s API server on the VM (`server: https://100.72.5.85:6443`).
+# the remote K3s API server on the VM (`server: https://<redacted-tailnet-ip>:6443`).
 # So this command creates the namespace in the real remote cluster, not locally on the laptop.
 $ KUBECONFIG=~/.kube/config-proxmox-dev.yaml kubectl apply -f deploy/kubernetes/kustomize/overlays/prod/namespace.yaml
 namespace/sock-shop-prod created
@@ -911,7 +918,6 @@ The successful end state is shown by these signals / verification points:
   - all expected Sock Shop Services in `sock-shop-prod`
   - all expected Sock Shop Deployments in `sock-shop-prod`
 - the transient early state with some `0/1` deployments resolved normally during startup
-- `sudo kubectl wait --namespace sock-shop-prod --for=condition=available deployment --all --timeout=300s` completed successfully for all deployments
 - `sudo kubectl get deploy,svc -n sock-shop-prod` finally showed:
   - all Deployments at `1/1`
   - all expected Services present
@@ -990,7 +996,7 @@ spec:
                   number: 80
 ~~~
 
-Then add this new `front-end-ingress.yaml`-file to the `resources:` section of `.../overlays/prod/kustomization.ym`:
+Then add this new `front-end-ingress.yaml`-file to the `resources:` section of `.../overlays/prod/kustomization.yml`:
 
 ~~~yaml
 # deploy/kubernetes/kustomize/overlays/prod/kustomization.yml
@@ -1042,13 +1048,13 @@ ingress.networking.k8s.io/front-end created
 # Show the ingress object in the prod namespace.
 $ sudo kubectl get ingress -n sock-shop-prod
 NAME        CLASS     HOSTS                 ADDRESS       PORTS   
-front-end   traefik   prod.sockshop.local   10.10.10.20   80      
+front-end   traefik   prod.sockshop.local   <redacted-vm-ip>   80      
 
 # Show the detailed ingress definition as stored in the cluster.
 $ sudo kubectl describe ingress front-end -n sock-shop-prod
 Name:             front-end
 Namespace:        sock-shop-prod
-Address:          10.10.10.20
+Address:          <redacted-vm-ip>
 Ingress Class:    traefik
 Default backend:  <default>
 Rules:
@@ -1064,12 +1070,12 @@ Once the ingress object exists, it can be tested directly through Traefik on the
 
 ~~~bash
 # Send a request to Traefik on the VM IP while simulating the intended prod hostname.
-$ curl -I -H 'Host: prod.sockshop.local' http://10.10.10.20/
+$ curl -I -H 'Host: prod.sockshop.local' http://<redacted-vm-ip>/
 HTTP/1.1 200 OK
 ...
 
 # Fetch the first lines of the returned HTML through the production ingress path.
-$ curl -s -H 'Host: prod.sockshop.local' http://10.10.10.20/ | head -n 10
+$ curl -s -H 'Host: prod.sockshop.local' http://<redacted-vm-ip>/ | head -n 10
 <!DOCTYPE html>
 <html lang="en">
 
@@ -1086,27 +1092,73 @@ The successful end state is shown by these signals / verification points:
 - the new production ingress commit was pushed successfully:
   - `feat(target-delivery): add prod ingress for sock-shop front-end`
 - the target VM checkout was updated successfully to:
-  - `69697f6 feat(target-delivery): add prod ingress for sock-shop front-end`
+  - `feat(target-delivery): add prod ingress for sock-shop front-end`
 - `sudo kubectl apply -k deploy/kubernetes/kustomize/overlays/prod` completed successfully and created:
   - `ingress.networking.k8s.io/front-end`
 - `kubectl get ingress -n sock-shop-prod` showed:
   - ingress name `front-end`
   - ingress class `traefik`
   - host `prod.sockshop.local`
-  - address `10.10.10.20`
+  - address `<redacted-vm-ip>`
 - `kubectl describe ingress front-end -n sock-shop-prod` confirmed the intended routing:
   - host `prod.sockshop.local`
   - path `/`
   - backend service `front-end:80`
-- `curl -I -H 'Host: prod.sockshop.local' http://10.10.10.20/` returned:
+- `curl -I -H 'Host: prod.sockshop.local' http://<redacted-vm-ip>/` returned:
   - `HTTP/1.1 200 OK`
-- `curl -s -H 'Host: prod.sockshop.local' http://10.10.10.20/ | head -n 10` returned the Sock Shop storefront HTML
+- `curl -s -H 'Host: prod.sockshop.local' http://<redacted-vm-ip>/ | head -n 10` returned the Sock Shop storefront HTML
 
 These signals show that:
 
 - the `prod` overlay now contains a working ingress rule
 - Traefik now routes both application environments locally by hostname
 - both in-cluster ingress paths are in place before the public Cloudflare edge is added
+
+---
+
+## Sources
+
+- [Declarative Management of Kubernetes Objects Using Kustomize](https://kubernetes.io/docs/tasks/manage-kubernetes-objects/kustomization/)  
+  Overlay-based environment modeling with Kustomize.
+
+- [kubectl kustomize](https://kubernetes.io/docs/reference/kubectl/generated/kubectl_kustomize/)  
+  Rendering the `dev` and `prod` overlays before applying them
+
+- [Kubernetes Ingress](https://kubernetes.io/docs/concepts/services-networking/ingress/)  
+  Host-based HTTP routing through Kubernetes Ingress resources.
+
+- [Kubernetes Service](https://kubernetes.io/docs/concepts/services-networking/service/)  
+  `ClusterIP` and Service exposure behavior relevant to the migration away from the earlier NodePort-first proof.
+
+- [Using a Service to Expose Your App](https://kubernetes.io/docs/tutorials/kubernetes-basics/expose/expose-intro/)  
+  Supplemental reference for the difference between `ClusterIP` and `NodePort`.
+
+- [Install Tailscale on Linux](https://tailscale.com/docs/install/linux)  
+  Installing Tailscale on the target VM.
+
+- [tailscale up command](https://tailscale.com/docs/reference/tailscale-cli/up)  
+  Joining a device to the tailnet.
+
+- [Tailscale CLI Reference](https://tailscale.com/docs/reference/tailscale-cli)  
+  `tailscale ip`, `tailscale status`, and general CLI behavior.
+
+- [Tailscale - Group devices with tags](https://tailscale.com/docs/features/tags)  
+  Tag-based organization and policy targeting in the tailnet.
+
+- [Tailscale Access Control](https://tailscale.com/docs/features/access-control)  
+  Tailnet policy structure and access control concepts.
+
+- [Manage permissions using ACLs](https://tailscale.com/docs/features/access-control/acls)  
+  Source/destination style policy expressions used when describing restricted access paths.
+
+- [K3s Server CLI Reference](https://docs.k3s.io/cli/server)  
+  Server-side configuration options relevant to certificate SAN handling.
+
+- [K3s HA with External DB](https://docs.k3s.io/datastore/ha)  
+  Usage of `--tls-san` to avoid certificate errors when accessing the API via an additional IP or hostname.
+
+- [K3s Cluster Access](https://docs.k3s.io/cluster-access)  
+  Default admin kubeconfig + external cluster access behavior.
 
 ---
 
