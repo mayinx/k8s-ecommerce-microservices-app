@@ -1,0 +1,57 @@
+# deploy/kubernetes/observability/prometheus-values-minimal.yaml  
+
+# Minimal Prometheus configuration for the single-node Proxmox VM target. 
+#
+# Disables default alerting, Alertmanager, and persistent storage to prevent CRD bloat 
+# and protect the VM from memory exhaustion (OOMKiller).
+#
+# Note: The adminPassword for grafana is intentionally omitted from this tracked file.
+# It is injected via a gitignored local secrets file during installation. After installation, 
+# the resulting password is stored inside the cluster as a **Kubernetes Secret** created by the chart.
+
+# Disable the chart's default alert/rule bundle to keep the first rollout smaller
+# (reduces CPU overhead + CRD bloat)
+defaultRules:
+  create: false
+
+# Skip the installation of Alertmanager for this first observability baseline 
+# (keeps the scope focused on metrics + dashboards - and saves memory on the target VM)
+alertmanager:
+  enabled: false
+
+grafana:
+  enabled: true
+
+  # Grafana Resource Limits  
+  # Keep Grafana modest in the first rollout by introducing explicit resource boundaries
+  # to prevent Grafana from blocking the cluster 
+  resources:
+    requests: # Guaranteed ressoucres
+      cpu: 100m # = 100 millicores of CPU cores = 10 % of a CPU core (1000m = 1 full CPU core)
+      memory: 128Mi # = 128 Mebibytes of RAM = ~134 MB  
+    limits: # upper resources limit  
+      cpu: 300m # max 30 % of a CPU core
+      memory: 256Mi # max ~268 MB
+
+prometheus:
+  prometheusSpec:
+    # Keep only a short metrics history for the first proof by restricting 
+    # data retention to 2 hours to minimize RAM and disk consumption.
+    retention: 2h
+
+    # Ephemeral storage
+    # Keep storage ephemeral for now (emptyDir): No persistent volume (PV/PVC)  
+    # is introduced in this first monitoring baseline to keep the stack stateless.
+    storageSpec: {}
+
+    # Prometheus Resource Limits  
+    # Keep Prometheus intentionally small but usable by introducing 
+    # strict resource limits to prevent Prometheus from triggering 
+    # the OOMKiller on the single-node Proxmox VM.
+    resources:
+      requests:
+        cpu: 200m  
+        memory: 512Mi
+      limits:
+        cpu: 500m
+        memory: 1Gi

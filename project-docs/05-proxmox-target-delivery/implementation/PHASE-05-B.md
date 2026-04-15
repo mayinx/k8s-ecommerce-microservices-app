@@ -374,7 +374,7 @@ Otherwise, the Configuration Drift remains and the next redeploy risks reintrodu
 
 ### Local Workstation
 
-Checking teh relevant k8s deployment manifest files for the `carts-db` + `orders-db` services reveals the unpinned Mongo image entries:  
+Checking the relevant k8s deployment manifest files for the `carts-db` + `orders-db` services reveals the unpinned Mongo image entries:  
 
 ~~~yaml
 # `deploy/kubernetes/manifests/03-carts-db-dep.yaml`
