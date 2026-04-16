@@ -35,52 +35,97 @@ This phase intentionally focuses on implementing a **first useful monitoring lay
 
 Nevertheless Phase 06 will provide real DevOps value:
 
-- Cluster monitoring on the real target (Proxmox VM 9200) 
-- Namespace-level workload visibility for the production application
-- Private operator access to Grafana and Prometheus
-- Evidence that metrics are being scraped and visualized successfully
-- A concrete foundation for later hardening and operational refinement
+- **Cluster monitoring on the real target** (Proxmox VM 9200)
+- **A namespace-isolated monitoring stack** in a dedicated **`monitoring`** namespace, separate from the application namespaces
+- **Namespace-level workload visibility** for the development and production application
+- **Private operator access** to Grafana and Prometheus
+- **Evidence that metrics are being scraped and visualized successfully**
+- **A concrete foundation** for later hardening and operational refinement
+
+### Why observability is the next logical capability after Phase 05
+
+After Phase 05 had proven the target-delivery path, the next logical capability is a first **observability baseline**: The project can already deploy and expose the application, but it still **lacks an operational visibility layer** for **checking cluster health, workload behavior, and monitoring health** on the live target.
+
+This makes **observability the next logical DevOps step**: 
+- Before moving into later phases such as **Security/Testing**, **Terraform/IaC**, or **DR/Rollback**, the project first **needs a way to inspect what the live platform is actually doing**.
+- Without that visibility layer, later phases would partly operate **without a clear basis for verifying cluster state, workload behavior, and monitoring health**.
+- Phase 05 proved delivery, while **Phase 06 adds the inspectability needed to operate and validate the platform** more confidently in the following project phases.
 
 ### Why `kube-prometheus-stack` in this phase
 
-The upstream repository already contains older monitoring-related material (see below), but this phase uses the maintained **Helm chart `kube-prometheus-stack`** instead of trying to modernize legacy manifests first.
+The upstream repository already contains older monitoring-related material (see below), but this phase uses the well maintained **Helm chart `kube-prometheus-stack`** instead of trying to modernize legacy manifests first. 
 
-That gives the project a **faster and more reliable route to a first working observability baseline** with:
+For Phase 06, this provides a **faster and more reliable route to a first working observability baseline**, while also fitting better to the project’s current **private-only monitoring access model** than the older NodePort-oriented monitoring path. In Phase 06, Grafana and Prometheus are intended to remain privately accessible only (via `kubectl port-foward` through Tailnet) rather than exposed through a NodePort-oriented monitoring path.
 
-- **Prometheus** for metrics collection and querying
+#### What `kube-prometheus-stack` provides in this phase
+
+`kube-prometheus-stack` gives the project a first working observability baseline that is also compatible with the private-only monitoring access model used in this phase:
+
+- **Prometheus** for metrics collection ("scraping") and querying
 - **Grafana** for dashboards and visualization
 - **Prometheus Operator** for managing the Prometheus stack inside Kubernetes
 - **Supporting monitoring components** such as:
   - **kube-state-metrics** for exporting Kubernetes object/state metrics such as Deployments, Pods, and Nodes
   - **node-exporter** for exporting host-level machine metrics such as CPU, memory, filesystem, and network usage
 
-**Why the older repository material was not used as baseline**
+#### Why the older repository material was not used as phase 06 monitoring baseline 
 
-The upstream repository already contains older monitoring-related material under:
+The upstream repository already contains older monitoring-related material:
 
 - `deploy/kubernetes/manifests-monitoring/`
 - `deploy/kubernetes/manifests-alerting/`
 
-It also contains an older application Helm chart under:
+This older monitoring path is a weaker fit for Phase 06 because it is **more fragmented, more manual, and heavier to set up for a first observability baseline**. It is also **less aligned with the architecture direction already established in earlier phases**, which had already started moving the project away from **NodePort as a primary access model** and toward **Ingress-based and private-only access patterns**. 
+
+In particular:
+
+- The **monitoring setup is split across multiple manual stages and many raw manifests** rather than one maintained install unit - which requires additional manual preparation steps (see `deploy/kubernetes/manifests-monitoring/README.md`):
+  - First create the namespace with `00-monitoring-ns.yaml`
+  - Then apply the Prometheus manifests (`01-10`)
+  - Then apply the Grafana manifests (`20-22`)
+  - Then wait until the Grafana pod is running
+  - Then apply the separate dashboard import batch job:
+    - `23-grafana-import-dash-batch.yaml`
+- The monitoring README also documents **NodePort-based exposure for Grafana and Prometheus**:
+  - Prometheus on `31090`
+  - Grafana on `31300`
+- This is less aligned with the project’s current and later direction:
+    - Phase 02 already moved the primary access model from **NodePort** to **host-based Ingress**
+    - Phase 03 already removed fixed NodePort coupling from the CI/CD delivery path
+    - Phase 06 monitoring is intended **private-only**, not via public NodePort exposure
+- The alerting setup is separated again under `deploy/kubernetes/manifests-alerting/` and requires a manually created Kubernetes Secret `slack-hook-url`
+
+#### Additional background: Older repository Helm path
+
+The upstream repo also contains an older application Helm chart:
 
 - `deploy/kubernetes/helm-chart/`
 
-Earlier project work had already shown that the repository’s legacy Helm path was not a clean baseline for current Kubernetes use: after recovering the missing `nginx-ingress` dependency, the install path still failed on deprecated Kubernetes API versions.
+But Phase 03 (DI/CD Baseline) had already evaluated that the repository’s legacy Helm path is **not a clean and low-friction baseline for current Kubernetes use**:
+- After recovering a missing `nginx-ingress` dependency, **the install still failed** because of **deprecated Kubernetes API versions**.
 
-For Phase 06, the stronger move was therefore to use the maintained **`kube-prometheus-stack`** chart instead of first trying to modernize older monitoring manifests or revive the repository’s legacy Helm chain.
+#### Conclusion for Phase 06
+
+For Phase 06, the well maintained `kube-prometheus-stack` provides the **cleaner and faster route to a first working observability baseline**:
+- it **bundles the core monitoring components into one integrated install** 
+- it avoids a preliminary **legacy-monitoring cleanup/revival step** and **reduces the amount of manual assembly** required for the first observability rollout
+- it fits the **private access model** used in Phase 06, where Grafana and Prometheus are reached via `kubectl port-forward` instead of being exposed publicly through NodePorts
+- it keeps the **monitoring stack isolated** in a dedicated **`monitoring` namespace**, separate from the application namespaces, **without requiring a separate manual namespace-creation step** outside the "monitoring install flow" (`helm upgrade --install...` handles this in one go).
+
+All in all, for Phase 06, the logical move is therefore to **use the well maintained `kube-prometheus-stack` chart** instead of first trying to modernize older monitoring manifests or revive the repository’s legacy Helm chain.
 
 ### Why this rollout stays intentionally small
 
 The first monitoring rollout is intentionally scoped to:
 
-- private access only
-- short metric retention
-- ephemeral storage
-- disabled Alertmanager
-- disabled default alert rules
-- modest resource requests and limits
+- Private access only
+- Short metric retention
+- Ephemeral storage
+- Disabled Alertmanager
+- Disabled default alert rules
+- Conservative "resource requests" and "resource limits" 
 
-This keeps the phase focused on proving a valid observability baseline before expanding into broader monitoring, alerting, or long-term operational concerns in later phases. 
+This keeps the phase focused on establishing an observability baseline before expanding into broader monitoring, alerting, or long-term operational concerns in later phases. 
 
 > [!NOTE] **🧩 Helm**
 >
@@ -357,8 +402,8 @@ $ helm repo add prometheus-community https://prometheus-community.github.io/helm
 $ helm repo update
 Update Complete. ⎈Happy Helming!⎈
 
-# Install or upgrade the monitoring stack into its dedicated namespace, 
-# using the values + secrets override files for config 
+# Install or upgrade the monitoring stack 'kube-prometheus-stack' into its dedicated namespace, using the values + secrets override files for config 
+# --install runs an install if teh chart / release doesn't exsist yet  
 # --create-namespace creates the namespace if missing.
 # --wait waits for resources to become ready.
 # --wait-for-jobs also waits for chart jobs to finish.
@@ -484,9 +529,11 @@ Grafana is **not exposed publicly** in this phase:
 
 > [!NOTE] **🧩 `kubectl port-forward` & Tailscale**
 >
-> `kubectl port-forward` creates a **temporary local tunnel from the workstation to a Pod or Service** inside the Kubernetes cluster.
+> `kubectl port-forward` is a Kubernetes command that **forwards** one or more **local workstatrion ports** to a **Pod or Service port** inside the cluster. It allows to connect, control, and interact **with internal Kubernetes servers** right from a local workstation.
 >
-> In this phase, it is used to access Grafana privately without creating a public ingress route for the monitoring UI.
+> `kubectl port-forward` creates a **temporary local tunnel from the workstation to a Pod or Service** inside the Kubernetes cluster without exposing that internal   cluster publicly.
+>
+> In this phase, it is used to access Grafana privately without the need to create  a public ingress route for the monitoring UI.
 >
 > **How it works:** `kubectl port-forward` does not use SSH. It reads the `kubeconfig` and routes traffic securely over the **Tailscale VPN** directly to the K3s API server on the Proxmox VM. The API server then acts as a secure middleman, forwarding the request directly into the Grafana container. 
 
@@ -807,19 +854,19 @@ The observations below did not block successful completion of Phase 06. They rem
 
 ## Phase 06 outcome summary
 
-Phase 06 established the first real observability layer on top of the Proxmox-backed target platform.
+Phase 06 established succcessfully a **privately accessed observability layer on top of the Proxmox-backed target platform**.
 
-By the end of this phase, the project had proven all major observability foundations needed for a first monitoring baseline on the real target:
+All major observability foundations needed for a first monitoring baseline on the real target were proven:
 
-- the `monitoring` namespace exists and contains a running monitoring stack
+- The `monitoring` namespace exists and contains a running monitoring stack
 - `kube-prometheus-stack` is installed successfully on the real target cluster
 - Grafana is reachable privately through `kubectl port-forward`
 - Prometheus is reachable privately through `kubectl port-forward`
-- namespace-level workload data for `sock-shop-prod` is visible in Grafana
-- core monitoring scrape targets are visible and healthy in Prometheus
-- browser evidence for the monitoring baseline is captured
+- Namespace-level workload data for `sock-shop-prod` is visible in Grafana
+- Core monitoring scrape targets are visible and healthy in Prometheus
+- Browser evidence for the monitoring baseline is captured
 
-This makes Phase 06 the point where the project moves from “deployable and reachable” toward “observable and inspectable” on the real target platform.
+This makes Phase 06 the point **where the project moves from “deployable and reachable” toward “observable and inspectable”** on the real target platform.
 
 ---
 

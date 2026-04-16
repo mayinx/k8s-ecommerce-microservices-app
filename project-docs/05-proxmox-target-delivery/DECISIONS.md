@@ -10,24 +10,32 @@
 
 ---
 
-## 📌 Index (top-level)
+## 📌 Index
 
 - [**Quick recap (Phase 05)**](#quick-recap-phase-05)
-- [**P05-D01 — Real target artifact model = Proxmox-backed VM `9200` cloned from workload-ready template `9010`**](#p05-d01--real-target-artifact-model--proxmox-backed-vm-9200-cloned-from-workload-ready-template-9010)
-- [**P05-D02 — Target cluster shape = single-node K3s control plane on the real target VM**](#p05-d02--target-cluster-shape--single-node-k3s-control-plane-on-the-real-target-vm)
-- [**P05-D03 — Deployment model = keep the Kustomize-based Kubernetes path**](#p05-d03--deployment-model--keep-the-kustomize-based-kubernetes-path)
-- [**P05-D04 — MongoDB compatibility fix = pin `carts-db` and `orders-db` to `mongo:3.4`**](#p05-d04--mongodb-compatibility-fix--pin-carts-db-and-orders-db-to-mongo34)
-- [**P05-D05 — Environment model = explicit `sock-shop-dev` and `sock-shop-prod` namespaces**](#p05-d05--environment-model--explicit-sock-shop-dev-and-sock-shop-prod-namespaces)
-- [**P05-D06 — Ingress model = built-in K3s Traefik with host-based routing for both environments**](#p05-d06--ingress-model--built-in-k3s-traefik-with-host-based-routing-for-both-environments)
-- [**P05-D07 — Private access model = Tailscale for operator and CI/CD access to the cluster API**](#p05-d07--private-access-model--tailscale-for-operator-and-cicd-access-to-the-cluster-api)
-- [**P05-D08 — Public edge model = Cloudflare Tunnel with first-level environment hostnames**](#p05-d08--public-edge-model--cloudflare-tunnel-with-first-level-environment-hostnames)
-- [**P05-D09 — Workflow model = preserve Phase 03 as historical baseline and create a dedicated Phase 05 target-delivery workflow**](#p05-d09--workflow-model--preserve-phase-03-as-historical-baseline-and-create-a-dedicated-phase-05-target-delivery-workflow)
-- [**P05-D10 — Scope boundary = keep the guest-session storefront bug out of the Phase 05 infrastructure scope**](#p05-d10--scope-boundary--keep-the-guest-session-storefront-bug-out-of-the-phase-05-infrastructure-scope)
-- [**Next-step implications recorded by this phase**](#next-step-implications-recorded-by-this-phase)
+  - [**Starting point: the project needed a real delivery target beyond the reusable VM baseline**](#starting-point-the-project-needed-a-real-delivery-target-beyond-the-reusable-vm-baseline)
+  - [**First obstacle: the first target-side application deployment surfaced a MongoDB runtime incompatibility**](#first-obstacle-the-first-target-side-application-deployment-surfaced-a-mongodb-runtime-incompatibility)
+  - [**Chosen deployment model: keep the proven Kubernetes manifest path and evolve it into a real environment model**](#chosen-deployment-model-keep-the-proven-kubernetes-manifest-path-and-evolve-it-into-a-real-environment-model)
+  - [**Access and exposure model: separate the private operator path from the public application path**](#access-and-exposure-model-separate-the-private-operator-path-from-the-public-application-path)
+  - [**Workflow model: preserve the earlier CI/CD milestone, but introduce a dedicated real-target workflow**](#workflow-model-preserve-the-earlier-cicd-milestone-but-introduce-a-dedicated-real-target-workflow)
+  - [**Verified result: real target VM, real cluster, real public edge, and real workflow-driven delivery**](#verified-result-real-target-vm-real-cluster-real-public-edge-and-real-workflow-driven-delivery)
+  - [**Why this matters next**](#why-this-matters-next)
+- [**Key Phase Decisions**](#key-phase-decisions)
+  - [**P05-D01 — Real target artifact model = Proxmox-backed VM `9200` cloned from workload-ready template `9010`**](#p05-d01--real-target-artifact-model--proxmox-backed-vm-9200-cloned-from-workload-ready-template-9010)
+  - [**P05-D02 — Target cluster shape = single-node K3s control plane on the real target VM**](#p05-d02--target-cluster-shape--single-node-k3s-control-plane-on-the-real-target-vm)
+  - [**P05-D03 — Deployment model = keep the Kustomize-based Kubernetes path**](#p05-d03--deployment-model--keep-the-kustomize-based-kubernetes-path)
+  - [**P05-D04 — MongoDB compatibility fix = pin `carts-db` and `orders-db` to `mongo:3.4`**](#p05-d04--mongodb-compatibility-fix--pin-carts-db-and-orders-db-to-mongo34)
+  - [**P05-D05 — Environment model = explicit `sock-shop-dev` and `sock-shop-prod` namespaces**](#p05-d05--environment-model--explicit-sock-shop-dev-and-sock-shop-prod-namespaces)
+  - [**P05-D06 — Ingress model = built-in K3s Traefik with host-based routing for both environments**](#p05-d06--ingress-model--built-in-k3s-traefik-with-host-based-routing-for-both-environments)
+  - [**P05-D07 — Private access model = Tailscale for operator and CI/CD access to the cluster API**](#p05-d07--private-access-model--tailscale-for-operator-and-cicd-access-to-the-cluster-api)
+  - [**P05-D08 — Public edge model = Cloudflare Tunnel with first-level environment hostnames**](#p05-d08--public-edge-model--cloudflare-tunnel-with-first-level-environment-hostnames)
+  - [**P05-D09 — Workflow model = preserve Phase 03 as historical baseline and create a dedicated Phase 05 target-delivery workflow**](#p05-d09--workflow-model--preserve-phase-03-as-historical-baseline-and-create-a-dedicated-phase-05-target-delivery-workflow)
+  - [**P05-D10 — Scope boundary = keep the guest-session storefront bug out of the Phase 05 infrastructure scope**](#p05-d10--scope-boundary--keep-the-guest-session-storefront-bug-out-of-the-phase-05-infrastructure-scope)
+- [**Next-step implications**](#next-step-implications)
 
 ---
 
-## Quick recap (Phase 05)
+## Quick recap of Phase 05
 
 Phase 05 moved the project from the local baseline (Pahses 00 - 03) and the reusable Proxmox VM baseline established in Phase 04 to a **real target-delivery platform** on private Proxmox infrastructure.
 
@@ -212,16 +220,10 @@ The real target-delivery foundation now exists, so the next phases can focus on 
 
 ---
 
-## Next-step implications recorded by this phase
+## Next-step implications
 
 - Phase 05 establishes the **real target-delivery platform** on Proxmox, not just another local or smoke-only proof path.
-- The next major phase does not need to re-solve:
-  - target VM creation
-  - first cluster bootstrap
-  - environment separation
-  - public edge setup
-  - or workflow access to the real cluster
-- Phase 06 can therefore focus on **observability** on top of an already working long-lived target path.
+- The next major phase (Phase 06) can therefore focus solely on **observability** on top of an already working long-lived target path.
 - Later hardening and DR work should build on the now-proven:
   - `dev` / `prod` namespace model
   - Traefik ingress layer

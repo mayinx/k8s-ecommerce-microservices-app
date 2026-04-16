@@ -10,14 +10,21 @@
 
 ---
 
-## 📌 Index (top-level)
+## 📌 Index
 
 - [**Quick recap (Phase 04)**](#quick-recap-phase-04)
-- [**P04-D01 — Baseline artifact model = Cloud-Init VM template + smoke VM clone**](#p04-d01--baseline-artifact-model--cloud-init-vm-template--smoke-vm-clone)
-- [**P04-D02 — Standardized creation path = CLI-driven `qm` template workflow**](#p04-d02--standardized-creation-path--cli-driven-qm-template-workflow)
-- [**P04-D03 — Smoke VM network model = unbridged `virtio` NIC**](#p04-d03--smoke-vm-network-model--unbridged-virtio-nic)
-- [**P04-D04 — Verification model = host-side proof + guest-side proof**](#p04-d04--verification-model--host-side-proof--guest-side-proof)
-- [**Next-step implications recorded by this phase**](#next-step-implications-recorded-by-this-phase)
+  - [**Starting point: the project needed a real Proxmox VM baseline before target deployment**](#starting-point-the-project-needed-a-real-proxmox-vm-baseline-before-target-deployment)
+  - [**First qualification layer: generic VM baseline via the Proxmox Cloud-Init template workflow (VM Template `9000` + Smoke VM `9100`)**](#first-qualification-layer-generic-vm-baseline-via-the-proxmox-cloud-init-template-workflow-vm-template-9000--smoke-vm-9100)
+  - [**Second qualification layer: finalize a workload-ready baseline VM template before Phase 05 (VM Template `9010`)**](#second-qualification-layer-finalize-a-workload-ready-baseline-vm-template-before-phase-05-vm-template-9010)
+  - [**Final artifact roles at the end of Phase 04**](#final-artifact-roles-at-the-end-of-phase-04)
+- [**Key Phase Decisions**](#key-phase-decisions)
+  - [**P04-D01 — Baseline artifact model = Cloud-Init VM template + smoke VM clone**](#p04-d01--baseline-artifact-model--cloud-init-vm-template--smoke-vm-clone)
+  - [**P04-D02 — Standardized creation path = CLI-driven `qm` template workflow**](#p04-d02--standardized-creation-path--cli-driven-qm-template-workflow)
+  - [**P04-D03 — Initial smoke-validation network model (unbridged `virtio` NIC)**](#p04-d03--initial-smoke-validation-network-model-unbridged-virtio-nic)
+  - [**P04-D04 — Verification model = host-side proof + guest-side proof**](#p04-d04--verification-model--host-side-proof--guest-side-proof)
+  - [**P04-D05 — Workload-ready baseline network model (private guest bridge `vmbr1` + host-side NAT) as base for a deployment target VM template**](#p04-d05--workload-ready-baseline-network-model-private-guest-bridge-vmbr1--host-side-nat-as-base-for-a-deployment-target-vm-template)
+  - [**P04-D06 — Final Phase-04 artifact model = generic baseline + smoke clone + workload-ready template variant**](#p04-d06--final-phase-04-artifact-model--generic-baseline--smoke-clone--workload-ready-template-variant)
+- [**Next-step implications**](#next-step-implications)
 
 ---
 
@@ -103,8 +110,7 @@ This gives the project a real workload-ready Proxmox VM baseline that later phas
 - **Proof:** `qm config 9100` shows `net0: virtio=...` without a bridge, and inside the guest the VM receives `10.0.2.15/24`, uses `10.0.2.2` as default route, and reaches the outside successfully.
 - **Next-step impact:** This establishes the generic smoke-valid state, but not yet the final workload-ready target baseline.
 
-## P04-D04 — Verification model = host-side proof + guest-side proof
-
+### P04-D04 — Verification model = host-side proof + guest-side proof
 - **Decision:** Count Phase 04 as successful only when the VM baseline is proven on the Proxmox host and inside the guest operating system.
 - **Why:** A visible VM entry in Proxmox alone is not strong enough proof of a working baseline.
 - **Proof:** Host-side checks (`pvesm status`, `qm config`, `qm list --full`, `pvesm list vmdata`) and guest-side checks (`whoami`, `cloud-init status --wait`, `ip route`, `df -h /`, `ping`, `curl`) all succeed.
@@ -126,20 +132,9 @@ This gives the project a real workload-ready Proxmox VM baseline that later phas
 
 ---
 
-## Next-step implications recorded by this phase
+## Next-step implications
 
-- Phase 04 establishes the first reusable Proxmox VM baseline, but not yet the application deployment path on the target.
-- The next major step is to move from:
-  - reusable VM template + smoke VM proof  
-  to:
-  - real application deployment on the Proxmox-backed target
-- Terraform or other automation work should build on the now-proven baseline instead of replacing it conceptually.
-
----
-
-## Next-step implications recorded by this phase
-
-- Phase 04 establishes the **first reusable command level Proxmox VM baseline** and then qualifies it for real **target-side use** inside the same phase.
+- Phase 04 establishes a first **reusable command level Proxmox VM baseline** and **qualifies it for real target-side use**.
 - Phase 05 can therefore start from a
   - **workload-ready template `9010`**
   instead of from:
