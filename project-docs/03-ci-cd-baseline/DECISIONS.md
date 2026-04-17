@@ -9,19 +9,26 @@
 
 ---
 
-## 📌 Index (top-level)
+## 📌 Index
 
-- [**Quick recap (Phase 03)**](#quick-recap-phase-03)
-- [**P03-D01 — Deployment input = raw manifests + Kustomize overlays (not Helm)**](#p03-d01--deployment-input--raw-manifests--kustomize-overlays-not-helm)
-- [**P03-D02 — Environment model = namespace-based dev/prod overlays**](#p03-d02--environment-model--namespace-based-devprod-overlays)
-- [**P03-D03 — CI/CD runtime = GitHub Actions + GitHub-hosted runners + kind**](#p03-d03--cicd-runtime--github-actions--github-hosted-runners--kind)
-- [**P03-D04 — Production gate = GitHub Environment with required reviewer**](#p03-d04--production-gate--github-environment-with-required-reviewer)
-- [**P03-D05 — Workflow image scope = keep `healthcheck`, defer `openapi`**](#p03-d05--workflow-image-scope--keep-healthcheck-defer-openapi)
+- [**Quick recap of Phase 03**](#quick-recap-phase-03)
+  - [**Starting point: Phase 03 needed a real delivery baseline**](#starting-point-phase-03-needed-a-real-delivery-baseline)
+  - [**Obstacle 1: Helm was not a viable baseline at this point**](#obstacle-1-helm-was-not-a-viable-baseline-at-this-point)
+  - [**Chosen path: Reuse the proven raw manifests and add a thin Kustomize environment layer**](#chosen-path-reuse-the-proven-raw-manifests-and-add-a-thin-kustomize-environment-layer)
+  - [**CI/CD runtime choice: GitHub Actions + hosted runners + kind**](#cicd-runtime-choice-github-actions--hosted-runners--kind)
+  - [**Obstacle 2: The repo-owned `openapi` image target failed and had to be deferred / excluded from workflow**](#obstacle-2-the-repo-owned-openapi-image-target-failed-and-had-to-be-deferred--excluded-from-workflow)
+  - [**Verified result: Successful dev + prod smoke delivery through GitHub Actions Pipeline**](#verified-result-successful-dev--prod-smoke-delivery-through-github-actions-pipeline)
+- [**Key Phase Decisions**](#key-phase-decisions)
+  - [**P03-D01 — Deployment input = raw manifests + Kustomize overlays (not Helm)**](#p03-d01--deployment-input--raw-manifests--kustomize-overlays-not-helm)
+  - [**P03-D02 — Environment model = namespace-based dev/prod overlays**](#p03-d02--environment-model--namespace-based-devprod-overlays)
+  - [**P03-D03 — CI/CD runtime = GitHub Actions + GitHub-hosted runners + kind**](#p03-d03--cicd-runtime--github-actions--github-hosted-runners--kind)
+  - [**P03-D04 — Production gate = GitHub Environment with required reviewer**](#p03-d04--production-gate--github-environment-with-required-reviewer)
+  - [**P03-D05 — Workflow image scope = keep `healthcheck`, defer `openapi`**](#p03-d05--workflow-image-scope--keep-healthcheck-defer-openapi)
 - [**Deferred follow-ups recorded by this phase**](#deferred-follow-ups-recorded-by-this-phase)
 
 ---
 
-## Quick recap (Phase 03)
+## Quick recap of Phase 03
 
 Phase 03 added a working CI/CD baseline for the project’s `dev` / `prod` delivery path.
 
@@ -42,7 +49,7 @@ Helm was evaluated first, but even after fetching the missing chart dependency, 
 
 That made Helm a poor fit for a fast baseline in this phase.
 
-### Solution / Chosen path: reuse the proven raw manifests and add a thin Kustomize environment layer
+### Chosen path: Reuse the proven raw manifests and add a thin Kustomize environment layer
 
 Instead, the phase **reused the already proven raw manifests** and added a **thin Kustomize environment layer** for:
 
@@ -57,29 +64,13 @@ For the CI/CD runtime, the chosen baseline was:
 
 - GitHub Actions
 - GitHub-hosted runners
-- `kind` as the temporary Kubernetes smoke target
-- GitHub Environments for:
-  - `dev`
-  - `prod`
-- required reviewers on `prod` for the approval gate
-
-This gave the project a real delivery proof **without depending on the final long-lived Proxmox target yet**.
-
-
-### CI/CD runtime choice: GitHub Actions + hosted runners + kind
-
-For the CI/CD runtime, the chosen baseline was:
-
-- GitHub Actions
-- GitHub-hosted runners
-- `kind` (Kubernetes in Docker) as an ephemeral "dummy" cluster (only living in the ephemeral GitHub Actions runners) for safe smoke-testing
+- `kind` (Kubernetes in Docker) as an ephemeral "dummy" cluster (only living in the ephemeral GitHub Actions runners) used as as the temporary Kubernetes smoke target 
 - GitHub Environments for:
   - `dev`
   - `prod`
 - "required reviewers" on `prod` for the approval gate
 
-This gave the project a **real delivery proof in a temporary, isolated sandbox** before depending on the final persistent Proxmox target (see Phase 05).
-
+This gave the project a **real delivery proof in a temporary, isolated sandbox** before moving CI/CD-based delivery on the final persistent Proxmox target (see Phase 05).
 
 ### Obstacle 2: The repo-owned `openapi` image target failed and had to be deferred / excluded from workflow  
 
@@ -108,7 +99,9 @@ This gives the repository a real delivery baseline before moving to the final in
 
 ---
 
-## Decision (P03-D01): deployment input = raw manifests + Kustomize overlays (not Helm)
+## Key Phase Decisions
+
+### Decision (P03-D01): deployment input = raw manifests + Kustomize overlays (not Helm)
 
 - **Decision:** Use the already proven raw Kubernetes manifests as the base deployment path and add a thin Kustomize layer for `dev` and `prod`, instead of using the existing Helm chart in this phase.
 - **Context / problem:** Phase 03 needed environment separation and CI/CD-friendly deployment input. The repository already contained a Helm chart, so Helm had to be evaluated first.
@@ -131,7 +124,7 @@ This gives the repository a real delivery baseline before moving to the final in
 
 ---
 
-## Decision (P03-D02): environment model = namespace-based dev/prod overlays
+### Decision (P03-D02): environment model = namespace-based dev/prod overlays
 
 - **Decision:** Model `dev` and `prod` through separate namespace-based Kustomize overlays.
 - **Context / problem:** The proven raw-manifest baseline was still a single-environment path. Phase 03 needed separate deployment inputs for `dev` and `prod`.
@@ -153,7 +146,7 @@ This gives the repository a real delivery baseline before moving to the final in
 
 ---
 
-## Decision (P03-D03): CI/CD runtime = GitHub Actions + GitHub-hosted runners + kind
+### Decision (P03-D03): CI/CD runtime = GitHub Actions + GitHub-hosted runners + kind
 
 - **Decision:** Use GitHub Actions with GitHub-hosted runners and **`kind` (Kubernetes in Docker)** to spin up an ephemeral "dummy" cluster for the CI/CD baseline.
 - **Context / problem:** The phase needed a working CI/CD baseline before moving to the real long-lived Proxmox target.
@@ -180,7 +173,7 @@ This gives the repository a real delivery baseline before moving to the final in
   - the delivery logic is proven now
   - later retargeting to Proxmox mainly requires swapping the temporary cluster setup for the real kubeconfig / cluster-access path
 
-## Decision (P03-D04): production gate = GitHub Environment with required reviewer
+### Decision (P03-D04): production gate = GitHub Environment with required reviewer
 
 - **Decision:** Use GitHub Environments with required reviewers to gate the `prod` smoke deployment.
 - **Context / problem:** The project requirements call for environment separation, and approval-gated production deployment is explicitly encouraged when CI/CD is used.
@@ -201,7 +194,7 @@ This gives the repository a real delivery baseline before moving to the final in
 
 ---
 
-## Decision (P03-D05): workflow image scope = keep `healthcheck`, defer `openapi`
+### Decision (P03-D05): workflow image scope = keep `healthcheck`, defer `openapi`
 
 - **Decision:** Exclude `openapi` from the Phase 03 image-build matrix and keep `healthcheck` as the repo-owned support image target for this phase.
 - **Context / problem:** The first workflow run failed in the `openapi` image build job.

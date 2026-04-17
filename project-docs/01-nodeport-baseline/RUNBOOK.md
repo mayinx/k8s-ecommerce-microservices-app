@@ -73,7 +73,7 @@ kubectl apply -n sock-shop -f deploy/kubernetes/manifests
 # Watch until pods settle into Running/Ready
 kubectl get pods -n sock-shop -w
 
-# Evidence snapshot after pods settle (proves readiness + NodePort assignment)
+# check readiness + NodePort assignment
 kubectl get pods -n sock-shop -o wide
 kubectl get svc  -n sock-shop -o wide
 ~~~

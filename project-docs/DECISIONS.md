@@ -4,16 +4,41 @@ Purpose: Capture **phase-scoped technical decisions** (with context + alternativ
 
 > **Hint:** This log contains consolidated project-phase related decision summaries only (“ADR-lite”); durable cross-phase standards live in `adr/` as full ADRs.
 
-Decisions in this project are made along an explicit, **phase-based delivery path (baseline → next capability)**; therefore this log also records that delivery path and its guiding principles as the reference frame and foundation for later decisions.
+Decisions in this project are made along an explicit, **phase-based delivery path**; therefore this log also records that delivery path and its guiding principles as the reference frame and foundation for later decisions.
 
-## Template (when adding new decisions)
-- Date:
-- Decision:
-- Context / problem:
-- Options considered:
-- Chosen option + why:
-- Verification / evidence:
-- Consequences / follow-ups:
+## Index
+
+- [**Foundation decision: Phase-based DevOps delivery approach**](#foundation-decision-phase-based-devops-delivery-approach)
+- [**Phase 00 — Compose + Repo Baseline**](#phase-00--compose--repo-baseline)
+- [**Phase 01 — Port-based local cluster baseline (k3s): Deploy Sock Shop via NodePort and prove the baseline works**](#phase-01--port-based-local-cluster-baseline-k3s-deploy-sock-shop-via-nodeport-and-prove-the-baseline-works)
+- [**Phase 02 — Ingress baseline: Host-based Traefik routing to the Sock Shop storefront**](#phase-02--ingress-baseline-host-based-traefik-routing-to-the-sock-shop-storefront)
+- [**Phase 03 — CI/CD baseline: GitHub Actions delivery smoke path for dev/prod**](#phase-03--cicd-baseline-github-actions-delivery-smoke-path-for-devprod)
+- [**Phase 04 — Proxmox VM Baseline**](#phase-04-proxmox-vm-baseline-generic-ubuntu-vm-template-smoke-vm-and-workload-ready-vm-template)
+- [**Phase 05 — Proxmox Target Delivery: Real target VM, public edge, and workflow-driven delivery**](#phase-05-proxmox-target-delivery-real-target-vm-public-edge-and-workflow-driven-delivery)
+- [**Phase 06 — Observability & Health**](#phase-06--observability--health)
+
+---
+
+
+## Template (when adding a new phase to this global decisions log)
+
+### Quick recap
+- Starting point:
+- Obstacle / constraint: *(only if relevant)*
+- Chosen path:
+- Verified result:
+- Why this matters next: *(short, if useful)*
+
+### Key decisions
+- `Pxx-Dyy` — <short decision title>
+  - Decision:
+  - Why:
+  - Proof:
+  - Next-step impact:
+
+### Notes
+- Keep the global phase entry condensed and scan-friendly.
+- Detailed rationale, fuller trade-offs, and stronger evidence stay in the phase-local `DECISIONS.md`.
 
 ---
 
@@ -449,6 +474,11 @@ Phase 05 now proves:
 - private tailnet-based external cluster access
 - automated `dev` deployment and approval-gated `prod` deployment on the real target cluster
 
+The phase also **establishes the first stable public environment URLs** on the long-lived target platform:
+
+- **Development:** `https://dev-sockshop.cdco.dev/`
+- **Production:** `https://prod-sockshop.cdco.dev/`
+
 ## Conclusion + Next steps
 
 - Phase 05 completed the move from the reusable Proxmox VM baseline to a **real target-delivery platform**.
@@ -459,6 +489,96 @@ Phase 05 now proves:
   - private access path
   - public edge
   - and workflow-driven delivery path
+
+---
+
+## Phase 06 — Observability & Health
+
+Phase 06 established the first real observability baseline on top of the Proxmox-based target cluster.
+
+### Quick recap (Phase 06)
+
+#### Starting point: The project needed the first useful monitoring layer on the real target
+
+After Phase 05, the project already had:
+
+- A proxmox-based target VM
+- A working single-Nnode K3s nontrol plane
+- Namespace-based `dev` / `prod` application delivery via a Github Actions CI/CD-Pipeline
+- Private operator access and public application exposure
+
+At that point, the project could already deploy and expose the application, but it still lacked the operational visibility needed to inspect cluster health, workload behavior, and monitoring health on the live target.
+
+#### Obstacle: The existing repository monitoring material was not the right baseline for this phase
+
+The repository already contained older monitoring-related material under:
+
+- `deploy/kubernetes/manifests-monitoring/`
+- `deploy/kubernetes/manifests-alerting/`
+
+That path was a weaker fit for the first observability baseline because it was more fragmented, more manual, and more NodePort-oriented than needed here. It also aligned less well with the project’s later direction away from NodePort as a primary access model.
+
+#### Chosen path: Use maintained `kube-prometheus-stack` in a dedicated `monitoring` namespace
+
+Phase 06 therefore standardized on the maintained Helm chart **`kube-prometheus-stack`** and installed it into a dedicated `monitoring` namespace
+
+This provided a faster and cleaner route to the first working observability baseline by bundling the core monitoring components into one integrated install path.
+
+#### Constraint: Monitoring access should remain private-only in Phase 06
+
+Phase 06 needed operator access to Grafana and Prometheus to prove the monitoring baseline, but it did not need a public monitoring surface yet.
+
+A public monitoring route would have introduced additional ingress, DNS, TLS, and hardening scope that was not required for the first baseline.
+
+#### Chosen path: Keep Grafana and Prometheus private via `kubectl port-forward`
+
+Grafana and Prometheus were therefore accessed privately through **`kubectl port-forward`** over the already working Tailnet-based kubeconfig path.
+
+This reused the proven operator-access path from earlier phases and kept the monitoring surface private.
+
+#### Verified result: The first observability baseline is proven on the live target
+
+By the end of Phase 06, the project had proven:
+
+- A running monitoring namespace on the real target
+- A successful `kube-prometheus-stack` deployment
+- Private Grafana access through `kubectl port-forward`
+- Private Prometheus access through `kubectl port-forward`
+- Namespace-level workload visibility for `sock-shop-prod`
+- Healthy core monitoring targets on the Prometheus `/targets` page
+
+#### Why this matters next
+
+The project is no longer only deployable and reachable on the real target. It is now also observable and inspectable, which gives later phases a stronger basis for security work, Infrastructure as Code, and DR / rollback planning.
+
+### Key decisions
+
+#### P06-D01 — Observability baseline = maintained `kube-prometheus-stack` in dedicated `monitoring` namespace
+
+Use the maintained Helm chart **`kube-prometheus-stack`** as the Phase-06 observability baseline and install it into the dedicated namespace `monitoring`.
+
+#### P06-D02 — First rollout scope = intentionally small and private-only
+
+Keep the first monitoring rollout intentionally narrow:
+
+- Alertmanager disabled
+- Default alert rules disabled
+- Short prometheus retention
+- Ephemeral storage
+- Conservative resource requests and limits
+- No public monitoring ingress
+
+#### P06-D03 — Grafana credential handling = tracked non-secret values + gitignored local Helm override + chart-managed Kubernetes Secret
+
+Keep non-secret Helm values in the tracked baseline file, inject the Grafana admin password through a gitignored local Helm override, and let the chart create the resulting Kubernetes Secret inside the cluster.
+
+#### P06-D04 — Access model = private `kubectl port-forward` over the existing Tailnet path
+
+Access Grafana and Prometheus privately through **`kubectl port-forward`** over the already working Tailnet-based kubeconfig path instead of creating a public monitoring ingress route in Phase 06.
+
+#### P06-D05 — Verification model = dashboard proof + scrape-target proof + light recent traffic
+
+Count Phase 06 as successful only when the monitoring baseline is proven through successful stack deployment, private Grafana access, dashboard-based workload visibility, Prometheus scrape-target health, and recent storefront traffic that makes current activity visible.
 
 ---
 
