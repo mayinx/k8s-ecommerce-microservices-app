@@ -20,15 +20,25 @@ Decisions in this project are made along an explicit, **phase-based delivery pat
 ---
 
 
-TODO: Update: 
-## Template (when adding new decisions)
-- Date:
-- Decision:
-- Context / problem:
-- Options considered:
-- Chosen option + why:
-- Verification / evidence:
-- Consequences / follow-ups:
+## Template (when adding a new phase to this global decisions log)
+
+### Quick recap
+- Starting point:
+- Obstacle / constraint: *(only if relevant)*
+- Chosen path:
+- Verified result:
+- Why this matters next: *(short, if useful)*
+
+### Key decisions
+- `Pxx-Dyy` — <short decision title>
+  - Decision:
+  - Why:
+  - Proof:
+  - Next-step impact:
+
+### Notes
+- Keep the global phase entry condensed and scan-friendly.
+- Detailed rationale, fuller trade-offs, and stronger evidence stay in the phase-local `DECISIONS.md`.
 
 ---
 

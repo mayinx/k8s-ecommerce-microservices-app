@@ -15,8 +15,9 @@
 
 - [**Goal**](#goal)
 - [**Preconditions**](#preconditions)
-- [**Step 0 — Re-check the repository state and cluster reachability**](#step-0--re-check-the-repository-state-and-cluster-reachability)
-- [**Step 1 — Prepare the local Grafana secret override and install the monitoring baseline**](#step-1--prepare-the-local-grafana-secret-override-and-install-the-monitoring-baseline)
+- [**Step 0 — Re-check cluster reachability**](#step-0--re-check-cluster-reachability)
+- [**Step 1 — Create the values file, prepare the local Grafana secret override, and install the monitoring baseline**](#step-1--create-the-values-file-prepare-the-local-grafana-secret-override-and-install-the-monitoring-baseline)
+
 - [**Step 2 — Open Grafana privately and confirm login works**](#step-2--open-grafana-privately-and-confirm-login-works)
 - [**Step 3 — Generate light storefront traffic and verify namespace-level Grafana visibility**](#step-3--generate-light-storefront-traffic-and-verify-namespace-level-grafana-visibility)
 - [**Step 4 — Verify Prometheus scrape health privately**](#step-4--verify-prometheus-scrape-health-privately)
@@ -46,23 +47,17 @@ Recreate the proven **Phase 06 observability baseline** so that:
 - Helm is available on the workstation
 - The production Sock Shop environment is reachable at:
   - `https://prod-sockshop.cdco.dev`
-- The Phase-06 repository state already exists locally, including:
-  - `deploy/kubernetes/observability/prometheus-values-minimal.yaml`
+- A writable local repository checkout is available
 
 ---
 
-## Step 0 — Re-check the repository state and cluster reachability
+## Step 0 — Re-check cluster reachability
 
-At this point, it is useful to confirm that the local checkout is on the intended Phase-06 branch and that the workstation still reaches the real target cluster through the existing Tailnet-based kubeconfig path.
+At this point, it is useful to confirm that the workstation still reaches the real target cluster through the existing Tailnet-based kubeconfig path.
+
+From the repo checkout:
 
 ~~~bash
-# Move into the repository checkout on the workstation.
-$ cd ~/PROJECTS/DataScientest/CAPSTONE/k8s-ecommerce-microservices-app
-
-# Refresh the local checkout if needed.
-$ git pull origin feat/phase-06-observability
-...
-
 # Reuse the already working Tailnet-based kubeconfig path.
 $ export KUBECONFIG=~/.kube/config-proxmox-dev.yaml
 
@@ -76,31 +71,75 @@ $ kubectl get namespace sock-shop-dev sock-shop-prod
 NAME             STATUS
 sock-shop-dev    Active
 sock-shop-prod   Active
-
-# Confirm that the tracked Phase-06 values file exists locally.
-$ ls deploy/kubernetes/observability/prometheus-values-minimal.yaml
-deploy/kubernetes/observability/prometheus-values-minimal.yaml
 ~~~
 
-## Step 1 — Prepare the local Grafana secret override and install the monitoring baseline
+## Step 1 — Create the values file, prepare the local Grafana secret override, and install the monitoring baseline
 
-Before the monitoring stack can be installed reproducibly, the local gitignored Grafana password override has to exist alongside the tracked Phase-06 values file.
+Before the monitoring stack can be installed reproducibly, the phase-specific chart input files need to exist locally under:
 
-### Create the local secret override file
+- `deploy/kubernetes/observability/`
 
-~~~bash
-# Create the local-only Helm override file for the Grafana admin password.
-$ cat > deploy/kubernetes/observability/prometheus-local.secrets.yaml <<'YAML'
-# deploy/kubernetes/observability/prometheus-local.secrets.yaml
-#
-# local only secrets override - do not commit!
+### Create the Phase-06 values file
+
+Create the directory `deploy/kubernetes/observability/` if it does not exist yet.
+
+Then create the baseline values file below as:
+
+- `deploy/kubernetes/observability/prometheus-values-minimal.yaml`
+
+~~~yaml
+defaultRules:
+  create: false
+
+alertmanager:
+  enabled: false
 
 grafana:
-  adminPassword: "REPLACE_WITH_LOCAL_GRAFANA_ADMIN_PASSWORD"
-YAML
+  enabled: true
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 300m
+      memory: 256Mi
+
+prometheus:
+  prometheusSpec:
+    retention: 2h
+    storageSpec: {}
+    resources:
+      requests:
+        cpu: 200m
+        memory: 512Mi
+      limits:
+        cpu: 500m
+        memory: 1Gi
 ~~~
 
-### Install or refresh the stack
+### Ensure the local secrets override stays gitignored
+
+Add the following entry to `.gitignore` so the local Grafana password override remains untracked:
+
+~~~gitignore
+# Local Helm secrets override for Phase 06 observability
+deploy/kubernetes/observability/prometheus-local.secrets.yaml
+~~~
+
+### Create the local Grafana secret override file
+
+Create the local-only Helm override file below as:
+
+- `deploy/kubernetes/observability/prometheus-local.secrets.yaml`
+
+This file is used to pass the Grafana admin password locally without committing it into the tracked repository state.
+
+~~~yaml
+grafana:
+  adminPassword: "REPLACE_WITH_LOCAL_GRAFANA_ADMIN_PASSWORD"
+~~~
+
+### Install or refresh the monitoring baseline
 
 ~~~bash
 # Add and refresh the Prometheus Community Helm repository.
@@ -110,7 +149,13 @@ $ helm repo add prometheus-community https://prometheus-community.github.io/helm
 $ helm repo update
 Update Complete. ⎈Happy Helming!⎈
 
-# Install or upgrade the monitoring stack into the dedicated monitoring namespace.
+# Install or upgrade the monitoring stack.
+# observability = chosen Helm release name for this deployed chart instance
+# prometheus-community/kube-prometheus-stack = chart reference (repo/chart)
+# --install runs an install if the release does not exist yet
+# --create-namespace creates the namespace if missing
+# --wait waits for resources to become ready
+# --wait-for-jobs also waits for chart jobs to finish
 $ helm upgrade --install observability prometheus-community/kube-prometheus-stack \
   --namespace monitoring \
   --create-namespace \
@@ -174,9 +219,17 @@ If local port `3000` is already in use, the same command can be run with another
 
 To make current workload activity easier to see in Grafana, a small amount of repeated storefront traffic can be generated before opening the namespace dashboard.
 
-### Optional helper: generate recent storefront activity
+### Optional helper: run the Phase-06 traffic generator
+
+This phase also introduces a small repository helper script for repeatable recent storefront activity:
+
+- `scripts/observability/generate-sockshop-traffic.sh`
+
+Create that file with the following initial minimal Phase-06 contents:
 
 ~~~bash
+#!/usr/bin/env bash
+
 COOKIE_JAR=/tmp/sockshop-cookies.txt
 
 while true; do
@@ -204,6 +257,13 @@ while true; do
 
   sleep 1
 done
+~~~
+
+Then make the script executable and run it:
+
+~~~bash
+$ chmod +x scripts/observability/generate-sockshop-traffic.sh
+$ ./scripts/observability/generate-sockshop-traffic.sh
 ~~~
 
 ### Verify namespace-level visibility in Grafana
@@ -282,4 +342,4 @@ Then repeat the runbook from **Step 1**.
 
 ### Local-only file used in this phase
 
-- `deploy/kubernetes/observability/prometheus-local.secrets.yaml
+- `deploy/kubernetes/observability/prometheus-local.secrets.yaml`

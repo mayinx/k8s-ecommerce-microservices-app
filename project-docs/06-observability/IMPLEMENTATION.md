@@ -402,9 +402,12 @@ $ helm repo add prometheus-community https://prometheus-community.github.io/helm
 $ helm repo update
 Update Complete. ⎈Happy Helming!⎈
 
-# Install or upgrade the monitoring stack 'kube-prometheus-stack' into its dedicated namespace, using the values + secrets override files for config 
-# --install runs an install if teh chart / release doesn't exsist yet  
-# --create-namespace creates the namespace if missing.
+# Install or upgrade the monitoring stack 'kube-prometheus-stack' into its dedicated namespace,
+# using the values + secrets override files for config (see -f)
+# 
+# 'observability' = csutom Helm release name for this deployed chart instance
+# --install runs an install if the chart / release doesn't exsist yet  
+# --create-namespace creates the 'monitoring' namespace if missing.
 # --wait waits for resources to become ready.
 # --wait-for-jobs also waits for chart jobs to finish.
 $ helm upgrade --install observability prometheus-community/kube-prometheus-stack \
@@ -651,7 +654,13 @@ For this phase, **namespace-level infrastructure visibility** is sufficient. The
 
 It is useful to generate some traffic on the production environment that we like to collect and monitor via Prometheus and Grafana so the cluster sees recent workload activity. 
 
-This can be done manually by browsing the storefront, or by using the following simple bash helper:
+This can be done manually by browsing the storefront, or by using the small **Traffic Generator (Observability Helper)** introduced in this phase.
+
+The helper can be accessed here:
+
+- `scripts/observability/generate-sockshop-traffic.sh`
+
+The first committed Phase-06 version is intentionally kept minimal and focuses only on generating lightweight repeated storefront traffic for observability verification:
 
 ~~~bash
 # Optional helper: 
@@ -873,34 +882,46 @@ This makes Phase 06 the point **where the project moves from “deployable and r
 ## Sources
 
 - [Prometheus Community Kubernetes Helm Charts](https://prometheus-community.github.io/helm-charts/)  
-  Official Prometheus Community chart repository usage, including the repository add/update flow used in this phase.
+  Prometheus Community chart repository (usage, including add/update flow).
+
+- [kube-prometheus-stack README | Prometheus Community Helm Charts](https://github.com/prometheus-community/helm-charts/blob/main/charts/kube-prometheus-stack/README.md)  
+  kube-prometheus-stack chart README.
+
+- [kube-prometheus-stack values.yaml | Prometheus Community Helm Charts](https://github.com/prometheus-community/helm-charts/blob/main/charts/kube-prometheus-stack/values.yaml)  
+  Chart values reference (available configuration of `kube-prometheus-stack`).
 
 - [Configure remote_write with Helm and kube-prometheus-stack](https://grafana.com/docs/grafana-cloud/monitor-infrastructure/kubernetes-monitoring/configuration/config-other-methods/prometheus/remote-write-helm-operator/)  
-  Official Grafana documentation describing `kube-prometheus-stack` as a Helm-installed Prometheus/Grafana/Prometheus Operator monitoring stack and explaining Helm values-file based configuration.
-
-- [Values Files | Helm](https://helm.sh/docs/chart_template_guide/values_files/)  
-  Official Helm explanation of values files and `-f`-based overrides.
-
-- [helm upgrade | Helm](https://helm.sh/docs/helm/helm_upgrade/)  
-  Official Helm command reference for `helm upgrade`, including values merging and install/upgrade behavior.
+  Grafana documentation (`kube-prometheus-stack` as Helm-installed Prometheus/Grafana/Prometheus Operator monitoring stack, Helm values-file based configuration etc.).
 
 - [Charts | Helm](https://helm.sh/docs/topics/charts/)  
-  Official Helm documentation for charts and chart structure.
+  Helm documentation (charts and chart structure).
+
+- [Values Files | Helm](https://helm.sh/docs/chart_template_guide/values_files/)  
+  Helm documentation (Helm values files and `-f`-based overrides).
+
+- [helm upgrade | Helm](https://helm.sh/docs/helm/helm_upgrade/)  
+  Helm documentation (`helm upgrade`, values merging + install/upgrade behavior).
 
 - [Secrets | Kubernetes](https://kubernetes.io/docs/concepts/configuration/secret/)  
-  Official Kubernetes documentation for Secrets as the native mechanism for storing sensitive data such as passwords.
+  Kubernetes documentation (Secrets).
 
 - [Resource Management for Pods and Containers | Kubernetes](https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/)  
-  Official Kubernetes documentation for CPU/memory requests and limits and the kernel-enforced behavior of limits.
-
-- [kubectl port-forward | Kubernetes](https://kubernetes.io/docs/reference/kubectl/generated/kubectl_port-forward/)  
-  Official `kubectl port-forward` reference used for private access to Grafana and Prometheus.
+  Kubernetes documentation (CPU/memory requests + limits etc.).
 
 - [First steps with Prometheus](https://prometheus.io/docs/introduction/first_steps/)  
-  Official Prometheus introduction explaining Prometheus as a monitoring platform that collects metrics by scraping monitored targets.
+  Prometheus Docs (Prometheus as monitoring platform, metrics collection by scraping monitored targets).
+
+- [kubectl port-forward | Kubernetes](https://kubernetes.io/docs/reference/kubectl/generated/kubectl_port-forward/)  
+  Kubernetes docs (`kubectl port-forward` reference, private access to Grafana and Prometheus).
 
 - [curl man page](https://curl.se/docs/manpage.html)  
-  Official curl command reference for the HTTP request helper used to generate recent storefront activity.
+  curl command reference.
 
 - [curl - HTTP Cookies](https://curl.se/docs/http-cookies.html)  
-  Official curl documentation for cookie jars and the Netscape cookie file format used by the optional traffic helper script.
+  curl documentation (cookie jars, Netscape cookie file format).
+
+- [The Art Of Scripting HTTP Requests Using curl | curl](https://curl.se/docs/httpscripting.html)  
+  curl scripting documentation (multi-request / scripted-request, cookie-jar etc.).
+
+- [Looping Constructs | Bash Reference Manual](https://www.gnu.org/s/bash/manual/html_node/Looping-Constructs.html)  
+  Official Bash reference.
