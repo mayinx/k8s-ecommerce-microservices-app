@@ -2,37 +2,69 @@
 
 ################################################################################
 # SCRIPT: generate-sockshop-traffic.sh
-# 
+#
 # TRAFFIC GENERATOR (Observability Helper)
-# 
+#
 # DESCRIPTION:
 #   A synthetic workload generator for the Sock Shop microservices demo.
-#   It simulates user behavior by hitting various storefront endpoints (Home,
-#   Category, Detail, Basket) in a continuous loop.
+#   It simulates light but repeated user-like storefront activity by calling
+#   several application endpoints in a continuous loop.
 #
 # WHY THIS MATTERS FOR OBSERVABILITY:
-#   1. Metric Generation: Ensures Prometheus has a constant stream of RED 
-#      metrics (Requests, Errors, Duration) to scrape from the frontend.
-#   2. Dashboard Validation: Provides live data to verify Grafana dashboards
-#      and Alertmanager rules without requiring manual browser clicks.
-#   3. Session Simulation: Uses a Cookie Jar to simulate stateful browser 
-#      behavior, affecting service-side caching and session management.
+#   1. Metric Generation:
+#      Creates ongoing HTTP traffic so Prometheus can scrape a steady stream of
+#      RED-style signals (Requests, Errors, Duration) from the storefront path.
+#   2. Dashboard Validation:
+#      Makes Grafana panels easier to validate because namespace / workload
+#      activity becomes visible without manual browser clicking.
+#   3. Session Simulation:
+#      Reuses a cookie jar so repeated requests behave more like one browser
+#      session instead of isolated stateless calls.
+#   4. Repeatable Verification:
+#      Provides a simple and reproducible helper for observability checks during
+#      manual verification, reruns, and later automation.
+#   5. Flexible Test Data Source:
+#      Supports either:
+#      - preset built-in product IDs / category tags
+#      - live discovery of product IDs / category tags from the target system
 #
-# USAGE:
-#   1. DIRECT MODE (CLI Argument):
-#      ./generate-sockshop-traffic.sh dev
-#      (Starts traffic immediately for the specified environment)
+# FEATURES:
+#   - Supports both target environments:
+#     - dev
+#     - prod
+#   - Supports both data source modes:
+#     - live
+#     - preset
+#   - Can run interactively or from CLI arguments
+#   - Prints a readable request table with:
+#     - host
+#     - endpoint
+#     - parameter
+#     - HTTP status
+#     - latency (total end-to-end request time in seconds)
+#   - Randomizes product-detail and category-tag requests
+#   - Fails fast on missing dependencies or unusable live data
 #
-#   2. INTERACTIVE MODE (Prompt):
+# LATENCY INTERPRETATION:
+#   - The displayed latency in seconds is curl's full request end-to-end time 
+#     (from this script's point of view)
+#   - It includes the complete client-side request path, such as connect/TLS,
+#     server processing, and response transfer.
+#   - It does not isolate backend-only processing time.
+#   - In this helper, it is a useful synthetic observability signal for:
+#     reachability, responsiveness, spikes, and trend comparison over time.
+#
+# SCRIPT USAGE:
+#
+#   1. DIRECT MODE - CLI arguments for target env (dev|prod) + data source mode(live|preset):
+#      ./generate-sockshop-traffic.sh dev live
+#      ./generate-sockshop-traffic.sh prod preset
+#
+#   2. INTERACTIVE MODE - prompt-driven:
 #      ./generate-sockshop-traffic.sh
-#      (If no argument is passed, follow prompts to specify 'dev' or 'prod' environment)
 #
 #   Terminate with Ctrl+C.
 ################################################################################
-
-# Traffic Generator (Observability Helper): 
-# Generates some light repeated storefront traffic on a choosen sock-shop live environment 
-# until stopped with Ctrl+C - so that Prometheus + Grafana got something to chew on 
 
 # Store and reuse session cookies in a temporary local file  
 # so repeated requests behave more like one browser session.
@@ -49,6 +81,7 @@ targets=(
     ["category"]="/category.html"
 )
 
+# Array of preset product IDs
 detail_ids=(
     "id=3395a43e-2d88-40de-b95f-e00e1502085b"
     "id=510a0d7e-8e83-4193-b483-e27e09ddc34d"
@@ -58,6 +91,7 @@ detail_ids=(
     "id=a0a4f044-b040-410d-8ead-4de0446aec7e"
 )
 
+# Array of preset category tags
 category_tags=(
     "tags=blue"
     "tags=brown"
@@ -70,6 +104,70 @@ category_tags=(
     "tags=smelly"
 ) 
 
+#######################################
+# Prints an error message to stderr and exits the script with a non-zero status.
+#
+# Arguments:
+#   $* - The full error message to print.
+#
+# Outputs:
+#   Writes the formatted error message to stderr.
+#
+# Exits:
+#   1
+#######################################
+die() {
+    echo "ERROR: $*" >&2
+    exit 1
+}
+
+#######################################
+# Verifies that a required external command is available in PATH.
+# Aborts the script immediately if the command is missing.
+#
+# Arguments:
+#   $1 - The command name to check (for example: curl, jq).
+#
+# Exits:
+#   1 if the required command is not available.
+#######################################
+require_cmd() {
+    # command -v = shell builtin (checks whether a command can be found in PATH)
+    # "$1"       = the command name passed into this helper function
+    # >/dev/null = discard normal output because only success/failure matters here
+    # 2>&1       = redirect stderr to the same target as stdout (/dev/null)
+    # ||         = if the command check fails, execute die() immediately    
+    command -v "$1" >/dev/null 2>&1 || die "Required command '$1' not found - please make sure to install '$1' before running this script!"
+}
+
+#######################################
+# Ensures that the script will use the built-in fallback / preset data sets 
+# for product IDs and category tags.
+#
+# Globals:
+#   detail_ids      (Array of preset product IDs)
+#   category_tags   (Array of preset category tags)
+#
+# Outputs:
+#   Prints a short status summary showing that preset data is being used
+#   and how many preset items are available.
+#######################################
+load_preset_data(){
+    echo "- Using built-in preset product IDs and category tags."
+    echo "- Imported ${#detail_ids[@]} product IDs from preset data."
+    echo "- Imported ${#category_tags[@]} category tags from preset data."
+    echo ""    
+}
+
+#######################################
+# Selects and prepares the active data source for product IDs and category tags.
+# Depending on the chosen mode, it either:
+# - loads live data from the target environment
+# - or keeps the built-in preset fallback data
+#
+# Arguments:
+#   $1 - Data source mode ("live" or "preset").
+#######################################
 prepare_data_source() {
     local data_mode=$1  
 
@@ -80,21 +178,69 @@ prepare_data_source() {
     fi
 }
 
+#######################################
+# Discovers live product IDs and category tags from the selected Sock Shop
+# target environment using the relevant Sock Shop JSON API endpoints and 
+# overwrites the default preset arrays with that data.
+#
+# Data sources (JSON):
+#   - ${BASE_URL}/catalogue  -> product IDs
+#   - ${BASE_URL}/tags       -> category tags
+#   - ${BASE_URL}/catalogue  -> fallback source for tags if /tags is unusable
+#
+# Globals:
+#   BASE_URL         (Base URL of the selected target environment)
+#   detail_ids       (Array overwritten with discovered live product IDs)
+#   category_tags    (Array overwritten with discovered live category tags)
+#
+# Requirements:
+#   - curl
+#   - jq
+#
+# Outputs:
+#   Prints progress and import counts.
+#
+# Exits:
+#   1 if live discovery fails or returns no usable IDs / tags.
+#######################################
 load_live_data(){
+    require_cmd curl
+    require_cmd jq
+
     local catalogue_json=""
     local tags_json=""
 
     echo "- Fetching live product data from ${BASE_URL}/catalogue ..."
     catalogue_json="$(curl -fsS "${BASE_URL}/catalogue")" \
-        || "Failed to fetch product catalogue from ${BASE_URL}/catalogue"
+        || die "Failed to fetch product catalogue from ${BASE_URL}/catalogue"
 
+    # Read all product IDs from the live /catalogue JSON payload into the Bash array "detail_ids".
+    #
+    # mapfile     = Bash builtin - reads stdin line by line into an array
+    # -t          = strip the trailing newline from each imported line
+    # detail_ids  = target array that will receive the discovered product IDs
+    # < <(...)    = process substitution:
+    #               run the command in (...) and feed its stdout into mapfile as input
+    #
+    # jq          = lightweight command-line JSON processor
+    # -r          = raw output mode:
+    #               print plain text instead of JSON-quoted strings
+    #
+    # Filter breakdown:
+    # '.[].id | "id=\(.)"'
+    #   .[]        = iterate over each object in the top-level JSON array
+    #   .id        = extract the "id" field from each product object
+    #   "id=\(.)"  = format each value as id=<value>
+    #                so it can later be appended directly to the detail page query string
+    #
+    # <<< "$catalogue_json" = here-string:
+    #                         pass the content of the Bash variable to jq via stdin
     mapfile -t detail_ids < <(
         jq -r '.[].id | "id=\(.)"' <<< "$catalogue_json"
     )
 
     if [[ ${#detail_ids[@]} -eq 0 ]]; then
-        exit 1
-        echo "ERROR: Live discovery returned 0 product IDs from ${BASE_URL}/catalogue"
+        die "Live discovery returned 0 product IDs from ${BASE_URL}/catalogue"
     fi
 
     echo "- Fetching live tag data from ${BASE_URL}/tags ..."
@@ -112,8 +258,7 @@ load_live_data(){
     fi
 
     if [[ ${#category_tags[@]} -eq 0 ]]; then        
-        exit 1
-        echo "ERROR: Live discovery returned 0 category tags from /tags and /catalogue"
+        die "Live discovery returned 0 category tags from /tags and /catalogue"
     fi
 
     echo "- Imported ${#detail_ids[@]} product IDs from live catalogue data."
@@ -121,12 +266,6 @@ load_live_data(){
     echo ""
 }
 
-load_preset_data(){
-    echo "- Using built-in preset product IDs and category tags."
-    echo "- Imported ${#detail_ids[@]} product IDs from preset data."
-    echo "- Imported ${#category_tags[@]} category tags from preset data."
-    echo ""    
-}
 
 sockshop_env=$1
 data_mode=$2
@@ -146,11 +285,7 @@ fi
 sockshop_env_normalized="${sockshop_env,,}"
 
 if [[ "${sockshop_env_normalized}" != "dev" && "${sockshop_env_normalized}" != "prod" ]]; then
-    echo "Unknown sock-shop-environment '$sockshop_env'. Available environments are 'dev' or 'prod'."
-    exit 1
-    echo "ERROR: Unknown sock-shop-environment '$sockshop_env'."
-    echo "Usage: $0 [dev|prod]"
-    exit 1    
+    die "Unknown sock-shop environment '$sockshop_env'. Available environments are 'dev' or 'prod'."    
 fi
 
 BASE_URL="https://${sockshop_env_normalized}-sockshop.cdco.dev"
@@ -158,7 +293,7 @@ BASE_URL="https://${sockshop_env_normalized}-sockshop.cdco.dev"
 echo "(2) DEFINE DATA SOURCE MODE (live|preset)" 
 # Check if data_mode is passed as an argument, otherwise prompt for it
 if [[ -z "$data_mode" ]]; then
-    read -p "- Use dynamic data discovery for actual product IDs and category tags from the live target env - or the the built-in preset lists (which could be stale)? ('live' or 'preset'): " data_mode
+    read -p "- Use live-discovered products and categories from the actual target env, or the built-in preset lists (which could be stale) ? ('live' or 'preset'): " data_mode
     echo "- Data source mode from selection: '$data_mode'" 
     echo ""
 else
@@ -188,11 +323,7 @@ if [[ "${data_mode_normalized}" == "live" || "${data_mode_normalized}" == "prese
     echo "(hit [Ctrl+C] to exit)"
     echo ""
 else
-    echo "Unknown data source mode '$data_mode'. Available data source modes are 'live' or 'preset'."
-    exit 1
-    echo "ERROR: Unknown Unknown data source mode '$data_mode'."
-    echo "Usage: $0 [live|preset]"
-    exit 1    
+    die "Unknown data source mode '$data_mode'. Available data source modes are 'live' or 'preset'."  
 fi
 
 
@@ -219,7 +350,10 @@ call_endpoint() {
   # --cookie = send cookies from the cookie jar file
   # --cookie-jar = update/write cookies back to the cookie jar file
   # -o /dev/null = discard the response body
-  # -w = print the formatted table row with HTTP status and total request time
+  # -w = write-out format string:
+  #      print the formatted table row after the request finishes
+  # %{http_code}  = final HTTP status code
+  # %{time_total} = total end-to-end request time in seconds  
   curl -fsS -A "Mozilla/5.0" --cookie "$COOKIE_JAR" --cookie-jar "$COOKIE_JAR" \
     -o /dev/null \
     -w "$(printf '| %-25s | %-10s | %-40s | ' "${sockshop_env_normalized}-sockshop.cdco.dev" "$endpoint" "$param")%{http_code}    | %{time_total} |\n" \
