@@ -104,19 +104,24 @@ This avoided direct public exposure of the Kubernetes API and avoided opening in
 
 Phase 03 had already proven a real CI/CD baseline, but only against the temporary smoke target.
 
-Phase 05 therefore did **not** overwrite that earlier story. Instead, it:
+Phase 05 therefore did **not** overwrite that earlier Phase. Instead, it:
 
-- preserved the Phase 03 workflow as a historical baseline
-- created a dedicated Phase 05 workflow for the real Proxmox-backed target
-- proved automated `dev` deployment
-- and completed the approval-gated `prod` deployment path on the real cluster
+- preserved the Phase 03 workflow as a **historical & "delivery mechanics" baseline**
+- created a **dedicated Phase 05 workflow** for the real **Proxmox-based target VM**
+- proved **automated `dev` deployment**
+- and completed the **approval-gated `prod` deployment** on the real cluster
 
-This keeps the chronology understandable:
+The chronology is therefore:
 
-- Phase 03 = delivery mechanics baseline
-- Phase 05 = real target-delivery path
+- Phase 03 = Delivery mechanics baseline
+- Phase 05 = Real target-delivery path
 
 ### Verified result: real target VM, real cluster, real public edge, and real workflow-driven delivery
+
+The phase also **establishes the first stable public environment URLs** of the long-lived target platform:
+
+- **Development:** `https://dev-sockshop.cdco.dev/`
+- **Production:** `https://prod-sockshop.cdco.dev/`
 
 By the end of Phase 05, the project now proves:
 

@@ -15,12 +15,21 @@ The goal is not just to run the application once, but to build a **reproducible,
 
 The project is intentionally implemented in phases so that each new capability builds on an already proven baseline.
 
+## Live target environments
+
+The project now exposes both long-lived target environments (`dev-sockshop` + `prod-sockshop`) publicly through a Proxmox-based delivery path:
+
+- **Development:** `https://dev-sockshop.cdco.dev/`
+- **Production:** `https://prod-sockshop.cdco.dev/`
+
+These URLs represent the current live public entrypoints of the target platform proven in Phase 05.
+
 ## Target Scope
 
 - Kubernetes deployment (k3s locally → Proxmox target)
-- CI/CD (build/test/push/deploy with gated prod later)
-- IaC (Terraform planned for Proxmox)
-- Observability (Prometheus/Grafana planned)
+- CI/CD (build/test/push/deploy with approval-gated `prod`)
+- Observability (Prometheus/Grafana baseline proven on the real target)
+- IaC (Terraform planned for stable target/bootstrap pieces)
 - DevSecOps controls (>= 3 measures planned)
 - DR / rollback approach (planned)
 - Documentation: phase logs + runbooks + decisions + ADRs
@@ -31,33 +40,44 @@ This repository demonstrates an iterative DevOps delivery path built around Sock
 
 - Docker-based application execution
 - Kubernetes deployment via proven raw manifests
-- environment-specific deployment layering with Kustomize
+- Environment-specific deployment layering with Kustomize
 - GitHub Actions CI/CD
 - GHCR image publishing
-- approval-gated promotion flow
-- evidence-oriented technical documentation
-- a real Proxmox-backed target-delivery platform
-- a delivery path that now spans local proof, CI/CD proof, and a long-lived target environment
+- Approval-gated promotion flow
+- Evidence-oriented technical documentation
+- A real Proxmox-backed target-delivery platform
+- A delivery path that now spans local proof, CI/CD proof, and a long-lived target environment
+- Oberservability with Grafan + Prometheus 
 
-Current proven highlights include:
+### Current proven highlights include: 
 
-- clean local Kubernetes baseline
-- host-based local ingress baseline
-- namespace-based `dev` / `prod` Kustomize overlays
+- Clean local Kubernetes baseline
+- Host-based local ingress baseline
+- Namespace-based `dev` / `prod` Kustomize overlays
 - GitHub Actions CI/CD smoke workflow
 - GHCR publishing for the repo-owned `healthcheck` image
-- automated `dev` smoke deployment
-- approval-gated `prod` smoke deployment
-- reusable Proxmox VM template baseline
-- verified Proxmox smoke VM with host-side and guest-side proof
-- workload-ready Proxmox baseline variant for target-side deployment
-- real target VM `9200`, cloned from workload-ready template `9010`
-- single-node K3s control plane on the real target
-- source-controlled MongoDB compatibility fix for the target runtime
-- working `dev` / `prod` deployment model on the real target cluster
-- private tailnet-based operator and CI/CD access path
-- public HTTPS exposure through Cloudflare Tunnel
-- dedicated Phase 05 workflow for automated `dev` and approval-gated `prod` deployment on the real target cluster
+- Automated `dev` smoke deployment
+- Approval-gated `prod` smoke deployment
+- Reusable Proxmox VM template baseline
+- Verified Proxmox smoke VM with host-side and guest-side proof
+- Workload-ready Proxmox baseline variant for target-side deployment
+- Real target VM `9200`, cloned from workload-ready template `9010`
+- Single-node K3s control plane on the real target
+- Source-controlled MongoDB compatibility fix for the target runtime
+- Working `dev` / `prod` deployment model on the real target cluster
+- Private Tailnet-based operator and CI/CD access path
+- Public HTTPS exposure through Cloudflare Tunnel
+- Stable live public environments:
+  - `https://dev-sockshop.cdco.dev/`
+  - `https://prod-sockshop.cdco.dev/`
+- Dedicated Phase 05 workflow for automated `dev` and approval-gated `prod` deployment on the real target cluster
+- Dedicated `monitoring` namespace on the real target
+- Maintained Helm-based monitoring baseline through `kube-prometheus-stack`
+- Private Grafana and Prometheus operator access via `kubectl port-forward`
+- Namespace-level workload visibility for `sock-shop-prod`
+- Healthy core monitoring targets through Prometheus
+
+---
 
 ## Architecture direction
 
@@ -69,16 +89,19 @@ The current architecture direction is:
 - **CI/CD platform:** GitHub Actions
 - **container registry:** GHCR
 - **historical CI/CD smoke target:** `kind` (Phase 03 baseline)
-- **current long-lived target:** Proxmox-backed VM + K3s
-  - **current realized target shape:**
-    - workload-ready baseline template `9010`
-    - target VM `9200`
-    - single-node K3s control plane
+- **Current long-lived target:** Proxmox-backed VM + K3s
+  - **Current realized target shape:**
+    - Workload-ready baseline template `9010`
+    - Target VM `9200`
+    - Single-node K3s control plane
     - `sock-shop-dev` and `sock-shop-prod`
     - Traefik ingress
     - Tailscale private access path
     - Cloudflare Tunnel public edge
-- **later planned layers:** observability, security hardening, DR, and selective IaC-driven codification of stable target/bootstrap pieces
+    - Dedicated `monitoring` namespace
+    - `kube-prometheus-stack` monitoring baseline
+    - Private Grafana and Prometheus access via `kubectl port-forward`
+- **Later planned layers:** security hardening, DR, and selective IaC-driven codification of stable target/bootstrap pieces
 
 This means the project is no longer only proving delivery mechanics in isolation; it is now also proving those mechanics against a real long-lived target environment.
 
@@ -99,6 +122,15 @@ Depending on the phase, a folder may contain:
 - `evidence/`
 
 ### Current phase docs
+- Phase 06 implementation log:
+  - [project-docs/06-observability/IMPLEMENTATION.md](project-docs/06-observability/IMPLEMENTATION.md)
+- Phase 06 runbook:
+  - [project-docs/06-observability/RUNBOOK.md](project-docs/06-observability/RUNBOOK.md)
+- Phase 06 decisions:
+  - [project-docs/06-observability/DECISIONS.md](project-docs/06-observability/DECISIONS.md)
+
+
+### Previous phase docs
 - Phase 05 setup:
   - [project-docs/05-proxmox-target-delivery/SETUP.md](project-docs/05-proxmox-target-delivery/SETUP.md)
 - Phase 05 implementation log:
@@ -107,18 +139,6 @@ Depending on the phase, a folder may contain:
   - [project-docs/05-proxmox-target-delivery/RUNBOOK.md](project-docs/05-proxmox-target-delivery/RUNBOOK.md)
 - Phase 05 decisions:
   - [project-docs/05-proxmox-target-delivery/DECISIONS.md](project-docs/05-proxmox-target-delivery/DECISIONS.md)
-
-### Previous phase docs
-- Phase 04 discovery:
-  - [project-docs/04-proxmox-vm-baseline/DISCOVERY.md](project-docs/04-proxmox-vm-baseline/DISCOVERY.md)
-- Phase 04 setup:
-  - [project-docs/04-proxmox-vm-baseline/SETUP.md](project-docs/04-proxmox-vm-baseline/SETUP.md)
-- Phase 04 implementation log:
-  - [project-docs/04-proxmox-vm-baseline/IMPLEMENTATION.md](project-docs/04-proxmox-vm-baseline/IMPLEMENTATION.md)
-- Phase 04 runbook:
-  - [project-docs/04-proxmox-vm-baseline/RUNBOOK.md](project-docs/04-proxmox-vm-baseline/RUNBOOK.md)
-- Phase 04 decisions:
-  - [project-docs/04-proxmox-vm-baseline/DECISIONS.md](project-docs/04-proxmox-vm-baseline/DECISIONS.md)
 
 ### Cross-phase docs
 
@@ -146,24 +166,24 @@ Project-wide standards and long-lived decisions live in:
 The repository currently contains proven work across these phases:
 
 - **Phase 00 — Compose baseline**
-  - repository reconnaissance
-  - local Docker Compose baseline
-  - host-port conflict diagnosis and workaround
-  - docs:
+  - Repository reconnaissance
+  - Local Docker Compose baseline
+  - Host-port conflict diagnosis and workaround
+  - Docs:
     - [Implementation](project-docs/00-compose-repo-baseline/IMPLEMENTATION.md)
     - [Runbook](project-docs/00-compose-repo-baseline/RUNBOOK.md)  
 
 - **Phase 01 — Port-based Kubernetes baseline**
-  - clean local k3s deployment via upstream manifests
-  - storefront reachable via NodePort `30001`
-  - docs:  
+  - Clean local k3s deployment via upstream manifests
+  - Storefront reachable via NodePort `30001`
+  - Docs:  
     - [Implementation](project-docs/01-nodeport-baseline/IMPLEMENTATION.md)
     - [Runbook](project-docs/01-nodeport-baseline/RUNBOOK.md)  
 
 - **Phase 02 — Host-based ingress baseline**
-  - local Traefik ingress for `sockshop.local`
+  - Local Traefik ingress for `sockshop.local`
   - NodePort retained as fallback
-  - docs:  
+  - Docs:  
     - [Implementation](project-docs/02-ingress-baseline/IMPLEMENTATION.md)
     - [Runbook](project-docs/02-ingress-baseline/RUNBOOK.md)  
 
@@ -172,28 +192,28 @@ The repository currently contains proven work across these phases:
   - Kustomize overlays for `dev` / `prod`
   - GHCR publishing for the repo-owned `healthcheck` image
   - automated `dev` smoke deployment
-  - approval-gated `prod` smoke deployment
-  - docs:
+  - Approval-gated `prod` smoke deployment
+  - Docs:
     - [Setup](project-docs/03-ci-cd-baseline/SETUP.md)
     - [Implementation](project-docs/03-ci-cd-baseline/IMPLEMENTATION.md)
     - [Runbook](project-docs/03-ci-cd-baseline/RUNBOOK.md)
     - [Decisions](project-docs/03-ci-cd-baseline/DECISIONS.md)  
 
 - **Phase 04 — Proxmox VM baseline**
-  - provided Proxmox target host inspected and documented
-  - reusable Ubuntu 24.04 Cloud-Init VM template created as `9000`
-  - reference smoke VM created as `9100`
-  - host-side verification completed
-  - guest-side verification completed:
-    - login
+  - Provided Proxmox target host inspected and documented
+  - Reusable Ubuntu 24.04 Cloud-Init VM template created as `9000`
+  - Reference smoke VM created as `9100`
+  - Host-side verification completed
+  - Guest-side verification completed:
+    - Login
     - Cloud-Init completion
-    - usable root disk
-    - outbound connectivity
-  - workload-ready baseline variant prepared and finalized as `9010`
-    - private guest bridge `vmbr1`
-    - stable private guest addressing and routing
-    - deterministic DNS and outbound bootstrap reachability
-    - guest-agent capability
+    - Usable root disk
+    - Outbound connectivity
+  - Workload-ready baseline variant prepared and finalized as `9010`
+    - Private guest bridge `vmbr1`
+    - Stable private guest addressing and routing
+    - Deterministic DNS and outbound bootstrap reachability
+    - Guest-agent capability
   - docs:
     - [Discovery](project-docs/04-proxmox-vm-baseline/DISCOVERY.md)
     - [Setup](project-docs/04-proxmox-vm-baseline/SETUP.md)
@@ -202,19 +222,31 @@ The repository currently contains proven work across these phases:
     - [Decisions](project-docs/04-proxmox-vm-baseline/DECISIONS.md)
 
 - **Phase 05 — Proxmox target delivery**
-  - real target VM `9200` cloned from workload-ready template `9010`
-  - single-node K3s control plane on the target VM
-  - source-controlled MongoDB compatibility fix for the target runtime
-  - environment-separated `dev` / `prod` deployment model on the real target cluster
-  - working Traefik ingress for both environments
-  - private Tailscale-based operator and CI/CD access path
-  - public HTTPS exposure through Cloudflare Tunnel
-  - dedicated Phase 05 workflow for automated `dev` and approval-gated `prod` deployment on the real target
-  - docs:
+  - Real target VM `9200` cloned from workload-ready template `9010`
+  - Single-node K3s control plane on the target VM
+  - Source-controlled MongoDB compatibility fix for the target runtime
+  - Environment-separated `dev` / `prod` deployment model on the real target cluster
+  - Working Traefik ingress for both environments
+  - Private Tailscale-based operator and CI/CD access path
+  - Public HTTPS exposure through Cloudflare Tunnel
+  - Dedicated Phase 05 workflow for automated `dev` and approval-gated `prod` deployment on the real target
+  - Docs:
     - [Setup](project-docs/05-proxmox-target-delivery/SETUP.md)
     - [Implementation](project-docs/05-proxmox-target-delivery/IMPLEMENTATION.md)
     - [Runbook](project-docs/05-proxmox-target-delivery/RUNBOOK.md)
     - [Decisions](project-docs/05-proxmox-target-delivery/DECISIONS.md)
+
+- **Phase 06 — Observability & Health**
+  - Dedicated `monitoring` namespace on the real target cluster
+  - Maintained Helm-based monitoring baseline through `kube-prometheus-stack`
+  - Private Grafana access through `kubectl port-forward`
+  - Private Prometheus access through `kubectl port-forward`
+  - Namespace-level workload visibility for `sock-shop-prod`
+  - Healthy core monitoring targets on the Prometheus `/targets` page
+  - Docs:
+    - [Implementation](project-docs/06-observability/IMPLEMENTATION.md)
+    - [Runbook](project-docs/06-observability/RUNBOOK.md)
+    - [Decisions](project-docs/06-observability/DECISIONS.md)
 
 
 This section is intentionally a moving summary, not the final shape of the project.
@@ -235,14 +267,16 @@ Current or already chosen technology in this project includes:
 - Cloud-Init
 - Tailscale
 - Cloudflare Tunnel
+- Helm
+- Prometheus
+- Grafana
 
 Additional planned layers include:
 
 - Terraform
-- Prometheus / Grafana
 - further DevSecOps controls
 
-Helm is also present in the repository and was evaluated, but deferred for the current CI/CD baseline because the chart path still introduces legacy compatibility friction.
+Helm is also present in the repository and was evaluated, but deferred for the current CI/CD baseline because the chart path still introduces legacy compatibility friction. [TODO: Update Helm-usage for monitoring/observability] ...
  
 ## Evidence
 
@@ -258,7 +292,11 @@ The full evidence index for each phase is documented inside the corresponding `I
 
 - [project-docs/03-ci-cd-baseline/IMPLEMENTATION.md](project-docs/03-ci-cd-baseline/IMPLEMENTATION.md)
 
+---
+
 ## Current notable decisions
+
+[TODO: Organize in Implementation Phases (see Phase 06 ff.) ]
 
 - Helm was evaluated but deferred because the chart path still introduces legacy compatibility friction.
 - The CI/CD baseline uses GitHub-hosted runners, not a self-hosted runner on a personal machine.
@@ -270,6 +308,12 @@ The full evidence index for each phase is documented inside the corresponding `I
 - Public application exposure is handled through Cloudflare Tunnel and Traefik, not by opening inbound application ports directly on the VM.
 - The historical Phase 03 workflow is preserved, while the Phase 05 workflow is the active real-target delivery path.
 - The project remains phase-based so later observability, security, and DR work can build on already proven mechanics.
+
+### Phase 06 - Oberservabiliyt & Health
+- The first observability baseline uses the maintained `kube-prometheus-stack` chart instead of the older fragmented repository monitoring path.
+- The first monitoring rollout is intentionally small and private-only.
+- Grafana and Prometheus are accessed privately through `kubectl port-forward` over the already proven Tailnet-based kubeconfig path.
+- The first observability baseline is considered proven only when both dashboard visibility and Prometheus scrape health are shown successfully.
 
 ## Repository structure (high level)
 
@@ -283,10 +327,10 @@ The full evidence index for each phase is documented inside the corresponding `I
 This README is intentionally kept open for the next implementation phases.
 
 ### Core phases still to complete
-- observability on the real Proxmox-backed target
-- security hardening
-- disaster recovery / rollback strategy
-- selective IaC codification of stable target/bootstrap pieces
+- Security hardening + testing
+- Disaster recovery / rollback strategy
+- Selective IaC codification of stable target/bootstrap pieces
+
 
 ### Strong stretch goals before evaluation, if time allows
 - **Testing track:**

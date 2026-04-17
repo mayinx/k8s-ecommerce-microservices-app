@@ -23,13 +23,13 @@
 ## Current position
 
 - Current proven phase:
-  - Phase 05 — Proxmox target delivery
-- Primary next target:
   - Phase 06 — Observability
+- Primary next target:
+  - Phase 07 — Security baseline & testing
 - Main current objective:
-  - build the first useful observability baseline on top of the already proven real target-delivery platform
+  - strengthen the now observable real target with a defensible security/testing baseline
 - Important planning note:
-  - the real target path is now in place, so the next phases should build on that stable foundation rather than reopening target-bootstrap work unless a real blocker appears
+  - the first useful observability baseline is now proven, so the next phases should build on that visibility layer instead of reopening baseline monitoring selection unless a real blocker appears
 
 ---
 
@@ -161,22 +161,20 @@
 
 ### Phase 06 — Observability
 - status:
-  - next core phase
+  - done
 - purpose:
   - add the first useful monitoring and visibility layer to the real Proxmox-backed target
-- likely work:
-  - deploy Prometheus and Grafana on or alongside the current target environment
-  - collect basic cluster and workload health signals
-  - expose at least one useful service/application dashboard for Sock Shop
-  - document the minimum verification path for observability on the long-lived target
-- open questions:
-  - what is the smallest defensible observability baseline before evaluation
-  - which metrics are the highest-value proof first:
-    - cluster / node health
-    - workload health
-    - ingress / request visibility
-    - application-level service behavior
-  - whether alerting should already enter this phase or remain a later follow-up
+- already proven:
+  - dedicated `monitoring` namespace on the real target cluster
+  - maintained Helm-based monitoring baseline through `kube-prometheus-stack`
+  - private Grafana access via `kubectl port-forward`
+  - private Prometheus access via `kubectl port-forward`
+  - namespace-level workload visibility for `sock-shop-prod`
+  - healthy core monitoring targets on the Prometheus `/targets` page
+- docs:
+  - [Implementation](./06-observability/IMPLEMENTATION.md)
+  - [Runbook](./06-observability/RUNBOOK.md)
+  - [Decisions](./06-observability/DECISIONS.md)
 
 ### Phase 07 — Security baseline & testing
 - status:
@@ -301,29 +299,36 @@
 - `openapi` remains excluded from the workflow because it still depends on legacy Node 6 / npm 3
 - GitHub Actions runtime warnings around Node.js 20 deprecation still need a later cleanup pass
 - Kubernetes manifests still contain the deprecated node selector label `beta.kubernetes.io/os`
-- future workflow hardening remains open:
+- Future workflow hardening remains open:
   - restrict allowed actions
   - pin third-party actions to full SHAs
   - add workflow protection such as `CODEOWNERS`
-- the guest-session storefront persistence bug remains tracked as an upstream application issue and is currently out of scope for infrastructure phases
-- the current Cloudflare edge path still hands traffic from `cloudflared` to Traefik over HTTP on the local origin side; later hardening may add end-to-end TLS via cert-manager or an equivalent origin-side certificate path
+- The guest-session storefront persistence bug remains tracked as an upstream application issue and is currently out of scope for infrastructure phases
+- The current Cloudflare edge path still hands traffic from `cloudflared` to Traefik over HTTP on the local origin side; later hardening may add end-to-end TLS via cert-manager or an equivalent origin-side certificate path
+- The first observability rollout still defers:
+  - Alertmanager and alert-routing
+  - longer Prometheus retention
+  - persistent storage for monitoring data
+  - broader project-wide secret management
+  - any public monitoring ingress or broader monitoring exposure
 
 ---
 
 ## Open planning questions
 
-- What is the most defensible minimum observability baseline for Phase 06 on the current real target?
-- Which first dashboards create the strongest proof value soonest:
-  - cluster/node health
-  - namespace/workload health
-  - ingress/request visibility
-  - service/application behavior
-- Should alerting enter directly in Phase 06, or follow after the basic dashboard baseline is stable?
-- Which test layer gives the strongest value soonest:
+- Which Security / Testing combination gives the strongest signal soonest:
+  - Trivy in CI
+  - Dependabot
+  - policy / secret handling improvements
   - pipeline smoke checks
   - Playwright
   - service-level tests
-- Should the custom Python microservice be implemented before or after the first full observability baseline?
+- Which Terraform scope is the strongest low-risk fit for the remaining timeline:
+  - codify namespaces and selected Kubernetes resources
+  - codify the monitoring baseline
+  - codify only stable target/bootstrap pieces
+- Should monitoring remain private-only through the next phase, or is there a later justified case for stronger controlled exposure?
+- Should the custom Python microservice be implemented before or after the first defensible security/testing baseline?
 - Is an AWS extension realistic before evaluation, or better kept for post-bootcamp portfolio work?
 - Which later extension gives the strongest hiring signal per hour of effort:
   - Argo CD

@@ -232,15 +232,6 @@ Now open the browser:
 http://sockshop.local/
 ~~~
 
-Evidence to capture:
-
-- browser screenshot before hosts edit: `not found`
-- browser screenshot after hosts edit: storefront loaded
-
-**Captured evidence files:**
-- **`[2026-03-19]-sockshop.local-Storefront-1_before-hosts-edit_not-found.png`**
-- **`[2026-03-19]-sockshop.local-Storefront-2_after-hosts-edit_loaded.png`**
-
 ---
 
 ## Cleanup / rollback

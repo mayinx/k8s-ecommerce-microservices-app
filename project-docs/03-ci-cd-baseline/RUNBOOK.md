@@ -39,7 +39,7 @@ Re-run the verified Phase 03 baseline so that:
 
 - Phase 03 setup is complete
 - `SETUP.md` conditions are satisfied
-- the repository contains:
+- The repository contains:
   - `.github/workflows/phase-03-delivery.yaml`
   - `deploy/kubernetes/manifests/kustomization.yaml`
   - `deploy/kubernetes/kustomize/overlays/dev/`

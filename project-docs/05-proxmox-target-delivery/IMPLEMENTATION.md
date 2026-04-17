@@ -49,6 +49,9 @@ Phase 05 is the point where the project moves from earlier local and smoke-basel
 - **Traffic Management:** Working **ingress routing through Traefik** for both environments
 - **Secure Private Tailscale Access:** Private cluster reachability through Tailscale, allowing both the **local workstation** and ephemeral **GitHub Actions runners** to reach the target cluster over a **secure tailnet path** without exposing the Kubernetes API publicly
 - **Public Edge Exposure:** Public HTTPS exposure through a **zero-trust Cloudflare Tunnel**, with outbound-only connectivity from the VM, no inbound port exposure, and all public traffic entering through the Cloudflare edge rather than directly against the origin VM
+- **Stable live public environments:** Publicly reachable long-lived target URLs for both environments:
+  - `https://dev-sockshop.cdco.dev/`
+  - `https://prod-sockshop.cdco.dev/`
 - **Automated CI/CD Pipeline:** A real and secure GitHub Actions delivery workflow reaching the private cluster through **Tailscale + kubeconfig**, including automated `dev` delivery and approval-gated `prod` delivery
 
 ## 🗺️ Implementation Roadmap & Phase 05 subphase quick navigation
