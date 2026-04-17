@@ -19,8 +19,14 @@
 #      behavior, affecting service-side caching and session management.
 #
 # USAGE:
-#   ./generate-sockshop-traffic.sh
-#   Follow prompts to select 'dev' or 'prod' environment.
+#   1. DIRECT MODE (CLI Argument):
+#      ./generate-sockshop-traffic.sh dev
+#      (Starts traffic immediately for the specified environment)
+#
+#   2. INTERACTIVE MODE (Prompt):
+#      ./generate-sockshop-traffic.sh
+#      (If no argument is passed, follow prompts to specify 'dev' or 'prod' environment)
+#
 #   Terminate with Ctrl+C.
 ################################################################################
 
@@ -64,19 +70,29 @@ category_tags=(
     "tags=smelly"
 ) 
 
-read -p "DEFINE TARGET ENVIRONMENT\nPlease define the target sock-shop environment you want to spam with some traffic ('dev' or 'prod'): " sockshop_env 
-echo ""
+sockshop_env=$1
 
-if [[ "${sockshop_env,,}" == "dev" || "${sockshop_env,,}" == "prod" ]]; then
+# Check if environment is passed as an argument, otherwise prompt for it
+if [[ -z "$sockshop_env" ]]; then
+    read -p "DEFINE TARGET ENVIRONMENT\nPlease define the target sock-shop environment you want to spam with some traffic ('dev' or 'prod'): " sockshop_env 
+    echo ""
+fi
+
+# Normalize to lowercase for comparison
+sockshop_env_normalized="${sockshop_env,,}"
+
+if [[ "${sockshop_env_normalized}" == "dev" || "${sockshop_env_normalized}" == "prod" ]]; then
     echo "--- Generating traffic on the sock-shop '$sockshop_env' environment ---"
-    echo "Calling different targets on "https://${sockshop_env,,}-sockshop.cdco.dev":"
+    echo "Calling different targets on "https://${sockshop_env_normalized}-sockshop.cdco.dev":"
     echo "(hit Ctrl+C to exit)"
     echo ""
 else
     echo "Unknown sock-shop-environment '$sockshop_env'. Available environments are 'dev' or 'prod'."
     exit 1
+    echo "ERROR: Unknown sock-shop-environment '$sockshop_env'."
+    echo "Usage: $0 [dev|prod]"
+    exit 1    
 fi
-
 
 #######################################
 # Calls a given Sock Shop storefront endpoint and prints the formatted 
@@ -102,8 +118,8 @@ call_endpoint() {
   # -w = print the formatted table row with HTTP status and total request time
   curl -fsS -A "Mozilla/5.0" --cookie "$COOKIE_JAR" --cookie-jar "$COOKIE_JAR" \
     -o /dev/null \
-    -w "$(printf '| %-25s | %-10s | %-40s | ' "${sockshop_env,,}-sockshop.cdco.dev" "$endpoint" "$param")%{http_code}    | %{time_total} |\n" \
-    "https://${sockshop_env,,}-sockshop.cdco.dev${full_path}"   
+    -w "$(printf '| %-25s | %-10s | %-40s | ' "${sockshop_env_normalized}-sockshop.cdco.dev" "$endpoint" "$param")%{http_code}    | %{time_total} |\n" \
+    "https://${sockshop_env_normalized}-sockshop.cdco.dev${full_path}"   
 }
 
 
