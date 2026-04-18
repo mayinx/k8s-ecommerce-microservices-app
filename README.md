@@ -24,6 +24,46 @@ The project now exposes both long-lived target environments (`dev-sockshop` + `p
 
 These URLs represent the current live public entrypoints of the target platform proven in Phase 05.
 
+## Environment model on the current target
+
+The current `dev` and `prod` environments do **not** run on separate machines.
+
+Both run on the **same Proxmox-based target VM** inside the **same single-node K3s cluster**.
+
+The **Environment separation is logical** and implemented through:
+
+- Separate Kubernetes namespaces:
+  - `sock-shop-dev`
+  - `sock-shop-prod`
+- Separate Kustomize overlays:
+  - `deploy/kubernetes/kustomize/overlays/dev`
+  - `deploy/kubernetes/kustomize/overlays/prod`
+- Host-based ingress routing through Traefik for both environments 
+- Separate public hostnames:
+  - `https://dev-sockshop.cdco.dev/`
+  - `https://prod-sockshop.cdco.dev/`
+- Separate workflow behavior:
+  - Automated `dev` deployment
+  - Approval-gated `prod` deployment
+
+Public traffic reaches the same target platform through Cloudflare Tunnel and is then routed by **hostname** through **Traefik** to the correct namespace-backed application environment.
+
+**Result:** `1 VM -> 1 cluster -> 2 namespaces -> 2 app environments`
+
+These namespaces are logical partitions inside one Kubernetes cluster, not separate clusters. When the `dev` overlay is applied, Kubernetes updates the desired state of the resources in `sock-shop-dev` only. The `prod` namespace remains unchanged until the `prod` overlay is applied and approved.
+
+The delivery workflow does not copy the repository onto the VM or run the application from a Git checkout on the target machine. Instead, GitHub Actions applies Kubernetes manifests to the cluster API. Kubernetes stores that desired state and reconciles the affected namespace resources. 
+
+## Delivery workflow model
+
+The current delivery path follows a **trunk-based CI/CD model with gated promotion**:
+
+- Feature branches are merged into `master`
+- The merged commit triggers teh Pipeline and is deployed automatically to `dev`
+- The same commit is promoted to `prod` only after approval 
+
+**Result:** This project uses a professional **single-branch promotion workflow** rather than separate long-lived Git branches per environment.
+
 ## Target Scope
 
 - Kubernetes deployment (k3s locally → Proxmox target)
@@ -128,7 +168,6 @@ On execution, it generates **repeatable storefront traffic** so the monitoring s
 | prod-sockshop.cdco.dev    | category   | tags=geek                                | 200    | 0.054238 |
 |---------------------------+------------+------------------------------------------+--------+----------|
 ~~~
-
 
 #### Observability Make Helper Targets
 

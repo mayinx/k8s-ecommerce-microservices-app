@@ -478,7 +478,7 @@ deployment "front-end" successfully rolled out
 
 - The dev namespace could be recreated from scratch via the overlay.
 - The overlay path proved that namespace creation no longer depended on a manual pre-step.
-- The dev stack converged successfully.
+- The dev stack runs successfully.
 - Some services (`catalogue`, `payment`, `user`) were slower to become ready, but they did eventually converge successfully.
 
 **Conclusion:**
