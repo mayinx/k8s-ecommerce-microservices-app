@@ -3,7 +3,47 @@
 # - keep repeated local verification and rerun commands short and consistent
 # - provide thin phase-scoped helper targets on top of the documented raw commands
 
-.PHONY: help
+# -----------------------------------------------------------------------------
+# Tooling and local environment defaults
+# -----------------------------------------------------------------------------
+
+MAKE_CMD        := make
+KUBECTL         := kubectl
+CURL            := curl
+P02_INGRESS_FILE := deploy/kubernetes/manifests-local/phase-02-front-end-ingress.yaml
+P03_DEV_OVERLAY  := deploy/kubernetes/kustomize/overlays/dev
+P03_PROD_OVERLAY := deploy/kubernetes/kustomize/overlays/prod
+P06_KUBECONFIG  := $(HOME)/.kube/config-proxmox-dev.yaml
+P06_TRAFFIC_HELPER := ./scripts/observability/generate-sockshop-traffic.sh
+
+.PHONY: \
+	help \
+	gen-complete-demo \
+	check-generated-files \
+	p02-ingress-apply \
+	p02-ingress-show \
+	p02-ingress-test-host-header \
+	p02-ingress-test-browser-url \
+	p02-ingress-delete \
+	p02-nodeport-test \
+	p03-render-overlays \
+	p03-render-dev \
+	p03-render-prod \
+	p03-dev-apply \
+	p03-dev-status \
+	p03-dev-rollouts \
+	p03-dev-recreate \
+	p06-monitoring-status \
+	p06-grafana-port-forward \
+	p06-prometheus-port-forward \
+	p06-traffic-dev-preset \
+	p06-traffic-dev-live \
+	p06-traffic-prod-preset \
+	p06-traffic-prod-live
+
+# -----------------------------------------------------------------------------
+# Help
+# -----------------------------------------------------------------------------
 
 help:
 	@echo "Available targets:"
@@ -22,15 +62,25 @@ help:
 	@echo "  p03-dev-status            - Show Phase 03 dev resources"
 	@echo "  p03-dev-rollouts          - Check key Phase 03 dev rollouts"
 	@echo "  p03-dev-recreate          - Delete and recreate the Phase 03 dev namespace"
+	@echo "  p06-monitoring-status      - Show Phase 06 monitoring pods and services"
+	@echo "  p06-grafana-port-forward   - Open the private Grafana port-forward"
+	@echo "  p06-prometheus-port-forward - Open the private Prometheus port-forward"
+	@echo "  p06-traffic-dev-preset     - Run the observability traffic helper against dev with preset data"
+	@echo "  p06-traffic-dev-live       - Run the observability traffic helper against dev with live-discovered data"
+	@echo "  p06-traffic-prod-preset    - Run the observability traffic helper against prod with preset data"
+	@echo "  p06-traffic-prod-live      - Run the observability traffic helper against prod with live-discovered data"	
 
+# -----------------------------------------------------------------------------
+# Upstream generation / verification helpers
+# -----------------------------------------------------------------------------
 
-.PHONY: gen-complete-demo
 gen-complete-demo:
-	make -C deploy/kubernetes docker-gen-complete-demo
+	@# Run the upstream complete-demo generation helper.
+	$(MAKE_CMD) -C deploy/kubernetes docker-gen-complete-demo
 
-.PHONY: check-generated-files
 check-generated-files:
-	make -C deploy/kubernetes docker-check-complete-demo
+	@# Run the upstream generated-files verification helper.
+	$(MAKE_CMD) -C deploy/kubernetes docker-check-complete-demo
 
 # -------------------------------------------------------------------
 # Phase 02 — Ingress baseline helpers
@@ -39,16 +89,6 @@ check-generated-files:
 # - project-docs/02-ingress-baseline/IMPLEMENTATION.md
 # - project-docs/02-ingress-baseline/RUNBOOK.md
 # -------------------------------------------------------------------
-
-P02_INGRESS_FILE := deploy/kubernetes/manifests-local/phase-02-front-end-ingress.yaml
-
-.PHONY: \
-	p02-ingress-apply \
-	p02-ingress-show \
-	p02-ingress-test-host-header \
-	p02-ingress-test-browser-url \
-	p02-ingress-delete \
-	p02-nodeport-test
 
 p02-ingress-apply:
 	@echo "Applying Phase 02 local ingress manifest..."
@@ -97,18 +137,6 @@ p02-nodeport-test:
 # - project-docs/03-ci-cd-baseline/RUNBOOK.md
 # -------------------------------------------------------------------
 
-P03_DEV_OVERLAY  := deploy/kubernetes/kustomize/overlays/dev
-P03_PROD_OVERLAY := deploy/kubernetes/kustomize/overlays/prod
-
-.PHONY: \
-	p03-render-overlays \
-	p03-render-dev \
-	p03-render-prod \
-	p03-dev-apply \
-	p03-dev-status \
-	p03-dev-rollouts \
-	p03-dev-recreate
-
 p03-render-overlays:
 	@echo "Rendering Phase 03 dev and prod overlays..."
 	kubectl kustomize $(P03_DEV_OVERLAY) > /tmp/dev-rendered.yaml
@@ -147,3 +175,38 @@ p03-dev-recreate:
 	@echo
 	kubectl apply -k $(P03_DEV_OVERLAY)
 	
+# -------------------------------------------------------------------
+# Phase 06 — Observability & Health helpers
+# Thin convenience targets only.
+# Source of truth remains:
+# - project-docs/06-observability/IMPLEMENTATION.md
+# - project-docs/06-observability/RUNBOOK.md
+# -------------------------------------------------------------------
+ 
+ p06-monitoring-status:
+	@# Show the current Phase 06 monitoring pods and services.
+	KUBECONFIG=$(P06_KUBECONFIG) $(KUBECTL) get pods,svc -n monitoring -o wide
+
+p06-grafana-port-forward:
+	@# Open the private Grafana port-forward on localhost:3000.
+	KUBECONFIG=$(P06_KUBECONFIG) $(KUBECTL) port-forward -n monitoring svc/observability-grafana 3000:80
+
+p06-prometheus-port-forward:
+	@# Open the private Prometheus port-forward on localhost:9090.
+	KUBECONFIG=$(P06_KUBECONFIG) $(KUBECTL) port-forward -n monitoring svc/observability-kube-prometh-prometheus 9090:9090
+
+p06-traffic-dev-preset:
+	@# Run the observability traffic helper against dev with preset request data.
+	$(P06_TRAFFIC_HELPER) dev preset
+
+p06-traffic-dev-live:
+	@# Run the observability traffic helper against dev with live-discovered request data.
+	$(P06_TRAFFIC_HELPER) dev live
+
+p06-traffic-prod-preset:
+	@# Run the observability traffic helper against prod with preset request data.
+	$(P06_TRAFFIC_HELPER) prod preset
+
+p06-traffic-prod-live:
+	@# Run the observability traffic helper against prod with live-discovered request data.
+	$(P06_TRAFFIC_HELPER) prod live

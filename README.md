@@ -24,6 +24,46 @@ The project now exposes both long-lived target environments (`dev-sockshop` + `p
 
 These URLs represent the current live public entrypoints of the target platform proven in Phase 05.
 
+## Environment model on the current target
+
+The current `dev` and `prod` environments do **not** run on separate machines.
+
+Both run on the **same Proxmox-based target VM** inside the **same single-node K3s cluster**.
+
+The **Environment separation is logical** and implemented through:
+
+- Separate Kubernetes namespaces:
+  - `sock-shop-dev`
+  - `sock-shop-prod`
+- Separate Kustomize overlays:
+  - `deploy/kubernetes/kustomize/overlays/dev`
+  - `deploy/kubernetes/kustomize/overlays/prod`
+- Host-based ingress routing through Traefik for both environments 
+- Separate public hostnames:
+  - `https://dev-sockshop.cdco.dev/`
+  - `https://prod-sockshop.cdco.dev/`
+- Separate workflow behavior:
+  - Automated `dev` deployment
+  - Approval-gated `prod` deployment
+
+Public traffic reaches the same target platform through Cloudflare Tunnel and is then routed by **hostname** through **Traefik** to the correct namespace-backed application environment.
+
+**Result:** `1 VM -> 1 cluster -> 2 namespaces -> 2 app environments`
+
+These namespaces are logical partitions inside one Kubernetes cluster, not separate clusters. When the `dev` overlay is applied, Kubernetes updates the desired state of the resources in `sock-shop-dev` only. The `prod` namespace remains unchanged until the `prod` overlay is applied and approved.
+
+The delivery workflow does not copy the repository onto the VM or run the application from a Git checkout on the target machine. Instead, GitHub Actions applies Kubernetes manifests to the cluster API. Kubernetes stores that desired state and reconciles the affected namespace resources. 
+
+## Delivery workflow model
+
+The current delivery path follows a **trunk-based CI/CD model with gated promotion**:
+
+- Feature branches are merged into `master`
+- The merged commit triggers teh Pipeline and is deployed automatically to `dev`
+- The same commit is promoted to `prod` only after approval 
+
+**Result:** This project uses a professional **single-branch promotion workflow** rather than separate long-lived Git branches per environment.
+
 ## Target Scope
 
 - Kubernetes deployment (k3s locally → Proxmox target)
@@ -51,6 +91,8 @@ This repository demonstrates an iterative DevOps delivery path built around Sock
 
 ### Current proven highlights include: 
 
+TOOD: This should be structured by topics / phases (like traffic generator section below):
+
 - Clean local Kubernetes baseline
 - Host-based local ingress baseline
 - Namespace-based `dev` / `prod` Kustomize overlays
@@ -76,6 +118,68 @@ This repository demonstrates an iterative DevOps delivery path built around Sock
 - Private Grafana and Prometheus operator access via `kubectl port-forward`
 - Namespace-level workload visibility for `sock-shop-prod`
 - Healthy core monitoring targets through Prometheus
+
+#### Traffic Generator (Observability Helper)
+
+Reusable observability helper script (introduced in Phase 06):
+
+- `scripts/observability/generate-sockshop-traffic.sh`
+
+On execution, it generates **repeatable storefront traffic** so the monitoring stack has useful live activity to visualize during observability checks. It is equipped both for **manual observability verification** and for **non-interactive execution in scripts, pipeline jobs, or other automated checks**.
+
+**Current features:**
+
+- Execution against **`dev`** or **`prod`** live targets `(prod|dev)-sockshop.cdco.dev`
+- **Interactive** or **CLI-driven** startup
+- Choice between **Local Preset** or **live-discovered** data sources (fetched via the Sock Shop's JSON API endpoints for products and categories) for request params
+- **Randomized** product detail/category **requests**
+- **Makefile shortcuts** for the most common traffi generator flows:
+- `make p06-traffic-dev-preset`
+- `make p06-traffic-dev-live`
+- `make p06-traffic-prod-preset`
+- `make p06-traffic-prod-live`
+- **Cookie-based session reuse** (via cookie jar)
+- **Detailed terminal output** (request-table style):
+  - Endpoint
+  - Parameter
+  - HTTP status
+  - Latency
+ 
+~~~bash
+|---------------------------+------------+------------------------------------------+--------+----------|
+|                                           --- 00:07:53 ---                                            |
+|---------------------------+------------+------------------------------------------+--------+----------|
+| Host                      | Endpoint   | Param                                    | Status | Latency  |
+|---------------------------+------------+------------------------------------------+--------+----------|
+| dev-sockshop.cdco.dev    | basket     | -                                        | 200    | 0.060022 |
+| dev-sockshop.cdco.dev    | categories | -                                        | 200    | 0.054873 |
+| dev-sockshop.cdco.dev    | home       | -                                        | 200    | 0.052675 |
+| dev-sockshop.cdco.dev    | detail     | id=d3588630-ad8e-49df-bbd7-3167f7efb246  | 200    | 0.053624 |
+| dev-sockshop.cdco.dev    | category   | tags=action                              | 200    | 0.055025 |
+|---------------------------+------------+------------------------------------------+--------+----------|
+|                                           --- 00:07:54 ---                                            |
+|---------------------------+------------+------------------------------------------+--------+----------|
+| Host                      | Endpoint   | Param                                    | Status | Latency  |
+|---------------------------+------------+------------------------------------------+--------+----------|
+| prod-sockshop.cdco.dev    | basket     | -                                        | 200    | 0.057636 |
+| prod-sockshop.cdco.dev    | categories | -                                        | 200    | 0.058919 |
+| prod-sockshop.cdco.dev    | home       | -                                        | 200    | 0.054376 |
+| prod-sockshop.cdco.dev    | detail     | id=zzz4f044-b040-410d-8ead-4de0446aec7e  | 200    | 0.058766 |
+| prod-sockshop.cdco.dev    | category   | tags=geek                                | 200    | 0.054238 |
+|---------------------------+------------+------------------------------------------+--------+----------|
+~~~
+
+#### Observability Make Helper Targets
+
+The repository exposes a few thin Makefile helpers for the most common bservability checks and traffic-generation flows (introduced in Phase 06):
+
+- `make p06-monitoring-status`
+- `make p06-grafana-port-forward`
+- `make p06-prometheus-port-forward`
+- `make p06-traffic-dev-preset`
+- `make p06-traffic-dev-live`
+- `make p06-traffic-prod-preset`
+- `make p06-traffic-prod-live`
 
 ---
 
@@ -243,6 +347,7 @@ The repository currently contains proven work across these phases:
   - Private Prometheus access through `kubectl port-forward`
   - Namespace-level workload visibility for `sock-shop-prod`
   - Healthy core monitoring targets on the Prometheus `/targets` page
+  - Oberservability helper Bash script to auto-generate traffic on the target cluster for Grafana/Prometheus  
   - Docs:
     - [Implementation](project-docs/06-observability/IMPLEMENTATION.md)
     - [Runbook](project-docs/06-observability/RUNBOOK.md)
@@ -330,7 +435,6 @@ This README is intentionally kept open for the next implementation phases.
 - Security hardening + testing
 - Disaster recovery / rollback strategy
 - Selective IaC codification of stable target/bootstrap pieces
-
 
 ### Strong stretch goals before evaluation, if time allows
 - **Testing track:**

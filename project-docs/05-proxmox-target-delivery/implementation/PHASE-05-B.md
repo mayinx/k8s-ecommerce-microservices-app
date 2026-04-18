@@ -93,7 +93,7 @@ deployment "front-end" successfully rolled out
 
 The **core application baseline was successfully applied to the persistent target cluster,** though it **revealed a specific issue** requiring immediate attention.
 
-**1. Verified Successes** The majority of the application stack converged successfully on the first target-side deployment. This is confirmed by the following signals:
+**1. Verified Successes** The majority of the application stack came up successfully on the first target-side deployment. This is confirmed by the following signals:
 - The `sock-shop` namespace was created without issues.
 - `sudo kubectl apply -k` completed without any fatal Kustomize errors.
 - The expected application resources (Deployments and Services) were successfully provisioned in the namespace.
@@ -343,7 +343,7 @@ $ sudo kubectl logs -n sock-shop $ORDERS_DB_POD | grep -E "version|waiting"
 
 ## Result
 
-The **MongoDB image mismatch was confirmed, the deployments were patched on the VM to the compatible `3.4` baseline** (without requiring any infrastructure-level change to the VM or to the Proxmox CPU model), and the **full Sock Shop stack converged successfully**.
+The **MongoDB image mismatch was confirmed, the deployments were patched on the VM to the compatible `3.4` baseline** (without requiring any infrastructure-level change to the VM or to the Proxmox CPU model), and the **full Sock Shop stack runs successfully**.
 
 **Verification Highlights:**
 - **Image Confirmation:** Triage confirmed the deployments were using the unpinned `mongo` tag, which defaulted to an AVX-dependent version (7.0+).
@@ -454,7 +454,7 @@ This step is successful if:
 
 ## Rationale
 
-With the full application stack now converged, the next useful proof is the **first successful storefront response from the real target VM itself**.
+With the full application stack now up and healthy, the next useful proof is the **first successful storefront response from the real target VM itself**.
 
 This confirms that the front-end is not only deployed, but **also actually reachable through its exposed NodePort path on the Proxmox VM K3s node**.
 

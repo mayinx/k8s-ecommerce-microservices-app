@@ -25,6 +25,8 @@
 ## 📌 Index (top-level)
 
 - [Phase 05 outcomes at a glance](#phase-05-outcomes-at-a-glance)
+- [Environment model at a glance](#environment-model-at-a-glance)
+- [Workflow model at a glance](#workflow-model-at-a-glance)
 - [Implementation Roadmap & Phase 05 subphase quick navigation](#️-implementation-roadmap--phase-05-subphase-quick-navigation)
 - [Purpose / Goal](#purpose--goal)
 - [Definition of done](#definition-of-done)
@@ -53,6 +55,61 @@ Phase 05 is the point where the project moves from earlier local and smoke-basel
   - `https://dev-sockshop.cdco.dev/`
   - `https://prod-sockshop.cdco.dev/`
 - **Automated CI/CD Pipeline:** A real and secure GitHub Actions delivery workflow reaching the private cluster through **Tailscale + kubeconfig**, including automated `dev` delivery and approval-gated `prod` delivery
+
+## 🧩 Environment model at a glance
+
+Phase 05 does **not** use separate VMs or separate Kubernetes clusters for `dev` and `prod`.
+
+Instead, both application environments run on the **same target VM (`9200`)** inside the **same single-node K3s cluster**.
+
+The **environment separation is logical** and implemented at the Kubernetes and delivery layer through:
+
+- Separate Kubernetes namespaces:
+  - `sock-shop-dev`
+  - `sock-shop-prod`
+- Separate Kustomize overlays:
+  - `deploy/kubernetes/kustomize/overlays/dev`
+  - `deploy/kubernetes/kustomize/overlays/prod`
+- Host-based ingress routing through Traefik for both environments 
+- Separate public hostnames:
+  - `https://dev-sockshop.cdco.dev/`
+  - `https://prod-sockshop.cdco.dev/`
+- Separate workflow behavior:
+  - automated `dev` deployment
+  - approval-gated `prod` deployment
+
+Public traffic reaches the same target platform through Cloudflare Tunnel and is then routed by **hostname** through **Traefik** to the correct namespace-backed application environment.
+
+**Result:** `1 VM -> 1 K3s cluster -> 2 namespaces -> 2 app environments`
+
+The **platform is shared**, while the **application environments are logically separated**. The actual runtime separation is created by the Kubernetes namespaces, overlays, ingress hostnames, and deployment flow.
+
+This model also allows the two public URLs to **show different application states at the same time**.
+
+- A newly merged commit can already be deployed into **`sock-shop-dev`** and be visible at **`https://dev-sockshop.cdco.dev/`**, 
+- while **`sock-shop-prod`** and **`https://prod-sockshop.cdco.dev/`** still expose the **previously approved state** until the `prod` promotion is approved.
+
+## 🔄 Workflow model at a glance
+
+Phase 05 establishes a **trunk-based CI/CD workflow with gated promotion** on the target platform:
+- The merged `master` commit is deployed to **`dev`** automatically. 
+- The **same commit** is promoted to **`prod`** only after approval. 
+
+This preserves environment parity while still allowing `dev` and `prod` to differ temporarily during validation.
+
+**To clarify:**
+
+The workflow does **not** copy the repository onto the target VM or run the application from a Git working tree on that VM.
+
+Instead:
+
+- GitHub Actions checks out the repository on the runner
+- The runner renders and applies the selected Kustomize overlay to the cluster API
+- Kubernetes stores that **desired state** for the targeted resources
+- The **cluster reconciles** the affected **namespace workloads** to that **desired state**
+- The node pulls the **referenced container images** when an actual runtime change is needed
+
+A repository change that does **not** alter the applied Kubernetes desired state, such as a docs-only change, can still trigger the workflow but does **not** by itself change the running application.
 
 ## 🗺️ Implementation Roadmap & Phase 05 subphase quick navigation
 

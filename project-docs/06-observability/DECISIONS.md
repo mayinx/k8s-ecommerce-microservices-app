@@ -231,6 +231,7 @@ By the end of the phase, the project had proven:
   - dashboard-based workload visibility
   - Prometheus scrape-target health
   - recent storefront traffic to make current activity visible
+  - **Supporting helper introduced in this phase:** A small repository-side **Traffic Generator (Observability Helper)** was added to generate repeatable storefront traffic for observability checks. This improves rerunnability and creates a cleaner bridge between manual verification and later automation.
 - **Why:** A running monitoring Pod set alone is not strong enough proof of useful observability.
 - **Proof:** The Grafana namespace dashboard shows workload data for `sock-shop-prod`, recent storefront requests return successful HTTP responses, and Prometheus `/targets` shows the core monitoring targets as healthy.
 - **Next-step impact:** Later observability work starts from a baseline that is already operationally proven both at the scrape layer and the dashboard layer.

@@ -1,27 +1,53 @@
-# Phase 03 delivery smoke workflow
+# Phase 05 - Target Delivery Workflow
 #
 # Purpose:
-# - (1) Validate the dev/prod Kustomize overlays
-# - (2) Build and push a selected repo-owned support image (healthcheck) to GHCR
+# Establish a trunk-based CI/CD delivery workflow with gated promotion on the
+# real Proxmox-backed target platform.
+#
+# On every push to master (and optionally manually via workflow_dispatch), this workflow:
+#
+# - (1) Validates the dev/prod Kustomize overlays
+# - (2) Builds and pushes a selected repo-owned support image (`healthcheck`) to GHCR
 #   (building + pushing the sock-shop-microsoervices themselves is out of scope, 
 #   since it would require intensive refactoring of 8-year-old legacy upstream services)  
-# - (3) Deploy a dev smoke environment automatically
+# - (3) Deploys the `dev` environment automatically to the real target cluster
 #   (Image Logic: Kubernetes reads the manifests and dynamically pulls the 13 core 
 #   app images from the official upstream Docker Hub registry 'weaveworksdemos' - while  
 #   our custom 'healthcheck' image is pulled from our GHCR)
-# - (4) Deploy a prod smoke environment after approval
+# - (4) Deploys the `prod` environment only after approval
 #   (Environment Parity: Prod runs the exact same container images as Dev)
 #
-# Design choices:
-# - stays on GitHub-hosted runners for this phase
-# - uses kind as a temporary Kubernetes smoke target
-# - can later be retargeted from kind to Proxmox by replacing the cluster setup / kubeconfig section
+# Runtime model:
+# - `dev` and `prod` are not separate machines
+# - Both run on the same target VM (`9200`) inside the same single-node K3s cluster
+# - Environment separation is implemented through:
+#   - separate namespaces (`sock-shop-dev`, `sock-shop-prod`)
+#   - separate Kustomize overlays
+#   - separate ingress hostnames
+#   - different promotion behavior in the workflow
+#
+# Deployment model:
+# - GitHub-hosted runners execute the workflow
+# - Runners join the private Tailnet through Tailscale
+# - Runners authenticate to the target cluster with the provided kubeconfig
+# - Runners apply the selected overlay to the cluster API
+# - Kubernetes stores that desired state and reconciles the affected namespace resources
+#
+# Important clarification:
+# - The workflow does not copy the repository onto the target VM
+# - The application is not run from a Git working tree on the VM
+# - The VM receives updated Kubernetes desired state through the cluster API
+#
+# Image logic:
+# - The repo-owned `healthcheck` image is built and pushed to GHCR
+# - The main Sock Shop service images are pulled as pre-built upstream images
+#   during Kubernetes deployment
 #
 # References:
 # - GitHub Actions workflow syntax
-# - GitHub environments
+# - GitHub Environments
 # - GitHub-hosted runners
-# - see project-docs/03-ci-cd-baseline/IMPLEMENTATION.md for rationale and source links
+# - see project-docs/05-proxmox-target-delivery/IMPLEMENTATION.md for rationale and sources
 
 name: phase-05-proxmox-target-delivery
 

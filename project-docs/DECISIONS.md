@@ -421,25 +421,29 @@ Phase 04 ended with the **workload-ready Proxmox template `9010`**, but the proj
 
 #### First obstacle: the first target-side deployment surfaced a MongoDB AVX/runtime incompatibility
 
-The first application deployment on the real target cluster showed that the overall stack almost converged, but `carts-db` and `orders-db` failed because the unpinned Kubernetes image reference `mongo` pulled a newer MongoDB version that required AVX support.
+The first application deployment on the real target cluster brought up most application components successfully, but `carts-db` and `orders-db` failed because the unpinned image reference `mongo` resolved to a newer MongoDB version that requires AVX support.
 
-That issue was resolved by pinning both affected Deployments to:
-
-- `mongo:3.4`
-
-and then persisting that fix in source control.
+That issue was resolved by pinning both affected Deployments to `mongo:3.4` and then persisting that fix in source control.
 
 #### Chosen path: keep the proven Kubernetes/Kustomize deployment model and evolve it into a real `dev` / `prod` target layout
 
-Instead of changing the deployment model during the target move, Phase 05 kept the proven Kubernetes/Kustomize path and built the real target-delivery story on top of it:
+Phase 05 kept the proven Kubernetes/Kustomize path and realized the target-delivery on top of it:
 
-- real target VM `9200`, cloned from workload-ready template `9010`
+- Real target VM `9200`, cloned from workload-ready template `9010`
 - K3s as single-node control plane on that target
-- explicit environment namespaces:
+- Explicit Kubernetes environment namespaces:
   - `sock-shop-dev`
   - `sock-shop-prod`
-- built-in K3s Traefik as ingress controller
-- host-based routing for both environments
+- Built-in K3s Traefik as ingress controller
+- Host-based ingress routing for both environments
+- Separate public hostnames:
+  - `https://dev-sockshop.cdco.dev/`
+  - `https://prod-sockshop.cdco.dev/`
+- Automated `dev` deployment and approval-gated `prod` deployment
+
+This established a environment-aware target layout while keeping the proven deployment model intact. 
+
+The exact runtime separation on the target is summarized in the "Environment model" section.
 
 #### Private access and public exposure were deliberately separated
 
@@ -452,7 +456,30 @@ Phase 05 also standardized on two distinct traffic models:
 
 This avoided public exposure of the Kubernetes API and avoided opening inbound application ports directly on the VM.
 
-#### Workflow model: preserve the earlier CI/CD milestone, but create a dedicated real-target workflow
+#### Environment model on the target: One VM, one cluster, two namespaces
+
+Phase 05 does **not** introduce separate machines for `dev` and `prod`.
+
+Both environments run on the **same real target VM** inside the **same single-node K3s cluster**. Environment separation is implemented through:
+
+- separate Kubernetes namespaces:
+  - `sock-shop-dev`
+  - `sock-shop-prod`
+- separate Kustomize overlays
+- separate ingress hostnames:
+  - `dev-sockshop.cdco.dev`
+  - `prod-sockshop.cdco.dev`
+- separate workflow behavior:
+  - automated `dev`
+  - approval-gated `prod`
+
+Public traffic reaches the same target platform through Cloudflare Tunnel and is then routed by **hostname** through **Traefik** to the correct namespace-backed application environment.
+
+These namespaces are logical partitions inside one Kubernetes cluster, not separate clusters. When the `dev` overlay is applied, Kubernetes updates and reconciles the resources in `sock-shop-dev`. The `sock-shop-prod` resources remain unchanged until the `prod` overlay is applied. 
+
+**Result:** `1 VM -> 1 cluster -> 2 namespaces -> 2 app environments`
+
+#### Workflow model: Preserve the earlier CI/CD milestone, but create a dedicated real-target workflow
 
 Instead of overwriting the Phase 03 baseline workflow, Phase 05 preserved that earlier CI/CD milestone and added a dedicated Phase 05 workflow for the real target-delivery path.
 
@@ -460,6 +487,10 @@ This keeps the chronology understandable:
 
 - Phase 03 = CI/CD mechanics baseline
 - Phase 05 = real target-delivery workflow
+
+This establishes a **trunk-based CI/CD workflow with gated promotion** on the real target platform: 
+- The merged `master` commit is auto-deployed automatically to `dev` 
+- The same commit is promoted to `prod` only after approval.
 
 #### Verified result
 

@@ -13,12 +13,13 @@
 ## 📌 Index
 
 - [**Quick recap (Phase 05)**](#quick-recap-phase-05)
-  - [**Starting point: the project needed a real delivery target beyond the reusable VM baseline**](#starting-point-the-project-needed-a-real-delivery-target-beyond-the-reusable-vm-baseline)
-  - [**First obstacle: the first target-side application deployment surfaced a MongoDB runtime incompatibility**](#first-obstacle-the-first-target-side-application-deployment-surfaced-a-mongodb-runtime-incompatibility)
-  - [**Chosen deployment model: keep the proven Kubernetes manifest path and evolve it into a real environment model**](#chosen-deployment-model-keep-the-proven-kubernetes-manifest-path-and-evolve-it-into-a-real-environment-model)
-  - [**Access and exposure model: separate the private operator path from the public application path**](#access-and-exposure-model-separate-the-private-operator-path-from-the-public-application-path)
-  - [**Workflow model: preserve the earlier CI/CD milestone, but introduce a dedicated real-target workflow**](#workflow-model-preserve-the-earlier-cicd-milestone-but-introduce-a-dedicated-real-target-workflow)
-  - [**Verified result: real target VM, real cluster, real public edge, and real workflow-driven delivery**](#verified-result-real-target-vm-real-cluster-real-public-edge-and-real-workflow-driven-delivery)
+  - [**Starting point: The project needed a real delivery target beyond the reusable VM baseline**](#starting-point-the-project-needed-a-real-delivery-target-beyond-the-reusable-vm-baseline)
+  - [**First obstacle: The first target-side application deployment surfaced a MongoDB runtime incompatibility**](#first-obstacle-the-first-target-side-application-deployment-surfaced-a-mongodb-runtime-incompatibility)
+  - [**Chosen deployment model: Keep the proven Kubernetes manifest path and evolve it into a real environment model**](#chosen-deployment-model-keep-the-proven-kubernetes-manifest-path-and-evolve-it-into-a-real-environment-model)
+  - [**Access and exposure model: Separate the private operator path from the public application path**](#access-and-exposure-model-separate-the-private-operator-path-from-the-public-application-path)
+  - [**Environment model on the current target: One VM, one cluster, two namespaces**](#environment-model-on-the-current-target-one-vm-one-cluster-two-namespaces)
+  - [**Workflow model: Preserve the earlier CI/CD milestone, but introduce a dedicated real-target workflow**](#workflow-model-preserve-the-earlier-cicd-milestone-but-introduce-a-dedicated-real-target-workflow)
+  - [**Verified result: Real target VM, real cluster, real public edge, and real workflow-driven delivery**](#verified-result-real-target-vm-real-cluster-real-public-edge-and-real-workflow-driven-delivery)
   - [**Why this matters next**](#why-this-matters-next)
 - [**Key Phase Decisions**](#key-phase-decisions)
   - [**P05-D01 — Real target artifact model = Proxmox-backed VM `9200` cloned from workload-ready template `9010`**](#p05-d01--real-target-artifact-model--proxmox-backed-vm-9200-cloned-from-workload-ready-template-9010)
@@ -29,8 +30,8 @@
   - [**P05-D06 — Ingress model = built-in K3s Traefik with host-based routing for both environments**](#p05-d06--ingress-model--built-in-k3s-traefik-with-host-based-routing-for-both-environments)
   - [**P05-D07 — Private access model = Tailscale for operator and CI/CD access to the cluster API**](#p05-d07--private-access-model--tailscale-for-operator-and-cicd-access-to-the-cluster-api)
   - [**P05-D08 — Public edge model = Cloudflare Tunnel with first-level environment hostnames**](#p05-d08--public-edge-model--cloudflare-tunnel-with-first-level-environment-hostnames)
-  - [**P05-D09 — Workflow model = preserve Phase 03 as historical baseline and create a dedicated Phase 05 target-delivery workflow**](#p05-d09--workflow-model--preserve-phase-03-as-historical-baseline-and-create-a-dedicated-phase-05-target-delivery-workflow)
-  - [**P05-D10 — Scope boundary = keep the guest-session storefront bug out of the Phase 05 infrastructure scope**](#p05-d10--scope-boundary--keep-the-guest-session-storefront-bug-out-of-the-phase-05-infrastructure-scope)
+  - [**P05-D09 — Workflow model = Preserve Phase 03 as historical baseline and create a dedicated Phase 05 target-delivery workflow**](#p05-d09--workflow-model--preserve-phase-03-as-historical-baseline-and-create-a-dedicated-phase-05-target-delivery-workflow)
+  - [**P05-D10 — Scope boundary = Keep the guest-session storefront bug out of the Phase 05 infrastructure scope**](#p05-d10--scope-boundary--keep-the-guest-session-storefront-bug-out-of-the-phase-05-infrastructure-scope)
 - [**Next-step implications**](#next-step-implications)
 
 ---
@@ -61,27 +62,29 @@ This revealed an important target-side difference between the local proof path a
 - which required AVX support
 - that was not available or not exposed on the target VM CPU path
 
-The fix was first proven as a live-cluster hotfix and then persisted into source control by pinning both affected Deployments to:
+The fix was first proven as a live-cluster hotfix and then persisted into source control by pinning both affected Deployments to `mongo:3.4`.
 
-- `mongo:3.4`
+### Chosen deployment model: Keep the proven Kubernetes manifest path and evolve it into a real environment model
 
-### Chosen deployment model: keep the proven Kubernetes manifest path and evolve it into a real environment model
-
-Instead of changing the overall Kubernetes deployment model in the middle of the target move, Phase 05 kept the already proven Kubernetes/Kustomize path and built the real target-delivery story on top of it.
+Phase 05 kept the already proven Kubernetes/Kustomize path and realized the real target-delivery on top of it.
 
 That meant:
 
-- keep the Kustomize-based deployment path
-- standardize on explicit environment namespaces:
+- Keep the Kustomize-based deployment path
+- Standardize on explicit environment Kubernetes namespaces:
   - `sock-shop-dev`
   - `sock-shop-prod`
-- add host-based ingress rules for both environments
-- reuse the built-in K3s Traefik ingress controller
-- prove both environments on the real target cluster
+- Reuse the built-in K3s Traefik ingress controller
+- Add host-based ingress rules for both environments
+- Separate public hostnames:
+  - `https://dev-sockshop.cdco.dev/`
+  - `https://prod-sockshop.cdco.dev/`
+- Automated `dev` deployment and approval-gated `prod` deployment
+- Prove both environments on the real target cluster
 
-This preserved continuity with the earlier phases while allowing the target environment to become properly environment-aware.
+This preserved continuity with the earlier phases while allowing the target platform to become properly environment-aware. The exact runtime separation on the current target is described in the "Environment Model" section.
 
-### Access and exposure model: separate the private operator path from the public application path
+### Access and exposure model: Separate the private operator path from the public application path
 
 Phase 05 also had to solve two different access problems cleanly:
 
@@ -100,7 +103,32 @@ Those were deliberately separated:
 
 This avoided direct public exposure of the Kubernetes API and avoided opening inbound application ports directly on the VM.
 
-### Workflow model: preserve the earlier CI/CD milestone, but introduce a dedicated real-target workflow
+### Environment model on the current target: One VM, one cluster, two namespaces
+
+Phase 05 does **not** introduce separate target machines for `dev` and `prod`. Instead, both environments run on the **same target VM** and inside the **same single-node K3s cluster**. 
+
+Environment separation is implemented isnetad logically through:
+
+- separate Kubernetes namespaces:
+  - `sock-shop-dev`
+  - `sock-shop-prod`
+- separate Kustomize overlays
+- separate ingress hostnames:
+  - `dev-sockshop.cdco.dev`
+  - `prod-sockshop.cdco.dev`
+- separate workflow behavior:
+  - automated `dev`
+  - approval-gated `prod`
+
+Public traffic reaches the same target platform through Cloudflare Tunnel and is then routed by **hostname** through **Traefik** to the correct namespace-backed application environment.
+
+*Result:** `1 VM -> 1 cluster -> 2 namespaces -> 2 app environments`
+
+These namespaces are logical partitions inside one Kubernetes cluster, not separate clusters. When the `dev` overlay is applied, Kubernetes updates and reconciles the resources in `sock-shop-dev`. The `sock-shop-prod` resources remain unchanged until the `prod` overlay is applied.
+
+This gives the project a clear and professional environment model while avoiding the extra cost and complexity of a second VM or cluster.
+
+### Workflow model: Preserve the earlier CI/CD milestone, but introduce a dedicated real-target workflow
 
 Phase 03 had already proven a real CI/CD baseline, but only against the temporary smoke target.
 
@@ -116,7 +144,18 @@ The chronology is therefore:
 - Phase 03 = Delivery mechanics baseline
 - Phase 05 = Real target-delivery path
 
-### Verified result: real target VM, real cluster, real public edge, and real workflow-driven delivery
+This establishes a **trunk-based CI/CD workflow with gated promotion** on the real target platform: 
+- The merged `master` commit is auto-deployed automatically to `dev` 
+- The same commit is promoted to `prod` only after approval.
+
+To clarify: 
+
+The workflow does not copy the repository onto the target VM or run the application from a Git working tree on that VM. Instead: 
+- GitHub Actions applies Kubernetes manifests to the cluster API. 
+- Kubernetes stores that desired state and reconciles the affected namespace resources. 
+- If a push has no effect to the desired state (like a a docs-only repository change) this does not create a runtime change in the cluster, even if the workflow itself still runs adn te repo changes. 
+
+### Verified result: Real target VM, real cluster, real public edge, and real workflow-driven delivery
 
 The phase also **establishes the first stable public environment URLs** of the long-lived target platform:
 
@@ -179,10 +218,10 @@ The real target-delivery foundation now exists, so the next phases can focus on 
 - **Proof:** The first target-side deployment isolates the failure to the two MongoDB-backed services; after pinning to `mongo:3.4`, both services roll out successfully and the fix is then persisted in source control.
 - **Next-step impact:** The deployment path becomes reproducible on the real target instead of depending on a one-off live-cluster patch.
 
-### P05-D05 — Environment model = explicit `sock-shop-dev` and `sock-shop-prod` namespaces
+### P05-D05 — Environment model = Explicit `sock-shop-dev` and `sock-shop-prod` namespaces
 
 - **Decision:** Standardize on explicit namespace separation for the two target environments.
-- **Why:** The target-delivery path needed a real environment model before ingress, public exposure, and workflow-driven delivery could be treated as `dev` / `prod` concerns instead of as one raw namespace.
+- **Why:** The target-delivery path needed a real environment model before ingress, public exposure, and workflow-driven delivery could be treated as `dev` / `prod` concerns instead of as one raw namespace. In this phase, that environment model is implemented inside **one shared cluster** through **separate namespaces and overlays**, not through separate VMs.
 - **Proof:** Both environment namespaces are created and both overlays are deployed successfully on the real target cluster.
 - **Next-step impact:** Later verification, observability, security, and DR work can reason about environment boundaries explicitly.
 
@@ -209,7 +248,7 @@ The real target-delivery foundation now exists, so the next phases can focus on 
 - **Proof:** The ingress hosts are aligned to the final public hostnames, the Cloudflare Tunnel is healthy, and both public HTTPS endpoints return successful responses.
 - **Next-step impact:** The project now has stable public environment URLs that can be used in docs, demos, and later operational dashboards.
 
-### P05-D09 — Workflow model = preserve Phase 03 as historical baseline and create a dedicated Phase 05 target-delivery workflow
+### P05-D09 — Workflow model = Preserve Phase 03 as historical baseline and create a dedicated Phase 05 target-delivery workflow
 
 - **Decision:** Preserve the Phase 03 workflow as a manual-only historical baseline and create a dedicated Phase 05 workflow for the real target-delivery path.
 - **Why:** This keeps the project chronology understandable while preventing the older smoke-target workflow from conflicting with the real-target behavior.
