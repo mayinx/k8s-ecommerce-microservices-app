@@ -42,7 +42,7 @@ Nevertheless Phase 06 will provide real DevOps value:
 - **Evidence that metrics are being scraped and visualized successfully**
 - **A concrete foundation** for later hardening and operational refinement
 
-### Why observability is the next logical capability after Phase 05
+### Why observability is the next logical capability
 
 After Phase 05 had proven the target-delivery path, the next logical capability is a first **observability baseline**: The project can already deploy and expose the application, but it still **lacks an operational visibility layer** for **checking cluster health, workload behavior, and monitoring health** on the live target.
 
@@ -51,7 +51,21 @@ This makes **observability the next logical DevOps step**:
 - Without that visibility layer, later phases would partly operate **without a clear basis for verifying cluster state, workload behavior, and monitoring health**.
 - Phase 05 proved delivery, while **Phase 06 adds the inspectability needed to operate and validate the platform** more confidently in the following project phases.
 
-### Why `kube-prometheus-stack` in this phase
+> [!NOTE] **🧩 Observability & Monitoring**
+>
+> **Monitoring** is the **practice of collecting, processing, aggregating, and displaying system data** (such as request counts, error counts, and processing times) so system health, activity, and failures can be checked over time.
+> - Monitoring mainly helps with **known unknowns** through predefined watching: with situations where the team already knows **which conditions, thresholds, or failure signals should be watched explicitly**. 
+> - Monitoring asks: "*Are the things we already know to watch still okay?*"
+>
+> **Observability** is a system property: It is the **degree to which a system’s internal state can be understood from its external outputs**, such as metrics, logs, and traces. 
+> - An observable system produces **actionable signals**, that enable teams to **understand the system’s current state** from those outputs so that Teams can **detect both expected as well as unanticipated issues early**, identify their **root cause**, and **take corrective action more quickly**. 
+> - Observability is especially valuable for investigating **unknown unknowns** through dynamic interrogation: with unexpected behaviors, hidden dependencies, and failures whose cause is not yet clear.
+> - Observability asks: "*Why is the system behaving this way, and what is the root cause of this unexpected state*".
+> - In practice, the term is also used for **the work of improving a system's Observability** through metrics, logs, traces, dashboards, and related tooling.
+>
+> In this phase, the project first establishes a **monitoring baseline** with Prometheus and Grafana. That monitoring baseline improves the project’s **observability** by making the live target more inspectable and easier to reason about.
+
+### Why `kube-prometheus-stack`
 
 The upstream repository already contains older monitoring-related material (see below), but this phase uses the well maintained **Helm chart `kube-prometheus-stack`** instead of trying to modernize legacy manifests first. 
 
@@ -650,7 +664,7 @@ For this phase, **namespace-level infrastructure visibility** is sufficient. The
 
 ### Browser + Local Workstation
 
-**Generate a little recent application activity**
+**Generate application activity**
 
 It is useful to generate some traffic on the production environment that we like to collect and monitor via Prometheus and Grafana so the cluster sees recent workload activity. 
 
@@ -660,7 +674,13 @@ The helper can be accessed here:
 
 - `scripts/observability/generate-sockshop-traffic.sh`
 
-The first committed Phase-06 version is intentionally kept minimal and focuses only on generating lightweight repeated storefront traffic for observability verification:
+The first committed Phase-06 version of this helper script is intentionally kept minimal and focuses only on generating lightweight repeated storefront traffic for observability verification: 
+
+> [!NOTE] **🧩 Cookie jar**
+>
+> The variable `COOKIE_JAR` points to a local file used by `curl` to store and reuse cookies between requests.
+>
+> This makes the traffic a little closer to a real browser session, because session cookies returned by the application can be sent again on later requests instead of treating every request as completely isolated.
 
 ~~~bash
 # Optional helper: 
@@ -732,11 +752,34 @@ Output:
 ...
 ~~~
 
-> [!NOTE] **🧩 Cookie jar**
->
-> The variable `COOKIE_JAR` points to a local file used by `curl` to store and reuse cookies between requests.
->
-> This makes the traffic a little closer to a real browser session, because session cookies returned by the application can be sent again on later requests instead of treating every request as completely isolated.
+**EDIT: In the meantime, the observability helper script evolved:** 
+- It produces now a more detailed (request-table style) output, including **latency** and **randomly selectded product and categroy pages** (see below)
+- It offers the choice between **live data discovery** (via the Sock Shop's JSON API endpoints) or the **usage of predefined local data sets** 
+- I allows both manual and repeatable script-driven traffic generation - as well as a **CLI-friendly execution for later automation** based on CLI args for the target environment and the data source mode 
+
+~~~bash
+|---------------------------+------------+------------------------------------------+--------+----------|
+|                                           --- 00:09:30 ---                                            |
+|---------------------------+------------+------------------------------------------+--------+----------|
+| Host                      | Endpoint   | Param                                    | Status | Latency  |
+|---------------------------+------------+------------------------------------------+--------+----------|
+| dev-sockshop.cdco.dev     | basket     | -                                        | 200    | 0.085753 |
+| dev-sockshop.cdco.dev     | categories | -                                        | 200    | 0.057451 |
+| dev-sockshop.cdco.dev     | home       | -                                        | 200    | 0.051887 |
+| dev-sockshop.cdco.dev     | detail     | id=819e1fbf-8b7e-4f6d-811f-693534916a8b  | 200    | 0.058226 |
+| dev-sockshop.cdco.dev     | category   | tags=formal                              | 200    | 0.064168 |
+|---------------------------+------------+------------------------------------------+--------+----------|
+|                                           --- 00:09:31 ---                                            |
+|---------------------------+------------+------------------------------------------+--------+----------|
+| Host                      | Endpoint   | Param                                    | Status | Latency  |
+|---------------------------+------------+------------------------------------------+--------+----------|
+| dev-sockshop.cdco.dev     | basket     | -                                        | 200    | 0.069654 |
+| dev-sockshop.cdco.dev     | categories | -                                        | 200    | 0.060219 |
+| dev-sockshop.cdco.dev     | home       | -                                        | 200    | 0.054644 |
+| dev-sockshop.cdco.dev     | detail     | id=zzz4f044-b040-410d-8ead-4de0446aec7e  | 200    | 0.056548 |
+| dev-sockshop.cdco.dev     | category   | tags=green                               | 200    | 0.056756 |
+|---------------------------+------------+------------------------------------------+--------+----------|
+~~~
 
 **Verify namespace-level visibility in Grafana**
 
@@ -753,9 +796,9 @@ Use the already open Grafana session from Step 2.
 
 The dashboard should show now (or after a little delay) some real cluster data for the production namespace, for example:
 
-- pod CPU usage
-- pod memory usage
-- workload / pod-level resource panels
+- Pod CPU usage
+- Pod memory usage
+- Workload / pod-level resource panels
 
 **Verify Prometheus scrape health**
 
@@ -925,3 +968,24 @@ This makes Phase 06 the point **where the project moves from “deployable and r
 
 - [Looping Constructs | Bash Reference Manual](https://www.gnu.org/s/bash/manual/html_node/Looping-Constructs.html)  
   Official Bash reference.
+
+- [Observability | CNCF Cloud Native Glossary](https://glossary.cncf.io/observability/)  
+  Vendor-neutral observability definition.
+
+- [What is observability? | Grafana Cloud documentation](https://grafana.com/docs/grafana-cloud/introduction/what-is-observability/)  
+  Grafana documentation Observability definition.
+
+- [Google SRE Book: Chapter 6 - Monitoring Distributed Systems](https://sre.google/sre-book/monitoring-distributed-systems/)  
+  Definition of monitoring and practical monitoring concepts.
+
+- [jq 1.8 Manual | jqlang](https://jqlang.org/manual/)  
+  jq manual (filters, raw output, JSON processing model).
+
+- [Process Substitution | Bash Reference Manual](https://www.gnu.org/s/bash/manual/html_node/Process-Substitution.html)  
+  Bash documentation for process substitution (`<(...)`).
+
+- [Bash Reference Manual](https://www.gnu.org/software/bash/manual/bash.html)  
+  Official Bash reference for shell behavior, builtins, and expansion features.
+
+- [What is RED method? | Grafana Blog](https://grafana.com/blog/the-red-method-how-to-instrument-your-services/)  
+  Definition of RED (Requests, Errors, Duration).  

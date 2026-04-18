@@ -45,6 +45,14 @@
 #   - Randomizes product-detail and category-tag requests
 #   - Fails fast on missing dependencies or unusable live data
 #
+# LIVE DATA DISCOVERY:
+#   Live discovery in this helper uses the Sock Shop JSON API endpoints for:
+#   - ${BASE_URL}/catalogue  -> product IDs
+#   - ${BASE_URL}/tags       -> category tags
+#   - ${BASE_URL}/catalogue  -> fallback source for tags if /tags is empty/unusable
+#
+#   The JSON extraction is implemented with jq filters.
+#
 # LATENCY INTERPRETATION:
 #   - The displayed latency in seconds is curl's full request end-to-end time 
 #     (from this script's point of view)
@@ -179,7 +187,7 @@ prepare_data_source() {
 }
 
 #######################################
-# Discovers live product IDs and category tags from the selected Sock Shop
+# Fetches live product IDs and category tags from the selected Sock Shop
 # target environment using the relevant Sock Shop JSON API endpoints and 
 # overwrites the default preset arrays with that data.
 #
@@ -201,7 +209,7 @@ prepare_data_source() {
 #   Prints progress and import counts.
 #
 # Exits:
-#   1 if live discovery fails or returns no usable IDs / tags.
+#   1 if live fetching fails or returns no usable IDs / tags.
 #######################################
 load_live_data(){
     require_cmd curl
@@ -218,7 +226,7 @@ load_live_data(){
     #
     # mapfile     = Bash builtin - reads stdin line by line into an array
     # -t          = strip the trailing newline from each imported line
-    # detail_ids  = target array that will receive the discovered product IDs
+    # detail_ids  = target array that will receive the fetched product IDs
     # < <(...)    = process substitution:
     #               run the command in (...) and feed its stdout into mapfile as input
     #
@@ -274,7 +282,7 @@ echo "(1) DEFINE TARGET ENVIRONMENT (dev|prod)"
 # Check if environment is passed as an argument, otherwise prompt for it
 if [[ -z "$sockshop_env" ]]; then
     read -p "- Please define the target sock-shop environment ('dev' or 'prod'): " sockshop_env 
-    echo "- Target sock-shop environment from selection: '$data_mode'" 
+    echo "- Target sock-shop environment from selection: '$sockshop_env'" 
     echo ""
 else
     echo "- Preset target sock-shop environment from args: '$sockshop_env'" 
@@ -308,8 +316,7 @@ if [[ "${data_mode_normalized}" == "live" || "${data_mode_normalized}" == "prese
     echo "Configuration complete."
     echo "- Target environment: '$sockshop_env_normalized'"
     echo "- Data source mode: '$data_mode_normalized'"
-    echo "- Preparing data source ..."
-    echo "- Preparing '$data_mode' data source..."
+    echo "- Preparing '$data_mode_normalized' data source ..."
     echo ""
 
     prepare_data_source "$data_mode"    
