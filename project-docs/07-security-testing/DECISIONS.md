@@ -173,67 +173,24 @@ By the end of the phase, the project had proven:
 
 ## Key Phase Decisions
 
-### P06-D01 — Observability baseline = maintained `kube-prometheus-stack` in dedicated `monitoring` namespace
+### P07-D01 — Test scope = prioritize repo-owned helper code plus one small Python QA utility layer
 
-- **Decision:** Use the maintained **`kube-prometheus-stack`** Helm chart as the Phase 06 observability baseline and install it into the dedicated namespace `monitoring`
-- **Why:** Phase 06 needs the fastest clean route to a first useful monitoring layer on the real target cluster, not a larger manual cleanup and rebuild of older repository monitoring material.
-- **Why not the older repository monitoring path:** The existing monitoring-related material under:
-  - `deploy/kubernetes/manifests-monitoring/`
-  - `deploy/kubernetes/manifests-alerting/`
-  is a weaker fit for Phase 06 because it is more fragmented, more manual, and more NodePort-oriented than needed for the first observability baseline. The monitoring README documents a multi-stage raw-manifest setup with separate Prometheus, Grafana, and dashboard-import steps, while the alerting setup is separated again and requires an additional manually created Kubernetes Secret. This requires additional manual preparation steps.
-- **Why this chart:** `kube-prometheus-stack` provides a more integrated installation path for the first baseline by bundling the core monitoring components needed in this phase:
-  - Prometheus Operator
-  - Prometheus
-  - Grafana
-  - kube-state-metrics
-  - node-exporter
-- **Proof:** The Helm release `observability` is deployed successfully, the `monitoring` namespace exists, and the core monitoring workloads are running.
-- **Next-step impact:** This establishes the first real operational visibility layer on the live target, so later observability extensions, Terraform/IaC, security/testing, and hardening work can build on a proven monitoring baseline instead of reopening tool selection.
+- **Decision:** Build the first Phase 07 test scope primarily around repo-owned code surfaces and one small project-owned Python QA utility module.
+- **Why:** The project already contains owned and directly explainable code in:
+  - `healthcheck/healthcheck.rb`
+  - `scripts/observability/generate-sockshop-traffic.sh`
+  A small Python QA utility module adds both a valuable QA addition and a relevant Python unit-test path without requiring invasive changes to the legacy upstream application services.
+- **Proof:** Phase 07 identifies these files as the primary owned test targets and uses them as the basis for the first unit-test layer.
+- **Next-step impact:** The next step can refactor the owned helper scripts into testable execution units, after which Ruby, Bash, and Python unit tests can be added on a defensible owned-code basis.
 
-### P06-D02 — First rollout scope = intentionally small and private-only
+### P07-D02 — Testability model = refactor owned helper scripts into callable execution units
 
-- **Decision:** Keep the first monitoring rollout intentionally small:
-  - Alertmanager disabled
-  - default alert rules disabled
-  - short retention
-  - ephemeral storage
-  - conservative resource requests and limits
-  - no public monitoring ingress
-- **Why:** The phase goal is to establish a first useful monitoring layer, not yet a broader long-retention monitoring platform with alert-routing and public exposure.
-- **Proof:** The tracked values file configures exactly that narrow scope in:
-  - `deploy/kubernetes/observability/prometheus-values-minimal.yaml`
-- **Next-step impact:** Later phases can extend the monitoring setup incrementally instead of carrying unnecessary early complexity.
+- **Decision:** Refactor the repo-owned Ruby and Bash helper scripts so their operational logic is no longer tied exclusively to top-level execution.
+- **Why:** Phase 07 needs unit-testable owned code surfaces without breaking the already proven direct-run behavior of the project helpers.
+- **Proof:** `healthcheck/healthcheck.rb` is moved behind a class-based execution path with a direct-run guard, and `generate-sockshop-traffic.sh` is moved behind `main()` with a shell execution guard.
+- **Next-step impact:** The next steps can introduce Ruby and Bash tests against stable callable units instead of trying to test uncontrolled top-level script execution.
 
-### P06-D03 — Grafana credential handling = tracked non-secret values + gitignored local Helm override + chart-managed Kubernetes Secret
 
-- **Decision:** Keep non-secret Helm values in the tracked baseline file, inject the Grafana admin password through a gitignored local Helm override file, and rely on the chart to create the resulting Kubernetes Secret.
-- **Why:** The phase must avoid committing a live password into repository-tracked files, while still keeping the install path simple and reproducible.
-- **Proof:** The install uses:
-  - `deploy/kubernetes/observability/prometheus-values-minimal.yaml`
-  - `deploy/kubernetes/observability/prometheus-local.secrets.yaml`
-  and the resulting chart-managed Secret exists as:
-  - `observability-grafana`
-- **Next-step impact:** This establishes a practical secret-handling pattern for the monitoring baseline, while leaving broader project-wide secret management for the later security phase.
-
-### P06-D04 — Access model = private `kubectl port-forward` over the existing Tailnet path instead of public monitoring exposure/ingress 
-
-- **Decision:** Access Grafana and Prometheus privately through **`kubectl port-forward`** over the **already working Tailnet-based kubeconfig path**, instead of creating a public monitoring ingress route in Phase 06.
-- **Why:** Phase 06 needs private operator access for monitoring proof, not a public monitoring surface with additional DNS, TLS, and hardening complexity. `kubectl port-forward` provides a **temporary local access path from the local workstation to the internal Kubernetes Service** without exposing the cluster publicly.
-- **Proof:** Grafana and Prometheus are both reached successfully from the workstation through private local tunnels.
-- **Next-step impact:** Monitoring remains private until a later phase justifies broader exposure or stronger access controls.
-
-### P06-D05 — Verification model = dashboard proof + scrape-target proof + light recent traffic
-
-- **Decision:** Count Phase 06 as successful only when the monitoring baseline is proven through:
-  - successful stack deployment
-  - private Grafana access
-  - dashboard-based workload visibility
-  - Prometheus scrape-target health
-  - recent storefront traffic to make current activity visible
-  - **Supporting helper introduced in this phase:** A small repository-side **Traffic Generator (Observability Helper)** was added to generate repeatable storefront traffic for observability checks. This improves rerunnability and creates a cleaner bridge between manual verification and later automation.
-- **Why:** A running monitoring Pod set alone is not strong enough proof of useful observability.
-- **Proof:** The Grafana namespace dashboard shows workload data for `sock-shop-prod`, recent storefront requests return successful HTTP responses, and Prometheus `/targets` shows the core monitoring targets as healthy.
-- **Next-step impact:** Later observability work starts from a baseline that is already operationally proven both at the scrape layer and the dashboard layer.
 
 ---
 
