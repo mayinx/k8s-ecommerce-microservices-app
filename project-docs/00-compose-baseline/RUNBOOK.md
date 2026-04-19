@@ -3,7 +3,7 @@
 > ## 👤 About
 > This runbook is the **short, command-first** version of the Phase 00 baseline setup and verification flow.  
 > It’s meant as a quick reference for reruns without the long-form diary.  
-> For the full narrative log, see: **[00-compose-repo-baseline/IMPLEMENTATION.md](IMPLEMENTATION.md)**.
+> For the full narrative log, see: **[00-compose-baseline/IMPLEMENTATION.md](IMPLEMENTATION.md)**.
 
 ---
 

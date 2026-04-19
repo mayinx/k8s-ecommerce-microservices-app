@@ -123,12 +123,12 @@ The initial phases use Docker Compose and a local k3s cluster to establish a sta
 - This was solved by introducing a **local-only Compose override** that exposes the storefront on **`http://localhost:8081/`**, while keeping upstream Compose files unchanged.
 
 **Primary evidence (Phase 00)**  
-- Storefront reachable via local override: `project-docs/00-compose-repo-baseline/evidence/[2026-02-27]-Port-8081_Storefront-reachable.png`  
-- Traefik dashboard reachable: `project-docs/00-compose-repo-baseline/evidence/[2026-02-25]-Port-8080_Traefik-Dashboard-1.png` (and follow-ups)
+- Storefront reachable via local override: `project-docs/00-compose-baseline/evidence/[2026-02-27]-Port-8081_Storefront-reachable.png`  
+- Traefik dashboard reachable: `project-docs/00-compose-baseline/evidence/[2026-02-25]-Port-8080_Traefik-Dashboard-1.png` (and follow-ups)
 
 **Further details**  
-- Implementation log: `project-docs/00-compose-repo-baseline/IMPLEMENTATION.md`  
-- Runbook: `project-docs/00-compose-repo-baseline/RUNBOOK.md`
+- Implementation log: `project-docs/00-compose-baseline/IMPLEMENTATION.md`  
+- Runbook: `project-docs/00-compose-baseline/RUNBOOK.md`
 
 **Conclusion + Net steps**
 - Phase 00 confirmed that Sock Shop itself starts correctly via Docker Compose and that the internal routing works inside the Compose network.

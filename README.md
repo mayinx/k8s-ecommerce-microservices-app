@@ -274,8 +274,8 @@ The repository currently contains proven work across these phases:
   - Local Docker Compose baseline
   - Host-port conflict diagnosis and workaround
   - Docs:
-    - [Implementation](project-docs/00-compose-repo-baseline/IMPLEMENTATION.md)
-    - [Runbook](project-docs/00-compose-repo-baseline/RUNBOOK.md)  
+    - [Implementation](project-docs/00-compose-baseline/IMPLEMENTATION.md)
+    - [Runbook](project-docs/00-compose-baseline/RUNBOOK.md)  
 
 - **Phase 01 — Port-based Kubernetes baseline**
   - Clean local k3s deployment via upstream manifests
