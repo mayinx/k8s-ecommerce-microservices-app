@@ -211,6 +211,8 @@ p06-traffic-prod-live:
 	@# Run the observability traffic helper against prod with live-discovered request data.
 	$(P06_TRAFFIC_HELPER) prod live
 
-p07-healthcheck-target-smoke:
-	@# Run the Ruby healthcheck helper against the real target cluster in sock-shop-dev.
-	./scripts/testing/run-healthcheck-real-target.sh
+# PHASE 07
+
+p07-healthcheck-target-env:
+	@# Run the local Ruby healthcheck helper against the real target cluster in sock-shop-dev.
+	./scripts/testing/run-healthcheck-target-env.sh

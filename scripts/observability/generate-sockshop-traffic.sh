@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 ################################################################################
 # SCRIPT: generate-sockshop-traffic.sh
@@ -6,7 +6,7 @@
 # TRAFFIC GENERATOR (Observability Helper)
 #
 # DESCRIPTION:
-#   A synthetic workload generator for the Sock Shop microservices demo.
+#   A workload generator for the Sock Shop microservices demo.
 #   It simulates light but repeated user-like storefront activity by calling
 #   several application endpoints in a continuous loop.
 #
@@ -80,7 +80,6 @@ COOKIE_JAR=/tmp/sockshop-cookies.txt
 
 # Declare + populate the targets dictionary
 declare -A targets
-
 targets=(
     ["home"]="/"
     ["categories"]="/category.html"
@@ -274,7 +273,7 @@ load_live_data(){
     echo ""
 }
 
-
+# To capture user input from args or interactive selection  
 sockshop_env=$1
 data_mode=$2
 
@@ -333,9 +332,6 @@ else
     die "Unknown data source mode '$data_mode'. Available data source modes are 'live' or 'preset'."  
 fi
 
-
-
-
 #######################################
 # Calls a given Sock Shop storefront endpoint and prints the formatted 
 # table row including the Host, Endpoint, Param, Status, and Latency.
@@ -366,7 +362,6 @@ call_endpoint() {
     -w "$(printf '| %-25s | %-10s | %-40s | ' "${sockshop_env_normalized}-sockshop.cdco.dev" "$endpoint" "$param")%{http_code}    | %{time_total} |\n" \
     "${BASE_URL}${full_path}"   
 }
-
 
 #######################################
 # Generates a complete URL path by appending random parameters 
@@ -414,7 +409,6 @@ while true; do
     printf "|---------------------------+------------+------------------------------------------+--------+----------|\n"
     printf "| %-25s | %-10s | %-40s | %-6s | %-8s |\n" "Host" "Endpoint" "Param" "Status" "Latency"
     printf "|---------------------------+------------+------------------------------------------+--------+----------|\n"
-
 
     # Call the Sock Shop storefront endpoints repeatedly to generate visible recent workload activity for the Grafana dashboards.
     for endpoint in "${!targets[@]}"; do
