@@ -53,7 +53,7 @@ class HealthcheckUnitTest < Minitest::Test
 
   # --- Execution & Network Mocking ---
 
-# TEST: Verify that a successful network response is parsed and 
+  # TEST: Verify that a successful network response is parsed and 
   # aggregated correctly by intercepting (stubbing) the HTTP call 
   # to return fake JSON.
   #
@@ -141,6 +141,26 @@ class HealthcheckUnitTest < Minitest::Test
 
     # VERIFY: Assert that the Healthcheck successfully calculated and triggered the  
     # exact 5-second delay (but without the test runner actually having to wait for it).
-    assert_equal [5], sleep_calls
+    assert_equal 5, checker.options[:delay] # asserts correct options parsing
+    assert_equal [5], sleep_calls # asserts correct runtime execution 
+  end
+
+  # Vacuous-truth test of HealthCheck#healthy? 
+  # healthy? must deliver false if @health.empty? (i.e. if no services are provided 
+  # in the response at all)  
+  def test_empty_health_payload_does_not_report_success
+    checker = HealthChecker.new(["--services", "catalogue"])
+
+    # Faked empty health response
+    fake_response_payload = {
+      "health" => []
+    }
+
+    Net::HTTP.stub(:get_response, FakeResponse.new(JSON.generate(fake_response_payload))) do
+      assert_equal false, checker.run
+    end
+
+    assert_equal false, checker.healthy?
+    assert_equal({}, checker.health)
   end
 end

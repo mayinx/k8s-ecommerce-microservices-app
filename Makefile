@@ -10,11 +10,27 @@
 MAKE_CMD        := make
 KUBECTL         := kubectl
 CURL            := curl
+RUBY            := ruby
+
 P02_INGRESS_FILE := deploy/kubernetes/manifests-local/phase-02-front-end-ingress.yaml
+
 P03_DEV_OVERLAY  := deploy/kubernetes/kustomize/overlays/dev
 P03_PROD_OVERLAY := deploy/kubernetes/kustomize/overlays/prod
+
 P06_KUBECONFIG  := $(HOME)/.kube/config-proxmox-dev.yaml
 P06_TRAFFIC_HELPER := ./scripts/observability/generate-sockshop-traffic.sh
+
+P07_HEALTHCHECK_FILE := healthcheck/healthcheck.rb
+P07_HEALTHCHECK_CLI_TEST := tests/ruby/test_healthcheck_cli.rb
+P07_HEALTHCHECK_UNIT_TEST := tests/ruby/test_healthcheck.rb
+P07_HEALTHCHECK_TARGET_HELPER := ./scripts/testing/run-healthcheck-target-env.sh
+
+# -----------------------------------------------------------------------------
+# Phony
+# -----------------------------------------------------------------------------
+
+# Public helper targets that do not correspond to real files.
+# Declaring them as .PHONY ensures Make always runs the target recipe when requested.
 
 .PHONY: \
 	help \
@@ -39,7 +55,12 @@ P06_TRAFFIC_HELPER := ./scripts/observability/generate-sockshop-traffic.sh
 	p06-traffic-dev-preset \
 	p06-traffic-dev-live \
 	p06-traffic-prod-preset \
-	p06-traffic-prod-live
+	p06-traffic-prod-live \
+	p07-healthcheck-syntax \
+	p07-healthcheck-cli-test \
+	p07-healthcheck-unit-test \
+	p07-healthcheck-tests \
+	p07-healthcheck-target-env
 
 # -----------------------------------------------------------------------------
 # Help
@@ -69,7 +90,11 @@ help:
 	@echo "  p06-traffic-dev-live       - Run the observability traffic helper against dev with live-discovered data"
 	@echo "  p06-traffic-prod-preset    - Run the observability traffic helper against prod with preset data"
 	@echo "  p06-traffic-prod-live      - Run the observability traffic helper against prod with live-discovered data"	
-
+	@echo "  p07-healthcheck-syntax     - Validate Ruby syntax of the Phase 07 healthcheck helper"
+	@echo "  p07-healthcheck-cli-test   - Run the Phase 07 Ruby CLI characterization test"
+	@echo "  p07-healthcheck-unit-test  - Run the Phase 07 Ruby unit-test suite"
+	@echo "  p07-healthcheck-tests      - Run all local Phase 07 Ruby healthcheck checks"
+	@echo "  p07-healthcheck-target-env - Run the Phase 07 healthcheck helper (local version) against the remote target cluster"
 # -----------------------------------------------------------------------------
 # Upstream generation / verification helpers
 # -----------------------------------------------------------------------------
@@ -183,7 +208,7 @@ p03-dev-recreate:
 # - project-docs/06-observability/RUNBOOK.md
 # -------------------------------------------------------------------
  
- p06-monitoring-status:
+p06-monitoring-status:
 	@# Show the current Phase 06 monitoring pods and services.
 	KUBECONFIG=$(P06_KUBECONFIG) $(KUBECTL) get pods,svc -n monitoring -o wide
 
@@ -211,8 +236,32 @@ p06-traffic-prod-live:
 	@# Run the observability traffic helper against prod with live-discovered request data.
 	$(P06_TRAFFIC_HELPER) prod live
 
-# PHASE 07
+# -------------------------------------------------------------------
+# Phase 07 — Security & Testing helpers
+# Thin convenience targets only.
+# Source of truth remains:
+# - project-docs/07-security-testing/IMPLEMENTATION.md
+# - project-docs/07-security-testing/RUNBOOK.md
+# -------------------------------------------------------------------
+
+p07-healthcheck-syntax:
+	@# Validate the Ruby syntax of the Phase 07 healthcheck helper.
+	$(RUBY) -c $(P07_HEALTHCHECK_FILE)
+
+p07-healthcheck-cli-test:
+	@# Run the Phase 07 Ruby CLI characterization test.
+	$(RUBY) $(P07_HEALTHCHECK_CLI_TEST)
+
+p07-healthcheck-unit-test:
+	@# Run the Phase 07 Ruby unit-test suite.
+	$(RUBY) $(P07_HEALTHCHECK_UNIT_TEST)
+
+p07-healthcheck-tests:
+	@# Run all local Phase 07 Ruby healthcheck checks in one go.
+	$(MAKE_CMD) p07-healthcheck-syntax
+	$(MAKE_CMD) p07-healthcheck-cli-test
+	$(MAKE_CMD) p07-healthcheck-unit-test
 
 p07-healthcheck-target-env:
-	@# Run the local Ruby healthcheck helper against the real target cluster in sock-shop-dev.
-	./scripts/testing/run-healthcheck-target-env.sh
+	@# Run the local Ruby healthcheck helper against the remote target cluster in sock-shop-dev.
+	bash $(P07_HEALTHCHECK_TARGET_HELPER)

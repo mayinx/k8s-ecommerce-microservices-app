@@ -180,15 +180,51 @@ By the end of the phase, the project had proven:
   - `healthcheck/healthcheck.rb`
   - `scripts/observability/generate-sockshop-traffic.sh`
   A small Python QA utility module adds both a valuable QA addition and a relevant Python unit-test path without requiring invasive changes to the legacy upstream application services.
-- **Proof:** Phase 07 identifies these files as the primary owned test targets and uses them as the basis for the first unit-test layer.
-- **Next-step impact:** The next step can refactor the owned helper scripts into testable execution units, after which Ruby, Bash, and Python unit tests can be added on a defensible owned-code basis.
+- **Proof:** Phase 07 identifies these files as the primary owned test targets and uses them as the basis for the first test layer.
+- **Next-step impact:** The next steps can assess those helpers for current behavior and testability gaps before introducing targeted refactors and tests.
 
-### P07-D02 — Testability model = refactor owned helper scripts into callable execution units
+### P07-D02 — Assessment model = prove current helper behavior before refactoring test surfaces
 
-- **Decision:** Refactor the repo-owned Ruby and Bash helper scripts so their operational logic is no longer tied exclusively to top-level execution.
-- **Why:** Phase 07 needs unit-testable owned code surfaces without breaking the already proven direct-run behavior of the project helpers.
-- **Proof:** `healthcheck/healthcheck.rb` is moved behind a class-based execution path with a direct-run guard, and `generate-sockshop-traffic.sh` is moved behind `main()` with a shell execution guard.
-- **Next-step impact:** The next steps can introduce Ruby and Bash tests against stable callable units instead of trying to test uncontrolled top-level script execution.
+- **Decision:** Assess the selected repo-owned helper scripts first in their current operational shape before changing their structure for automated testing.
+- **Why:** Phase 07 should not refactor helper code blindly. The project first needs proof that the current scripts are functionally valid and clear identification of the specific structural traits that block clean automated testing.
+- **Proof:** `healthcheck/healthcheck.rb` is proven locally and on the remote target cluster, while `generate-sockshop-traffic.sh` is assessed through syntax checks and controlled negative-path execution.
+- **Next-step impact:** The following refactoring work can preserve known-good behavior instead of changing both structure and runtime contract at the same time.
+
+### P07-D03 — Ruby refactor strategy = characterization-first refactoring for `healthcheck.rb`
+
+- **Decision:** Refactor the repo-owned Ruby `healthcheck` helper using a characterization-first approach.
+- **Why:** The helper already worked operationally, so the safer path was:
+  - freeze the current CLI behavior first
+  - introduce only the minimum structural changes needed for safe import and isolated testing
+  - then add focused unit tests around the refactored logic
+- **Proof:** `tests/ruby/test_healthcheck_cli.rb` locks down the external CLI behavior, while the refactored `HealthChecker` class supports direct unit testing through `tests/ruby/test_healthcheck.rb`.
+- **Next-step impact:** Ruby helper changes can now proceed with a safer local edit-test cycle and reduced risk of breaking the executable contract.
+
+### P07-D04 — Ruby helper shape = importable class plus execution guard
+
+- **Decision:** Move the Ruby helper behind an importable `HealthChecker` class and protect direct execution with `if __FILE__ == $0`.
+- **Why:** The original top-level execution model was awkward for framework-driven testing because option parsing, runtime flow, and process exit all happened immediately when the file was loaded.
+- **Proof:** `healthcheck/healthcheck.rb` can now be required safely by the unit-test file without triggering a live run or uncontrolled process exit.
+- **Next-step impact:** The Ruby helper becomes a stable test surface for both local development and later CI execution.
+
+### P07-D05 — Stream model = separate machine data from human logs for chainability
+
+- **Decision:** Separate machine-readable output and human-readable logs in the Ruby helper and the target-environment proof helper.
+- **Why:** The previous output shape mixed informational logs with non-standard Ruby pretty-print output, which blocked safe chaining into tools such as `jq` and reduced automation-readiness.
+- **Proof:** The Ruby helper now emits JSON to `stdout`, sends human-readable status messages to `stderr`, and the refactored target-environment proof helper preserves that clean output path through Bash, `kubectl`, and `make`.
+- **Next-step impact:** The helper is now ready for later pipeline integration, machine parsing, and chained validation steps.
+
+### P07-D06 — Ruby test model = keep CLI characterization tests and unit tests separate
+
+- **Decision:** Split the Ruby test surface into two complementary layers:
+  - CLI characterization tests
+  - unit tests
+- **Why:** These two layers protect different things:
+  - the CLI tests protect the external executable contract
+  - the unit tests protect the refactored internal logic
+- **Proof:** `tests/ruby/test_healthcheck_cli.rb` verifies process-level behavior via `Open3`, while `tests/ruby/test_healthcheck.rb` verifies parsing, aggregation, failure handling, delay execution, and empty-payload hardening in isolation.
+- **Next-step impact:** The Ruby helper now has a stronger and more explainable test story for mentors, reviewers, and later CI quality gates.
+
 
 
 

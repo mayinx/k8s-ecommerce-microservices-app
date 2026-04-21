@@ -74,7 +74,7 @@
 # 1) GLOBAL SETTINGS & TEARDOWN HOOKS
 # -----------------------------------------------------------------------------
 
-# Enable stricter Bash error handling for this short proof helper (every command is required for success)
+# Enable stricter Bash error handling for this proof helper (every command is required for success)
 #
 # -e          = exit immediately if a command fails
 # -u          = treat use of an unset variable as an error
@@ -156,7 +156,7 @@ kubectl run "$POD_NAME" -n "$NAMESPACE" \
 # Expected: 
 # pod/tmp-ruby-healthcheck created
 
-# Wait until the temporary Pod is ready for execution.
+# Wait until the temporary Pod is ready for execution
 #
 # kubectl wait             = block until the requested condition is met
 # --for=condition=Ready    = wait for the Pod to become Ready
