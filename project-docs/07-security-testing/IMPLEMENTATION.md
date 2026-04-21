@@ -1453,12 +1453,8 @@ Unlike the refactored Ruby `healthcheck` helper, the Bash observability helper i
 - The current pipeline use is planned around **testing the script itself** rather than using it as a structured pipeline-output producer.
 
 At this point, the Bash helper has moved from a directly executed operational script to a **controlled and repeatable automated test surface**, while preserving its existing operational purpose.
-
  
 ---
-
-
-
 
 ## Phase 07 Outcome Summary 
 
