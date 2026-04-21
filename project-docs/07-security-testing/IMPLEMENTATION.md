@@ -1147,7 +1147,315 @@ At this point, the Ruby helper has moved from a manually executed operational sc
 --- 
 
 
+## Step 4 — Refactor the Bash observability helper into a testable structure and add automated tests
 
+### Rationale
+
+Step 2 already established that `scripts/observability/generate-sockshop-traffic.sh` 
+- is a maintained repo-owned automation surface worth testing. 
+- is **not yet a good fit for CI-triggered automated tests** in its current shape
+  - the script still **begins its runtime flow immediately**, including prompt handling, data-source setup, and the **long-running traffic loop**.
+
+Step 3 already proved the general pattern on the Ruby side: 
+- Preserve the observable behavior first 
+- Then introduce only the minimum structural change needed for safe loading and isolated tests 
+
+The Bash helper is therefore handled next with the same overall logic, but with the follwoing Bash-specific scopes: 
+- The first automated test layer focuses on **deterministic CLI checks and function-level helper logic**, not on the full long-running traffic loop. 
+- That keeps the local edit-test cycle fast and stable while preserving the helper's manual operational value for observability work.
+- Unlike teh Ruby helper script, a **transformation into a pipe-ready machine readable and chainable tool is not planned** for the bash helper script - mainly because of its **different use case** and **its long running traffic loop**. 
+
+In this phase, the Bash helper is therefore treated in CI primarily as a **(to be) tested script**, not as a **machine-chainable pipeline output tool**.
+
+### Action
+
+#### Confirm the current CLI behavior with two black-box checks
+
+Before changing the file structure, we confirm the currently intended CLI behavior (the "CLI contract") with two small black-box checks from the repo root:
+
+~~~bash
+# Invalid environment should be rejected immediately.
+$ bash scripts/observability/generate-sockshop-traffic.sh wrong preset
+(1) DEFINE TARGET ENVIRONMENT (dev|prod)
+- Preset target sock-shop environment from args: 'wrong'
+
+ERROR: Unknown sock-shop environment 'wrong'. Available environments are 'dev' or 'prod'.
+
+# Invalid data mode should also be rejected immediately.
+$ bash scripts/observability/generate-sockshop-traffic.sh dev wrong
+(1) DEFINE TARGET ENVIRONMENT (dev|prod)
+- Preset target sock-shop environment from args: 'dev'
+
+(2) DEFINE DATA SOURCE MODE (live|preset)
+- Preset data source mode from args: 'wrong'
+
+ERROR: Unknown data source mode 'wrong'. Available data source modes are 'live' or 'preset'.
+~~~
+
+These checks **confirm the intended CLI contract** before the structural refactor begins:
+
+- (1) Invalid environment input is rejected early
+- (2) Invalid data-mode input is rejected early
+- (3) The helper exits through its own guarded error paths rather than falling into undefined runtime behavior
+
+#### Refactor the helper behind `main()` and an execution guard
+
+To make the Bash helper safe to load from automated tests we take the following steps: 
+- Move (only) the current **top-level runtime block** including the **traffic loop** into **`main()`** 
+  - **Helper functions must remain outside** the main block - to ensurte **they stay sourceable for tests**  
+  - **vars `like sockshop_env` + `data_mode` should become `local`** to prevent leaking into the script's top level state and to avoid accidental side effects 
+    - `local sockshop_env=$1`
+    - `local data_mode=$2` 
+- Add a **Bash execution guard**
+- **Normalize the data-mode handoff** consistently by passing `data_mode_normalized` into `prepare_data_source`.
+  - This prevents upper-/mixed-case values such as `LIVE` from being validated successfully and then routed into the wrong loader branch.
+  - Thiose should become `local` as well:
+    - `local sockshop_env_normalized`
+    - `local data_mode_normalized`
+
+Below is the relevant target shape after the refactor (for the full commented implementation see `scripts/observability/generate-sockshop-traffic.sh`):
+
+~~~bash
+
+# -----------------------------------------------------------------------------
+# Globals/Arrays/Helper functions
+# -----------------------------------------------------------------------------
+# Globals/Arrays/Helper functions remain outside main to stay sourceable 
+# for tests/provide a testing surface 
+
+# ...
+# ...
+# ...
+
+# -----------------------------------------------------------------------------
+# Main runtime entrypoint
+# -----------------------------------------------------------------------------
+
+# Main runtime entrypoint for the traffic helper.
+# Handles environment selection, data-source preparation,
+# and the long-running traffic loop when the file is executed directly.
+#
+# Arguments:
+#   $1 - Target environment ("dev"|"prod")
+#   $2 - Data source mode ("live"|"preset")
+main() {
+    # To capture user input from args or interactive selection
+    # ('local' to prevent leaking into the script's top level state)
+    local sockshop_env=$1
+    local data_mode=$2
+
+    echo "(1) DEFINE TARGET ENVIRONMENT (dev|prod)"
+    # ... keep the existing environment-selection logic here ...
+
+    echo "(2) DEFINE DATA SOURCE MODE (live|preset)"
+    # ... keep the existing data-mode logic here ...
+
+    # Use the normalized mode consistently.
+    prepare_data_source "$data_mode_normalized"
+
+    # ... The remaining existing runtime logic stays here including the traffic loop ...
+}
+
+# -----------------------------------------------------------------------------
+# Direct-execution guard
+# -----------------------------------------------------------------------------
+
+# Only execute the helper when the file is run directly.
+# When the file is sourced by tests, do not start prompts or the traffic loop.
+if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+    main "$@"
+fi
+~~~
+
+This is the same structural principle already introduced in Step 3 on the Ruby side:
+
+- Direct execution remains available for normal operational use
+- Sourcing becomes safe for tests 
+- Helper functions provide a test surface and can now be called in isolation without triggering prompts or the infinite loop
+
+#### Add the first dependency-free Bash test file
+
+Once the execution guard is in place and a testable interface is present, the first **dependency-free Bash test layer** can be implemented in `tests/bash/test_generate_sockshop_traffic.sh`.
+
+This Bash test layer combines:
+
+- **CLI-level characterization checks** for the preserved and intended invalid-input behavior
+- **Function-level checks** for the deterministic helper logic (after the helper is sourced safely)
+
+Below the excerpt of the created file (for the full commented implementation see `tests/bash/test_generate_sockshop_traffic.sh`).
+
+Instead of introducing an external Bash testing framework, the test script implements intentionally a plain custom Bash test scaffold. The first Bash test scope is still narrow enough that plain Bash is sufficient:
+
+- (1) Preserve key CLI error behavior
+- (1) Verify a few deterministic helper functions after safe sourcing
+- (3) Keep the local and CI setup free of another tool dependency at this stage
+
+~~~bash
+#!/usr/bin/env bash
+
+SCRIPT_PATH="scripts/observability/generate-sockshop-traffic.sh"
+PASS_COUNT=0
+RUN_OUTPUT=""
+RUN_STATUS=0
+
+fail() {
+  echo "FAIL: $1" >&2
+  exit 1
+}
+
+pass() {
+  echo "PASS: $1"
+  PASS_COUNT=$((PASS_COUNT + 1))
+}
+
+assert_contains() {
+  local haystack="$1"
+  local needle="$2"
+
+  [[ "$haystack" == *"$needle"* ]] || fail "Expected output to contain: $needle"
+}
+
+assert_equals() {
+  local expected="$1"
+  local actual="$2"
+
+  [[ "$expected" == "$actual" ]] || fail "Expected '$expected' but got '$actual'"
+}
+
+run_and_capture() {
+  local tmp_output
+  tmp_output="$(mktemp)"
+
+  if bash "$@" >"$tmp_output" 2>&1; then
+    RUN_STATUS=0
+  else
+    RUN_STATUS=$?
+  fi
+
+  RUN_OUTPUT="$(cat "$tmp_output")"
+  rm -f "$tmp_output"
+}
+
+test_invalid_environment_exits_nonzero() {
+  run_and_capture "$SCRIPT_PATH" wrong preset
+
+  [[ $RUN_STATUS -ne 0 ]] || fail "Expected non-zero exit status for invalid environment"
+  assert_contains "$RUN_OUTPUT" "Unknown sock-shop environment"
+  pass "invalid environment is rejected"
+}
+
+test_invalid_data_mode_exits_nonzero() {
+ # ...
+}
+
+# Run the black-box CLI checks before sourcing the helper.
+test_invalid_environment_exits_nonzero
+test_invalid_data_mode_exits_nonzero
+
+# Source the helper after the execution guard is in place.
+source "$SCRIPT_PATH"
+
+test_prepare_data_source_selects_expected_loader() {
+  # ...
+}
+
+test_get_path_and_param_for_plain_endpoint() {
+  # ...
+}
+
+test_get_path_and_param_for_detail_endpoint() {
+  # ...
+}
+
+test_get_path_and_param_for_category_endpoint() {
+  # ...
+}
+
+# Run the function-level checks.
+test_prepare_data_source_selects_expected_loader
+test_get_path_and_param_for_plain_endpoint
+test_get_path_and_param_for_detail_endpoint
+test_get_path_and_param_for_category_endpoint
+
+echo "All Bash helper tests passed (${PASS_COUNT} checks)."
+~~~
+
+#### Run the Bash syntax checks and the new Bash test file
+
+Once the execution guard is in place and the Bash test file exists, teh etsts can be executed from the repo root. To keep the local verification flow consistent with the Phase 07 Ruby work and to make things easier, the root `Makefile` was extended with **several helper targets for the Bash observability helper**: 
+
+~~~bash
+# Run the full local Bash helper check via Make.
+$ make p07-traffic-helper-tests
+OK: Bash syntax valid -> scripts/observability/generate-sockshop-traffic.sh
+OK: Bash syntax valid -> tests/bash/test_generate_sockshop_traffic.sh
+PASS 1: invalid environment is rejected
+PASS 2: invalid data mode is rejected
+PASS 3: prepare_data_source selects the expected loader
+PASS 4: plain endpoint returns base path with dash placeholder
+PASS 5: detail endpoint generates deterministic product-id query parameter
+PASS 6: category endpoint generates deterministic tag query parameter
+All Bash helper tests passed (6 checks).
+~~~
+
+The underlying raw commands executed by that Make target are:
+
+~~~bash
+# Validate the syntax of the refactored Bash helper.
+#
+# bash -n = parse only, without normal execution
+$ bash -n scripts/observability/generate-sockshop-traffic.sh
+
+# Validate the syntax of the Bash test file.
+$ bash -n tests/bash/test_generate_sockshop_traffic.sh
+
+# Run the Bash characterization and function-level checks.
+$ bash tests/bash/test_generate_sockshop_traffic.sh
+~~~
+
+ 
+
+#### Local dev + test cycle
+
+The local loop for further Bash refactoring:
+
+~~~bash
+# Run all current local Bash checks for the observability helper.
+$ make p07-traffic-helper-tests
+
+# Occasional milestone validation against a live target env 
+$ bash scripts/observability/generate-sockshop-traffic.sh prod live
+~~~
+
+To run all Phase 07 tests incl. Ruby:
+
+~~~bash
+# Run the full current Phase 07 local test set (Ruby + Bash).
+$ make p07-tests
+~~~
+
+### Result
+
+The Bash observability helper is now structured for both **direct operational execution** and **safe automated testing**.
+
+The successful end state is shown by these signals / verification points:
+
+- `generate-sockshop-traffic.sh` remained syntactically valid after the refactor
+- The helper can now be sourced safely without triggering prompt handling or the long-running traffic loop
+- The preserved CLI invalid-input checks still pass and confirm that the original guarded command-line behavior remains intact
+- Function-level tests now verify deterministic helper logic such as data-source selection and endpoint-path generation
+- The native Bash test scaffold runs successfully without introducing an additional Bash test-framework dependency
+- The local Bash edit-test cycle is now short enough for repeated refactoring work without running the full traffic loop each time
+- The manual observability role of the helper remains intact for later live traffic generation and dashboard validation
+
+Unlike the refactored Ruby `healthcheck` helper, the Bash observability helper is **not treated as a machine-chainable output too**l in this phase:
+- Its runtime output remains primarily human-facing and observability-oriented 
+- The current pipeline use is planned around **testing the script itself** rather than using it as a structured pipeline-output producer.
+
+At this point, the Bash helper has moved from a directly executed operational script to a **controlled and repeatable automated test surface**, while preserving its existing operational purpose.
+
+ 
+---
 
 
 

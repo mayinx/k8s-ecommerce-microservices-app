@@ -24,6 +24,8 @@ P07_HEALTHCHECK_FILE := healthcheck/healthcheck.rb
 P07_HEALTHCHECK_CLI_TEST := tests/ruby/test_healthcheck_cli.rb
 P07_HEALTHCHECK_UNIT_TEST := tests/ruby/test_healthcheck.rb
 P07_HEALTHCHECK_TARGET_HELPER := ./scripts/testing/run-healthcheck-target-env.sh
+P07_TRAFFIC_HELPER_FILE := scripts/observability/generate-sockshop-traffic.sh
+P07_TRAFFIC_HELPER_TEST := tests/bash/test_generate_sockshop_traffic.sh
 
 # -----------------------------------------------------------------------------
 # Phony
@@ -60,7 +62,12 @@ P07_HEALTHCHECK_TARGET_HELPER := ./scripts/testing/run-healthcheck-target-env.sh
 	p07-healthcheck-cli-test \
 	p07-healthcheck-unit-test \
 	p07-healthcheck-tests \
-	p07-healthcheck-target-env
+	p07-healthcheck-target-env \
+	p07-traffic-helper-syntax \
+	p07-traffic-helper-test-syntax \
+	p07-traffic-helper-test \
+	p07-traffic-helper-tests \
+	p07-tests
 
 # -----------------------------------------------------------------------------
 # Help
@@ -95,6 +102,12 @@ help:
 	@echo "  p07-healthcheck-unit-test  - Run the Phase 07 Ruby unit-test suite"
 	@echo "  p07-healthcheck-tests      - Run all local Phase 07 Ruby healthcheck checks"
 	@echo "  p07-healthcheck-target-env - Run the Phase 07 healthcheck helper (local version) against the remote target cluster"
+	@echo "  p07-traffic-helper-syntax  - Validate Bash syntax of the Phase 07 observability helper"
+	@echo "  p07-traffic-helper-test-syntax - Validate Bash syntax of the Phase 07 Bash test file"
+	@echo "  p07-traffic-helper-test    - Run the Phase 07 Bash observability-helper tests"
+	@echo "  p07-traffic-helper-tests   - Run all local Phase 07 Bash observability-helper checks"
+	@echo "  p07-tests                  - Run all current local Phase 07 Ruby and Bash checks"
+
 # -----------------------------------------------------------------------------
 # Upstream generation / verification helpers
 # -----------------------------------------------------------------------------
@@ -246,7 +259,12 @@ p06-traffic-prod-live:
 
 p07-healthcheck-syntax:
 	@# Validate the Ruby syntax of the Phase 07 healthcheck helper.
-	$(RUBY) -c $(P07_HEALTHCHECK_FILE)
+	@if $(RUBY) -c $(P07_HEALTHCHECK_FILE) >/dev/null; then \
+		echo "OK: Ruby syntax valid -> $(P07_HEALTHCHECK_FILE)" >&2; \
+	else \
+		echo "FAIL: Ruby syntax invalid -> $(P07_HEALTHCHECK_FILE)" >&2; \
+		exit 1; \
+	fi
 
 p07-healthcheck-cli-test:
 	@# Run the Phase 07 Ruby CLI characterization test.
@@ -258,10 +276,43 @@ p07-healthcheck-unit-test:
 
 p07-healthcheck-tests:
 	@# Run all local Phase 07 Ruby healthcheck checks in one go.
-	$(MAKE_CMD) p07-healthcheck-syntax
-	$(MAKE_CMD) p07-healthcheck-cli-test
-	$(MAKE_CMD) p07-healthcheck-unit-test
+	@$(MAKE_CMD) --no-print-directory p07-healthcheck-syntax
+	@$(MAKE_CMD) --no-print-directory p07-healthcheck-cli-test
+	@$(MAKE_CMD) --no-print-directory p07-healthcheck-unit-test
 
 p07-healthcheck-target-env:
 	@# Run the local Ruby healthcheck helper against the remote target cluster in sock-shop-dev.
 	bash $(P07_HEALTHCHECK_TARGET_HELPER)
+
+p07-traffic-helper-syntax:
+	@# Validate the Bash syntax of the Phase 07 observability helper.
+	@if bash -n $(P07_TRAFFIC_HELPER_FILE); then \
+		echo "OK: Bash syntax valid -> $(P07_TRAFFIC_HELPER_FILE)" >&2; \
+	else \
+		echo "FAIL: Bash syntax invalid -> $(P07_TRAFFIC_HELPER_FILE)" >&2; \
+		exit 1; \
+	fi
+
+p07-traffic-helper-test-syntax:
+	@# Validate the Bash syntax of the Phase 07 Bash test file.
+	@if bash -n $(P07_TRAFFIC_HELPER_TEST); then \
+		echo "OK: Bash syntax valid -> $(P07_TRAFFIC_HELPER_TEST)" >&2; \
+	else \
+		echo "FAIL: Bash syntax invalid -> $(P07_TRAFFIC_HELPER_TEST)" >&2; \
+		exit 1; \
+	fi
+
+p07-traffic-helper-test:
+	@# Run the Phase 07 Bash observability-helper tests.
+	bash $(P07_TRAFFIC_HELPER_TEST)
+
+p07-traffic-helper-tests:
+	@# Run all local Phase 07 Bash observability-helper checks in one go.
+	@$(MAKE_CMD) --no-print-directory p07-traffic-helper-syntax
+	@$(MAKE_CMD) --no-print-directory p07-traffic-helper-test-syntax
+	@$(MAKE_CMD) --no-print-directory p07-traffic-helper-test
+
+p07-tests:
+	@# Run all current local Phase 07 Ruby and Bash checks in one go.
+	@$(MAKE_CMD) --no-print-directory p07-healthcheck-tests
+	@$(MAKE_CMD) --no-print-directory p07-traffic-helper-tests

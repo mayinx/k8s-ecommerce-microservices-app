@@ -30,21 +30,17 @@
 #   code becomes importable for unit testing without triggering side effects. 
 #   Additionally, it follows UNIX best practices by separating machine-readable 
 #   data (stdout) from human-readable logs (stderr).
-
+#  
 # INSTRUCTIONAL NOTE:
 #   This script follows two core engineering principles:
 #   1. Modular Structure: Uses an Execution Guard (__FILE__ == $0) to separate 
 #      logic from execution, enabling isolated unit testing.
-#   2. Standard Streams: Separates data (stdout) from logs (stderr) to ensure 
-#      the output is "composable" and can be parsed by automation tools (like jq).
-
- 
-#   2. Observability: Informational logs are sent to 'stderr' to keep 'stdout' 
-#      reserved for pure, machine-readable JSON payloads.
+#   2. Standard Streams: Separates data (stdout) from informational logs (stderr) 
+#      to ensure the output is "composable" and can be parsed by automation tools (like jq). 
 #   3. Pipeline Readiness: This separation allows tools like 'jq' or GitHub 
 #      Actions steps to parse the health data directly from stdout without 
 #      crashing on human-readable status messages.
-
+#
 # This script was refactored to ensure reliability, testability and automation-readiness:
 #
 #   1. Modular Structure & Testability: Logic is encapsulated in a class accompanied 

@@ -225,8 +225,23 @@ By the end of the phase, the project had proven:
 - **Proof:** `tests/ruby/test_healthcheck_cli.rb` verifies process-level behavior via `Open3`, while `tests/ruby/test_healthcheck.rb` verifies parsing, aggregation, failure handling, delay execution, and empty-payload hardening in isolation.
 - **Next-step impact:** The Ruby helper now has a stronger and more explainable test story for mentors, reviewers, and later CI quality gates.
 
+### P07-D07 — Bash helper shape = move runtime flow behind `main()` and protect it with a Bash execution guard
 
+- **Decision:** Move the repo-owned Bash observability helper behind `main()` and add a Bash execution guard so the file can be sourced safely by tests without triggering prompt handling or the long-running traffic loop.
+- **Why:** The original file shape tied helper loading and runtime start together, which blocked clean automated testing of function-level logic.
+- **Proof:** `generate-sockshop-traffic.sh` can now be sourced safely by `tests/bash/test_generate_sockshop_traffic.sh`, while the preserved invalid-input CLI checks still behave as expected during direct execution.
+- **Next-step impact:** The Bash helper becomes a stable owned test surface for later CI integration and further Phase 07 Bash-side quality work.
 
+### P07-D08 — Bash test model = use a dependency-free native Bash test harness for the first Bash test layer
+
+- **Decision:** Implement the first automated Bash test layer as a plain native Bash test harness instead of introducing an external Bash testing framework.
+- **Why:** Phase 07 needs a small, fast, and locally runnable Bash test path without adding another tool dependency first. A native Bash test file is sufficient here because the initial scope is intentionally narrow:
+  - preserve key CLI error behavior
+  - verify a few deterministic helper functions after safe sourcing
+- **Proof:** `tests/bash/test_generate_sockshop_traffic.sh` runs successfully with plain `bash` and verifies both:
+  - direct CLI invalid-input behavior
+  - function-level helper logic after sourcing
+- **Next-step impact:** The Bash helper now has a lightweight test path that is easy to run locally and easy to integrate into CI. If the Bash test surface grows later, a dedicated Bash test framework can still be introduced from a working baseline.
 
 ---
 
