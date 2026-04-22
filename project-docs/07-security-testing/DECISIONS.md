@@ -264,6 +264,29 @@ By the end of the phase, the project had proven:
 - **Proof:** The Step 5 compatibility baseline explicitly selects `id`, `name`, and `price` as the functional core, while intentionally leaving `description`, `imageUrl`, `count`, and `tag` outside strict validation.
 - **Next-step impact:** The first Python contract guard provides a high-signal baseline for downstream compatibility and can later be tightened deliberately if additional hard dependencies of the `front-end` service become clear.
 
+
+### P07-D11 — Live Python contract smoke = reuse the proven Step 5 contract guard instead of creating a second validation path
+
+- **Decision:** Reuse the existing Step 5 Python contract guard for the first live catalogue API smoke test instead of implementing separate live-only validation logic.
+- **Why:** The local contract logic is already proven and deterministic. Reusing it against the live API keeps the validation model consistent and avoids maintaining two different contract-check implementations.
+- **Proof:** `tests/python/test_contract_guard_live.py` fetches the live `/catalogue` response and passes the parsed payload directly into `validate_catalogue_contract(...)`.
+- **Next-step impact:** The Python QA layer now spans both deterministic local validation and explicit live environment smoke validation, while still keeping one shared contract-check implementation.
+
+### P07-D12 — Live contract smoke = keep environment-facing validation separate from the default deterministic Phase 07 test loop
+
+- **Decision:** Keep the live catalogue contract smoke test out of the default `p07-tests` aggregate target.
+- **Why:** The Phase 07 default local loop should remain stable and deterministic. The live smoke path is intentionally environment-dependent and must therefore remain an explicit opt-in validation step.
+- **Proof:** The new Make targets expose `p07-contract-guard-live-dev`, `p07-contract-guard-live-prod`, and `p07-contract-guard-live-local` separately, while `p07-tests` continues to cover the deterministic Ruby, Bash, and local Python layers only.
+- **Next-step impact:** Phase 07 preserves a clean distinction between local deterministic validation and live smoke validation, reducing noise and avoiding unnecessary flakiness in the default local test run.
+
+### P07-D13 — Live routing default = use the public `dev` edge URL with environment-variable override
+
+- **Decision:** Use the public `dev` edge URL as the default live contract-smoke target, while keeping the base URL configurable through `SOCKSHOP_CONTRACT_BASE_URL`.
+- **Why:** This makes the first live smoke path easy to execute from the workstation and from CI without requiring an in-cluster execution context or cluster-internal DNS assumptions.
+- **Proof:** `test_contract_guard_live.py` defaults to `https://dev-sockshop.cdco.dev`, and the Make targets allow `dev`, `prod`, or local port-forward execution by overriding the base URL.
+- **Next-step impact:** The live Python contract smoke check remains easy to reuse across environments while keeping the validation logic unchanged.
+
+
 ---
 
 ## Next-step implications 

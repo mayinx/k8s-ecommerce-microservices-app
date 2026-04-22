@@ -33,6 +33,9 @@ P07_PYTHON_REQUIREMENTS := tests/python/requirements-p07.txt
 P07_CONTRACT_GUARD_FILE := tests/python/sockshop_contract_guard.py
 P07_CONTRACT_GUARD_TEST := tests/python/test_contract_guard.py	
 
+P07_CONTRACT_GUARD_LIVE_TEST := tests/python/test_contract_guard_live.py
+P07_CONTRACT_BASE_URL ?= https://dev-sockshop.cdco.dev
+
 # -----------------------------------------------------------------------------
 # Phony
 # -----------------------------------------------------------------------------
@@ -73,7 +76,17 @@ P07_CONTRACT_GUARD_TEST := tests/python/test_contract_guard.py
 	p07-traffic-helper-test-syntax \
 	p07-traffic-helper-test \
 	p07-traffic-helper-tests \
-	p07-tests
+	p07-python-venv \
+	p07-contract-guard-syntax \
+	p07-contract-guard-test \
+	p07-contract-guard-tests \
+	p07-contract-guard-live-test \
+	p07-contract-guard-live-dev \
+	p07-contract-guard-live-prod \
+	p07-contract-guard-live-local \
+	p07-tests \
+	p07-tests-live \
+	p07-tests-all
 
 # -----------------------------------------------------------------------------
 # Help
@@ -112,7 +125,17 @@ help:
 	@echo "  p07-traffic-helper-test-syntax - Validate Bash syntax of the Phase 07 Bash test file"
 	@echo "  p07-traffic-helper-test    - Run the Phase 07 Bash observability-helper tests"
 	@echo "  p07-traffic-helper-tests   - Run all local Phase 07 Bash observability-helper checks"
-	@echo "  p07-tests                  - Run all current local Phase 07 Ruby and Bash checks"
+	@echo "  p07-python-venv            - Create/update the local Phase 07 Python virtual environment"
+	@echo "  p07-contract-guard-syntax  - Validate Python syntax of the Phase 07 contract-guard module and test file"
+	@echo "  p07-contract-guard-test    - Run the Phase 07 Python contract-guard tests"
+	@echo "  p07-contract-guard-tests   - Run all local Phase 07 Python contract-guard checks"
+	@echo "  p07-contract-guard-live-test - Run the Phase 07 live Python contract smoke against the configured base URL"
+	@echo "  p07-contract-guard-live-dev - Run the Phase 07 live Python contract smoke against the dev edge"
+	@echo "  p07-contract-guard-live-prod - Run the Phase 07 live Python contract smoke against the prod edge"
+	@echo "  p07-contract-guard-live-local - Run the Phase 07 live Python contract smoke against a local port-forward"
+	@echo "  p07-tests                  - Run all deterministic local Phase 07 Ruby, Bash, and Python checks"
+	@echo "  p07-tests-live             - Run the explicit live Phase 07 smoke checks"
+	@echo "  p07-tests-all              - Run all deterministic and live Phase 07 checks"
 
 # -----------------------------------------------------------------------------
 # Upstream generation / verification helpers
@@ -322,7 +345,7 @@ p07-traffic-helper-tests:
 	@$(MAKE_CMD) --no-print-directory p07-traffic-helper-test-syntax
 	@$(MAKE_CMD) --no-print-directory p07-traffic-helper-test
 
-# python qa utility (contract guard)
+# python qa utility (contract guard) - local
 
 p07-python-venv:
 	@# Create/update the local Phase 07 Python virtual environment and install its packages.
@@ -352,10 +375,42 @@ p07-contract-guard-tests:
 	@$(MAKE_CMD) --no-print-directory p07-contract-guard-syntax
 	@$(MAKE_CMD) --no-print-directory p07-contract-guard-test
 
+# python - contract guard tests - live target
+
+p07-contract-guard-live-test:
+	@# Run the Phase 07 live Python contract smoke against the configured base URL.
+	@echo "RUN: Phase 07 live Python contract smoke -> $(P07_CONTRACT_BASE_URL)/catalogue" >&2
+	@SOCKSHOP_CONTRACT_BASE_URL=$(P07_CONTRACT_BASE_URL) \
+	$(P07_PYTHON_BIN) -m pytest -q $(P07_CONTRACT_GUARD_LIVE_TEST)
+	@echo "OK: Phase 07 live Python contract smoke passed" >&2
+
+p07-contract-guard-live-dev:
+	@# Run the live Python contract smoke test against the dev edge.
+	@$(MAKE_CMD) --no-print-directory p07-contract-guard-live-test
+
+p07-contract-guard-live-prod:
+	@# Run the live Python contract smoke test against the prod edge.
+	@$(MAKE_CMD) --no-print-directory p07-contract-guard-live-test \
+		P07_CONTRACT_BASE_URL=https://prod-sockshop.cdco.dev
+
+p07-contract-guard-live-local:
+	@# Run the live Python contract smoke test against a local port-forward.
+	@$(MAKE_CMD) --no-print-directory p07-contract-guard-live-test \
+		P07_CONTRACT_BASE_URL=http://127.0.0.1:18080
+
 # aggregate
 
 p07-tests:
-	@# Run all current local Phase 07 Ruby, Bash, and Python checks in one go.
+	@# Run all deterministic local Phase 07 Ruby, Bash, and Python checks in one go.
 	@$(MAKE_CMD) --no-print-directory p07-healthcheck-tests
 	@$(MAKE_CMD) --no-print-directory p07-traffic-helper-tests
-	@$(MAKE_CMD) --no-print-directory p07-contract-guard-tests	
+	@$(MAKE_CMD) --no-print-directory p07-contract-guard-tests
+
+p07-tests-live:
+	@# Run the explicit live Phase 07 smoke checks.
+	@$(MAKE_CMD) --no-print-directory p07-contract-guard-live-dev
+
+p07-tests-all:
+	@# Run all deterministic and live Phase 07 checks in one go.
+	@$(MAKE_CMD) --no-print-directory p07-tests
+	@$(MAKE_CMD) --no-print-directory p07-tests-live

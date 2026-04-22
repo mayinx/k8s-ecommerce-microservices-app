@@ -9,12 +9,12 @@
 #   (called from `tests/python/test_contract_guard.py`)
 #
 # PURPOSE:
-#   This module acts as a focused compatibility guard for the field subset
-#   currently treated as the functional core of the catalogue response.
+#   This module acts as a focused compatibility guard and shared validation engine 
+#   for the field subset currently treated as the functional core of the catalogue response.
 #   A service can be reachable and still return structurally broken data. This guard 
 #   adds a second layer beyond simple health checks:
-#   - health checks answer: "Is the service up?"
-#   - this guard answers:   "Is the returned payload still structurally usable?"
+#   - Ruby healthcheck answers: "Is the service up?"
+#   - This guard answers:       "Is the returned payload still structurally usable?"
 #
 # USAGE:
 #   Import and call:
@@ -33,6 +33,7 @@
 ################################################################################
 
 from jsonschema import Draft202012Validator
+from typing import Any
 
 # Minimal consumer-side compatibility schema for catalogue responses.
 # - This is not treated as the authoritative upstream API specification.
@@ -57,12 +58,26 @@ CATALOGUE_COMPAT_SCHEMA = {
 # Reusable validator instance built from the schema above.
 _VALIDATOR = Draft202012Validator(CATALOGUE_COMPAT_SCHEMA)
 
-
-def validate_catalogue_contract(payload: object) -> bool:
-    """Validate a parsed catalogue payload against the compatibility schema."""
-
-    # Collect all schema violations produced by the validator.       
-    # iter_errors yields every validation error it finds instead of stopping at the first one  
+# Shared Validation Engine: Used by both local unit tests and live smoke tests.
+def validate_catalogue_contract(payload: list[dict[str, Any]]) -> bool:
+    """
+    Validates a parsed catalogue payload against the minimum compatibility schema.
+    
+    Args:
+        payload (object): The parsed JSON response (list of dicts).
+        
+    Returns:
+        bool: True if the payload satisfies the Tolerant Reader contract.
+        
+    Raises:
+        ValueError: If contract violations are found, aggregating all missing 
+                    or malformed fields into a single error message.
+    """
+    
+    # Collect all schema violations produced by the validator.
+    #       
+    # iter_errors yields every validation error it finds instead of stopping at the first one.
+    # These errors are then sorted by their exact JSON path.  
     errors = sorted(_VALIDATOR.iter_errors(payload), key=lambda error: list(error.path))
 
     # If any schema violations were found, convert them into a readable Python exception.

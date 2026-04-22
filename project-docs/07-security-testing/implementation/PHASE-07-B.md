@@ -209,6 +209,8 @@ CATALOGUE_COMPAT_SCHEMA = {
 
 _VALIDATOR = Draft202012Validator(CATALOGUE_COMPAT_SCHEMA)
 
+# Validation Engine: Used by local unit tests 
+# Will later act as shared validation engine used by both local unit tests and live smoke tests
 def validate_catalogue_contract(payload: object) -> bool:
     """Validate a parsed catalogue payload against the minimum compatibility schema."""
     errors = sorted(_VALIDATOR.iter_errors(payload), key=lambda error: list(error.path))
@@ -244,13 +246,15 @@ The first Python test layer is implemented in `tests/python/test_contract_guard.
 - No cluster access
 - No dependency on a running environment
 
+These Python tests are **unit tests** of the contract-guard utility: They validate the **contract logic** locally and deterministically against static sample payloads, without any live network or cluster dependency.
+
 ~~~python
 # tests/python/test_contract_guard.py
 
 import pytest
 
+# Import the validation engine for local, isolated testing against static payloads.
 from tests.python.sockshop_contract_guard import validate_catalogue_contract
-
 
 def test_valid_catalogue_payload_passes_contract_guard():
     payload = [
@@ -312,7 +316,7 @@ These tests prove the core behavior of the contract guard:
 
 #### Run the local Python contract-guard checks
 
-Once the files are in place, the full local Python checks can be executed from repo root. To keep the local verification flow consistent with the Phase 07 Ruby ++ Bash work and to make things easier, the root `Makefile` was again extended with **several helper targets for the Python tests**: 
+Once the files are in place, the full local Python checks can be executed from repo root. To keep the local verification flow consistent with the Phase 07 Ruby + Bash work and to make things easier, the root `Makefile` was again extended with **several helper targets for the Python tests**: 
 
 ~~~bash
 # Run the full local Python contract-guard check via Make.
@@ -354,21 +358,275 @@ $ make p07-contract-guard-tests
 $ make p07-tests
 ~~~
 
-At this point, the Python layer remains intentionally local and deterministic. A later step can reuse the same contract-guard utility against a live catalogue response from a deployed environment.
+At this point, the Python layer remains intentionally local and deterministic. 
+
+The next step reuses the same contract-guard utility against a live `catalogue` response from the deployed `dev`-environment.
+
+### Result
+
+Step 5 established a first dedicated **Python QA layer** of Phase 07. 
+
+This QA Layer functions now as a **local and reusable consumer-side contract guard** for catalogue responses.
+
+The successful end state is shown by these signals / verification points:
+
+- A small **project-local Python environment** now exists under `tests/venv/p07-python` and can be recreated through the dedicated Phase 07 Make target
+- The new Python contract-guard module validates a **minimal, tolerant consumer-side compatibility schema** for `catalogue` responses
+- The first **Python tests passed locally** as successfull **unit tests of the contract-guard utility** - without requiring any live network or cluster access
+- The Python layer now follows the same operational pattern already established for Ruby and Bash:
+  - **environment setup**
+  - **syntax validation**
+  - **dedicated test execution**
+  - **Makefile-based local rerun flow**
+- The **Phase 07 aggregated Make target `p07-tests**` now **includes Ruby, Bash, and Python**
+- The Python contract-guard utility is now in place as a **reusable QA building block** for the later **live API contract smoke check in** the next step
+
+At this point, the Phase 07 test layer validates 
+- **Service health/reachability** (Ruby) 
+- **Helper-script behavior** (Bash) 
+- **Response-shape compatibility/expectations** (Python) 
+
+---
+
+## Step 6 — Reuse the Python contract guard against the live catalogue API
+
+### Rationale
+
+Step 5 established the Python **contract guard** as a **local and deterministic QA utility**. While this proves our validation logic is sound, it has only been tested within the safety of static, in-memory mock data.
+
+The next progression is to reuse that exact same validation logic against the **live catalogue API**. This closes the gap between:
+
+- **Local contract correctness** and
+- **Live environment contract validity**
+
+The key design principle from Step 5 remains unchanged: 
+- The live check must **reuse the already proven Python contract guard** instead of introducing a second, separate validation path.
+
+#### Separation of Concerns
+
+At the same time, this live check is **not folded into the default deterministic local test set** from Step 5:
+
+- The Step 5 local tests remain the stable foundation
+- The live API contract check is added as a **separate smoke layer**
+- The default local Phase 07 loop remains free from network or environment dependency
+
+### Action
+
+#### Implementing a dedicated live Python smoke test for the catalogue contract
+
+To utilize the Step 5 catalogue contract guard against the live application, we create a second Python test file under `tests/python/test_contract_guard_live.py`.
+
+This smoke test 
+- fetches the live `/catalogue` response from a configurable base URL 
+- and passes the parsed JSON payload into the already existing `validate_catalogue_contract(...)` function from Step 5 fro resposne schema validation.
+
+Below an excerpt of the implementation (for the full commented script see `test/python/test_contract_guard_live.py`):
+
+~~~python
+# test_contract_guard_live.py
+#!/usr/bin/env python3
+
+# ...
+
+import pytest
+
+# Import the shared validation engine to evaluate the live payload.
+from tests.python.sockshop_contract_guard import validate_catalogue_contract
+
+# Default live target for the first contract smoke check.
+DEFAULT_BASE_URL = "https://dev-sockshop.cdco.dev"
+
+def test_live_catalogue_contract_guard():
+    # Resolve the base URL from the environment if present.
+    base_url = os.getenv("SOCKSHOP_CONTRACT_BASE_URL", DEFAULT_BASE_URL).rstrip("/")
+    catalogue_url = f"{base_url}/catalogue"
+
+    try:
+        request = Request(
+            catalogue_url,
+            headers={
+                "User-Agent": "Mozilla/5.0",
+                "Accept": "application/json",
+            },
+        )
+
+        with urlopen(catalogue_url, timeout=10) as response:
+              if response.status != 200:
+                pytest.fail(f"Live catalogue request returned HTTP {response.status}: {catalogue_url}")
+
+            # Parse the live JSON payload directly from the response stream.
+            payload = json.load(response)
+
+    except HTTPError as exc:
+        pytest.fail(f"Live catalogue request failed with HTTP status {exc.code}: {catalogue_url}")
+
+    except URLError as exc:
+        pytest.fail(f"Live catalogue request could not reach the target URL: {catalogue_url} ({exc})")
+
+    except json.JSONDecodeError as exc:
+        pytest.fail(f"Live catalogue response is not valid JSON: {catalogue_url} ({exc})")
+
+    # Reuse the already proven Step 5 contract guard - now to evaluate a live payload instead
+    assert validate_catalogue_contract(payload) is True
+~~~
+
+This is not a unit test anymore. It is a **live integration / smoke test** that reuses the already proven Step 5 contract guard against a real deployed endpoint.
+
+The test intentionally defaults to the **public `dev` edge URL**:
+- it remains easy to execute from the workstation
+- it works naturally with later CI usage
+- it avoids requiring cluster-internal DNS, `kubectl exec`, or an in-cluster test runner for the first live smoke step
+
+This keeps the live smoke test intentionally small:
+
+- 1 Live endpoint
+- 1 Shared validation engine
+- 1 Explicit contract decision point
+
+
+> [!INFO] **Concept: The "Smoke Test"**
+> In software engineering, a **Smoke Test** is a **rapid, preliminary check** designed to answer one simple question: *"Is the system stable enough to warrant further testing?"*
+> 
+> * **The Origin:** The term comes from hardware engineering. When a new circuit board is powered on for the first time: does smoke come out? If yes, it needs to be unpluged immediately. No one wastes more time checking if some LEDs blink.
+> * **In CI/CD & DevOps:** A smoke test acts as the first line of defense. Instead of running a comprehensive, hour-long test suite, the pipeline runs a 5-second check (e.g., *"Is the API reachable? Is the database connected?"*). 
+> * **The Goal:** **Fail fast**. If the smoke test fails, the deployment is rejected immediately, saving valuable compute resources and developer time.
+
+> [!NOTE] **🧭 Why the public edge URL is used here**
+>
+> This first live contract smoke test validates the catalogue response through the deployed application path exposed at the public edge (htrtps://dev-smoke-shop.cdco.dev), not through a cluster-internal service-to-service route.
+>
+> That is a deliberate choice in favor of usability (for this phase): The smoke check becomes easy to run from the workstation and from CI, while still validating the live deployed path.
+> 
+> A later step can still add a more internal validation path if needed.
+
+> [!NOTE] **🧩 Why `urllib` is used instead of `requests`**
+>
+> Only one simple HTTP GET request is needed in this step. Python’s standard library is sufficient for that purpose and avoids expanding the dependency surface of the Phase 07 Python tooling with an additional HTTP client package.
+
+#### Keep the live smoke path separate from the deterministic Step 5 loop
+
+The live contract smoke check is intentionally **not** added to the default `p07-tests` aggregate target in this step.
+
+That separation is deliberate:
+
+- `p07-tests` remains the fast and deterministic local baseline
+- the live contract smoke path remains an explicit environment-facing validation step
+- edge or network instability does not pollute the default local Phase 07 loop
+
+This keeps the signal model clean:
+
+- **default test path** = deterministic
+- **live smoke path** = environment-dependent by design
+
+#### Running the live Python contract smoke check
+
+Once the live test file is in place, the live Python contract smoke test can be executed from repo root against the configured target path.
+
+To keep the live verification flow consistent with the existing Phase 07 helper pattern, the root `Makefile` was extended with dedicated live Python smoke targets for:
+
+- `dev`
+- `prod`
+- local port-forward execution
+- aggregate live test execution
+
+##### Live verification - Running the tests against the remote cluster
+
+~~~bash
+# Run the live Python contract smoke test against the dev edge.
+$ make p07-contract-guard-live-dev
+RUN: Phase 07 live Python contract smoke -> https://dev-sockshop.cdco.dev/catalogue
+.                                                                           [100%]
+1 passed in 0.17s
+OK: Phase 07 live Python contract smoke passed
+~~~
+
+An optional `prod` check can also be run explicitly, while the default live path remains focused on `dev`:
+
+~~~bash
+$ make p07-contract-guard-live-prod
+RUN: Phase 07 live Python contract smoke -> https://prod-sockshop.cdco.dev/catalogue
+.                                                                           [100%]
+1 passed in 0.16s
+OK: Phase 07 live Python contract smoke passed
+~~~
+
+A manual raw-command equivalent for the dev edge is:
+
+~~~bash
+# Run the live contract smoke test directly without the Make helper.
+$ SOCKSHOP_CONTRACT_BASE_URL=https://dev-sockshop.cdco.dev \
+  tests/venv/p07-python/bin/python -m pytest -q tests/python/test_contract_guard_live.py
+.                                                                                 [100%]
+1 passed in 0.15s  
+~~~
+
+##### Local Debugging - Run the tests against the local cluster
+
+For local debugging, the same live smoke logic can also be executed against a local port-forward instead of the public edge.
+
+Example local port-forward scenario:
+
+~~~bash
+# Terminal 1: Expose the catalogue service locally from the dev namespace.
+$ kubectl port-forward -n sock-shop-dev svc/catalogue 18080:80
+Forwarding from 127.0.0.1:18080 -> 80
+Forwarding from [::1]:18080 -> 80
+Handling connection for 18080
+
+# Terminal 2: Run the same live contract smoke test against localhost.
+$ make p07-contract-guard-live-local
+RUN: Phase 07 live Python contract smoke -> http://127.0.0.1:18080/catalogue
+.                                                                      [100%]
+1 passed in 0.09s
+OK: Phase 07 live Python contract smoke passed
+~~~
+
+Note: The initial local port-forward path had two independent blockers: 
+- Local port `8080` was already occupied by Docker, 
+- A separate VPN-related networking issue disrupted the alternative `18080` forwarding path. 
+After switching to `18080` and removing the VPN interference, the local live contract smoke test passed successfully.
+
+
+
+#### Local dev + test cycle
+
+The Python QA flow now has clearly separated deterministic and live execution paths:
+
+~~~bash
+# Deterministic local Python contract checks
+$ make p07-contract-guard-tests
+
+# Explicit live API contract smoke check against the public dev edge
+$ make p07-contract-guard-live-dev
+
+# Optional local debugging path through a port-forward
+$ make p07-contract-guard-live-local
+
+# Aggregate live Phase 07 smoke checks
+$ make p07-tests-live
+
+# Full deterministic + live Phase 07 check set
+$ make p07-tests-all
+~~~
+
+The default aggregate live path is exposed separately through:
+
+~~~bash
+$ make p07-tests-live
+~~~
+
+This preserves the Step 5 local foundation while keeping the live smoke path explicit and separately runnable.
 
 ### Expected result / success criteria
 
 This step is successful when the following conditions are met:
 
-- A small project-local Python environment exists under `tests/venv/p07-python` **and can be recreated through the dedicated Phase 07 Make target**
-- The Python contract-guard module validates a **minimal, tolerant consumer-side compatibility schema** for catalogue responses
-- The Python unit tests pass **locally and deterministically** without requiring live network or cluster access
-- The schema is clearly framed as a **consumer-side compatibility guard**, not as a second canonical upstream API truth
-- The Makefile exposes a **short, explicit, and repeatable** local verification flow for the Python layer, including:
-  - **environment setup**
-  - **syntax validation**
-  - **contract-guard test execution**
-- The full Phase 07 aggregate target `p07-tests` now includes Ruby, Bash, and Python
-- The Python contract-guard utility is now in place as a **reusable QA building block** for later live API contract checks in a subsequent phase step
+- The Step 5 Python contract guard is reused unchanged against a live fetched catalogue response
+- The live smoke test passes against the public `dev` catalogue endpoint
+- The live smoke path remains separate from the default deterministic `p07-tests` aggregate target
+- The Makefile exposes a short and explicit live Python contract-smoke command for `dev`
+- An optional local port-forward execution path exists for debugging without changing test logic
+- An optional `prod` execution path exists but is not the default target
+
 
  

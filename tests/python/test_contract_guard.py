@@ -21,6 +21,7 @@
 
 import pytest
 
+# Import the validation engine for local, isolated testing against static payloads.
 from tests.python.sockshop_contract_guard import validate_catalogue_contract
 
 def test_valid_catalogue_payload_passes_contract_guard():
