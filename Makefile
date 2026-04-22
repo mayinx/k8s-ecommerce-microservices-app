@@ -24,8 +24,14 @@ P07_HEALTHCHECK_FILE := healthcheck/healthcheck.rb
 P07_HEALTHCHECK_CLI_TEST := tests/ruby/test_healthcheck_cli.rb
 P07_HEALTHCHECK_UNIT_TEST := tests/ruby/test_healthcheck.rb
 P07_HEALTHCHECK_TARGET_HELPER := ./scripts/testing/run-healthcheck-target-env.sh
+
 P07_TRAFFIC_HELPER_FILE := scripts/observability/generate-sockshop-traffic.sh
 P07_TRAFFIC_HELPER_TEST := tests/bash/test_generate_sockshop_traffic.sh
+
+P07_PYTHON_BIN := tests/venv/p07-python/bin/python
+P07_PYTHON_REQUIREMENTS := tests/python/requirements-p07.txt
+P07_CONTRACT_GUARD_FILE := tests/python/sockshop_contract_guard.py
+P07_CONTRACT_GUARD_TEST := tests/python/test_contract_guard.py	
 
 # -----------------------------------------------------------------------------
 # Phony
@@ -257,6 +263,8 @@ p06-traffic-prod-live:
 # - project-docs/07-security-testing/RUNBOOK.md
 # -------------------------------------------------------------------
 
+# Ruby Healthcheck
+
 p07-healthcheck-syntax:
 	@# Validate the Ruby syntax of the Phase 07 healthcheck helper.
 	@if $(RUBY) -c $(P07_HEALTHCHECK_FILE) >/dev/null; then \
@@ -283,6 +291,8 @@ p07-healthcheck-tests:
 p07-healthcheck-target-env:
 	@# Run the local Ruby healthcheck helper against the remote target cluster in sock-shop-dev.
 	bash $(P07_HEALTHCHECK_TARGET_HELPER)
+
+# Bash traffic generatort observability helper
 
 p07-traffic-helper-syntax:
 	@# Validate the Bash syntax of the Phase 07 observability helper.
@@ -312,7 +322,40 @@ p07-traffic-helper-tests:
 	@$(MAKE_CMD) --no-print-directory p07-traffic-helper-test-syntax
 	@$(MAKE_CMD) --no-print-directory p07-traffic-helper-test
 
+# python qa utility (contract guard)
+
+p07-python-venv:
+	@# Create/update the local Phase 07 Python virtual environment and install its packages.
+	@python3 -m venv tests/venv/p07-python
+	@$(P07_PYTHON_BIN) -m pip install --upgrade pip >/dev/null
+	@$(P07_PYTHON_BIN) -m pip install -r $(P07_PYTHON_REQUIREMENTS) >/dev/null
+	@echo "OK: Phase 07 Python environment ready -> tests/venv/p07-python" >&2
+
+p07-contract-guard-syntax:
+	@# Validate Python syntax of the Phase 07 contract-guard module and test file.
+	@if $(P07_PYTHON_BIN) -m py_compile $(P07_CONTRACT_GUARD_FILE) $(P07_CONTRACT_GUARD_TEST); then \
+		echo "OK: Python syntax valid -> $(P07_CONTRACT_GUARD_FILE), $(P07_CONTRACT_GUARD_TEST)" >&2; \
+	else \
+		echo "FAIL: Python syntax invalid -> Phase 07 contract guard files" >&2; \
+		exit 1; \
+	fi
+
+p07-contract-guard-test:
+	@# Run the Phase 07 Python contract-guard tests.
+	@echo "RUN: Phase 07 Python contract-guard tests -> $(P07_CONTRACT_GUARD_TEST)" >&2
+	@$(P07_PYTHON_BIN) -m pytest -q $(P07_CONTRACT_GUARD_TEST)
+	@echo "OK: Phase 07 Python contract-guard tests passed" >&2
+
+p07-contract-guard-tests:
+	@# Run all local Phase 07 Python contract-guard checks in one go.
+	@$(MAKE_CMD) --no-print-directory p07-python-venv
+	@$(MAKE_CMD) --no-print-directory p07-contract-guard-syntax
+	@$(MAKE_CMD) --no-print-directory p07-contract-guard-test
+
+# aggregate
+
 p07-tests:
-	@# Run all current local Phase 07 Ruby and Bash checks in one go.
+	@# Run all current local Phase 07 Ruby, Bash, and Python checks in one go.
 	@$(MAKE_CMD) --no-print-directory p07-healthcheck-tests
 	@$(MAKE_CMD) --no-print-directory p07-traffic-helper-tests
+	@$(MAKE_CMD) --no-print-directory p07-contract-guard-tests	

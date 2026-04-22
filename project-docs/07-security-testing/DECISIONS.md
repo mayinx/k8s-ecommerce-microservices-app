@@ -243,6 +243,27 @@ By the end of the phase, the project had proven:
   - function-level helper logic after sourcing
 - **Next-step impact:** The Bash helper now has a lightweight test path that is easy to run locally and easy to integrate into CI. If the Bash test surface grows later, a dedicated Bash test framework can still be introduced from a working baseline.
 
+### P07-D09 — Python contract model = use a consumer-side compatibility guard instead of a provider-authoritative schema
+
+- **Decision:** Implement the Phase 07 Python schema as a consumer-side compatibility guard for catalogue responses, not as the canonical provider specification of the upstream API.
+- **Why:** The project does not own the upstream service contract formally. The Python layer should therefore protect only the minimum response shape this project depends on, without claiming ownership of the entire provider schema.
+- **Proof:** `tests/python/sockshop_contract_guard.py` validates a small subset-based schema focused on required consumer fields such as `id`, `name`, and `price`, while still tolerating additional upstream fields.
+- **Next-step impact:** Later live API contract checks can reuse the same guard.
+
+### P07-D10 — Python test scope = keep the first contract-guard layer local and deterministic
+
+- **Decision:** Keep the first Python contract-guard step fully local and deterministic instead of coupling it immediately to live HTTP requests or cluster-internal endpoints.
+- **Why:** Phase 07 first needs a reusable and reliable Python QA utility whose correctness can be proven independently of network reachability, cluster DNS, or deployment timing.
+- **Proof:** `tests/python/test_contract_guard.py` validates the contract logic entirely with local sample payloads and passes without any live environment dependency.
+- **Next-step impact:** A later step can reuse the same contract guard against a live fetched catalogue response, while Step 5 already provides a stable Python foundation.
+
+### P07-D11 — Reference consumer and schema scope = use `front-end` as the consumer baseline and keep the first contract intentionally narrow
+
+- **Decision:** Use the `front-end` service as the reference downstream consumer for the initial catalogue compatibility baseline, and limit the first strict schema to the functional-core fields `id`, `name`, and `price`.
+- **Why:** In this project, the `front-end` service is the most immediate downstream consumer of catalogue data. At the same time, the `front-end` implementation is not directly analyzed in this step, so the first schema must remain narrow and defensible: strict enough to catch likely breaking changes, but tolerant enough to avoid unnecessary pipeline failures from non-breaking metadata or cosmetic content changes.
+- **Proof:** The Step 5 compatibility baseline explicitly selects `id`, `name`, and `price` as the functional core, while intentionally leaving `description`, `imageUrl`, `count`, and `tag` outside strict validation.
+- **Next-step impact:** The first Python contract guard provides a high-signal baseline for downstream compatibility and can later be tightened deliberately if additional hard dependencies of the `front-end` service become clear.
+
 ---
 
 ## Next-step implications 

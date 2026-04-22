@@ -1273,7 +1273,7 @@ This is the same structural principle already introduced in Step 3 on the Ruby s
 - Sourcing becomes safe for tests 
 - Helper functions provide a test surface and can now be called in isolation without triggering prompts or the infinite loop
 
-#### Add the first dependency-free Bash test file
+#### Adding the first dependency-free Bash test file
 
 Once the execution guard is in place and a testable interface is present, the first **dependency-free Bash test layer** can be implemented in `tests/bash/test_generate_sockshop_traffic.sh`.
 
@@ -1380,9 +1380,9 @@ test_get_path_and_param_for_category_endpoint
 echo "All Bash helper tests passed (${PASS_COUNT} checks)."
 ~~~
 
-#### Run the Bash syntax checks and the new Bash test file
+#### Running the Bash syntax checks and the new Bash test file
 
-Once the execution guard is in place and the Bash test file exists, teh etsts can be executed from the repo root. To keep the local verification flow consistent with the Phase 07 Ruby work and to make things easier, the root `Makefile` was extended with **several helper targets for the Bash observability helper**: 
+Once the execution guard is in place and the Bash test file exists, the tests can be executed from the repo root. To keep the local verification flow consistent with the Phase 07 Ruby work and to make things easier, the root `Makefile` was extended with **several helper targets for the Bash observability helper**: 
 
 ~~~bash
 # Run the full local Bash helper check via Make.
@@ -1412,7 +1412,6 @@ $ bash -n tests/bash/test_generate_sockshop_traffic.sh
 # Run the Bash characterization and function-level checks.
 $ bash tests/bash/test_generate_sockshop_traffic.sh
 ~~~
-
  
 
 #### Local dev + test cycle
@@ -1448,7 +1447,7 @@ The successful end state is shown by these signals / verification points:
 - The local Bash edit-test cycle is now short enough for repeated refactoring work without running the full traffic loop each time
 - The manual observability role of the helper remains intact for later live traffic generation and dashboard validation
 
-Unlike the refactored Ruby `healthcheck` helper, the Bash observability helper is **not treated as a machine-chainable output too**l in this phase:
+Unlike the refactored Ruby `healthcheck` helper, the Bash observability helper is not treated as a machine-chainable output tool in this phase:
 - Its runtime output remains primarily human-facing and observability-oriented 
 - The current pipeline use is planned around **testing the script itself** rather than using it as a structured pipeline-output producer.
 
