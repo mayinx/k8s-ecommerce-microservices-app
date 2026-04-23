@@ -41,6 +41,13 @@ P07_CONTRACT_BASE_URL ?= https://dev-sockshop.cdco.dev
 P07_E2E_BASE_URL ?= https://dev-sockshop.cdco.dev
 P07_E2E_TEST := smoke.spec.js
 
+P07_TRIVY_IMAGE ?= aquasec/trivy:latest
+P07_TRIVY_SEVERITY ?= HIGH,CRITICAL
+P07_TRIVY_CACHE_VOLUME := trivy-cache
+P07_TRIVY_TMP_DIR := /tmp/p07-trivy
+P07_HEALTHCHECK_IMAGE := sockshop-healthcheck
+P07_HEALTHCHECK_IMAGE_TAR := $(P07_TRIVY_TMP_DIR)/sockshop-healthcheck.tar
+
 # -----------------------------------------------------------------------------
 # Make recipe syntax notes
 # -----------------------------------------------------------------------------
@@ -166,7 +173,10 @@ P07_E2E_TEST := smoke.spec.js
 	p07-e2e-report \
 	p07-tests \
 	p07-tests-live \
-	p07-tests-all
+	p07-tests-all \
+	p07-trivy-repo-scan \
+	p07-trivy-healthcheck-image-scan \
+	p07-trivy-scans
 
 # -----------------------------------------------------------------------------
 # Help
@@ -220,6 +230,9 @@ help:
 	@echo "  p07-tests                  - Run all deterministic local Phase 07 Ruby, Bash, and Python checks"
 	@echo "  p07-tests-live             - Run the explicit live Phase 07 smoke checks"
 	@echo "  p07-tests-all              - Run all deterministic and live Phase 07 checks"
+	@echo "  p07-trivy-repo-scan        - Run the Phase 07 Trivy filesystem scan on repo-owned paths"
+	@echo "  p07-trivy-healthcheck-image-scan - Run the Phase 07 Trivy image scan on the repo-owned healthcheck image"
+	@echo "  p07-trivy-scans            - Run the full Phase 07 Trivy security baseline"
 
 # -----------------------------------------------------------------------------
 # Upstream generation / verification helpers
@@ -536,3 +549,43 @@ p07-tests-all:
 	@# Run all deterministic and live Phase 07 checks in one go.
 	@$(MAKE_CMD) --no-print-directory p07-tests
 	@$(MAKE_CMD) --no-print-directory p07-tests-live
+
+# Trivy security baseline
+
+p07-trivy-repo-scan:
+	@# Run a Trivy filesystem scan on repo-owned paths for misconfigurations and secrets.
+	@echo "RUN: Phase 07 Trivy repo scan -> repo-owned paths" >&2
+	@docker run --rm \
+		-v "$(CURDIR)":/repo:ro \
+		-v "$(P07_TRIVY_CACHE_VOLUME)":/root/.cache/ \
+		-w /repo \
+		$(P07_TRIVY_IMAGE) fs \
+		--scanners misconfig,secret \
+		--severity $(P07_TRIVY_SEVERITY) \
+		--exit-code 1 \
+		--skip-dirs tests/e2e/node_modules \
+		--skip-dirs tests/venv \
+		--skip-dirs .git \
+		healthcheck scripts deploy/kubernetes .github tests
+	@echo "OK: Phase 07 Trivy repo scan passed" >&2
+
+p07-trivy-healthcheck-image-scan:
+	@# Build the repo-owned healthcheck image and scan it as an initial vulnerability baseline.
+	@echo "RUN: Build repo-owned healthcheck image -> $(P07_HEALTHCHECK_IMAGE)" >&2
+	@docker build -t $(P07_HEALTHCHECK_IMAGE) ./healthcheck >/dev/null
+	@mkdir -p $(P07_TRIVY_TMP_DIR)
+	@docker save -o $(P07_HEALTHCHECK_IMAGE_TAR) $(P07_HEALTHCHECK_IMAGE)
+	@echo "RUN: Phase 07 Trivy image scan -> $(P07_HEALTHCHECK_IMAGE)" >&2
+	@docker run --rm \
+		-v "$(P07_TRIVY_TMP_DIR)":/scan:ro \
+		-v "$(P07_TRIVY_CACHE_VOLUME)":/root/.cache/ \
+		$(P07_TRIVY_IMAGE) image \
+		--input /scan/sockshop-healthcheck.tar \
+		--severity $(P07_TRIVY_SEVERITY)
+	@rm -f $(P07_HEALTHCHECK_IMAGE_TAR)
+	@echo "OK: Phase 07 Trivy image scan completed" >&2
+
+p07-trivy-scans:
+	@# Run the full local Phase 07 Trivy security baseline.
+	@$(MAKE_CMD) --no-print-directory p07-trivy-repo-scan
+	@$(MAKE_CMD) --no-print-directory p07-trivy-healthcheck-image-scan

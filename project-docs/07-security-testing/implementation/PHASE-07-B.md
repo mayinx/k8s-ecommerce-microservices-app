@@ -1012,6 +1012,8 @@ At this point, the **Phase 07 test layer** validates:
 - **(3) API Response-shape compatibility** (Python) 
 - **(4) Storefront rendering in a real browser** (Playwright / JavaScript)
 
+---
+
 
 
 
