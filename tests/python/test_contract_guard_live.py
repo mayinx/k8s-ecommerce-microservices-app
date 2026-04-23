@@ -45,8 +45,9 @@ def test_live_catalogue_contract_guard():
     catalogue_url = f"{base_url}/catalogue"
 
     try:        
-        # Build an explicit HTTP request instead of relying on urllib defaults.
-        # Some public edges are stricter with default Python request profiles.
+        # Build an explicit HTTP request with browser-like headers insetad of using the 
+        # urllib from Python’s standard library. Reason: The public edge returned 
+        # 'HTTP 403 Forbidden' when the default urllib request profile was used.
         request = Request(
             catalogue_url,
             headers={

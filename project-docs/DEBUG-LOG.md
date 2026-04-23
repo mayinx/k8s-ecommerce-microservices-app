@@ -137,3 +137,88 @@ switched to db data
 System integrity was further validated using a **persistent user account**. By logging in, the application bypasses the buggy anonymous session logic. In this state, the cart functions perfectly. 
 
 As the core infrastructure (K8s, Ingress, Tunnel, and Persistence) is confirmed healthy, patching the upstream Node.js source code for this legacy demo was deemed **Out of Scope** for this deployment phase.
+
+---
+
+---
+
+## [Issue 03] Public Edge Rejects Default `urllib` Request Profile (Phase 07, Step 07)
+
+During the first implementation of the **live Python catalogue contract-guard smoke test**, the request reached the public `dev` edge but failed with **`HTTP 403 Forbidden`**.
+
+### Observed Behavior
+
+The live smoke test failed even though the catalogue endpoint itself was reachable via `curl`.
+
+~~~bash
+$ make p07-contract-guard-live-dev
+RUN: Phase 07 live Python contract smoke -> https://dev-sockshop.cdco.dev/catalogue
+...
+E   Failed: Live catalogue request failed with HTTP status 403: https://dev-sockshop.cdco.dev/catalogue
+~~~
+
+At the same time, direct manual checks against the same edge returned `200 OK`:
+
+~~~bash
+$ curl -I https://dev-sockshop.cdco.dev/catalogue
+HTTP/2 200
+...
+~~~
+
+### Investigation & Triage
+
+The proven reachability via `curl` and browser checks ruled out a basic outage of the `dev` edge itself. 
+
+The problem was narrowed down to the **request profile** used by the Python live smoke test:
+
+**Diagnosis:** 
+- The **default Python `urllib` request profile was rejected by the public edge**, while **browser-like requests were accepted**. 
+- This was therefore **not an authentication problem**, but a request-profile / edge-filtering problem.
+
+### Resolution
+
+To mimic browser-like requests, the live **Python smoke test** was updated **to build an explicit `Request(...)` with browser-like headers**:
+
+**Original implementation (default  `urllib` request profile):**
+
+~~~python
+    # ...
+    catalogue_url = f"{base_url}/catalogue"
+
+    try:        
+        with urlopen(catalogue_url, timeout=10) as response:
+           if response.status != 200:
+                pytest.fail(f"Live catalogue request returned HTTP {response.status}: {catalogue_url}")
+            # ...
+~~~
+
+**Updated implementation (explicit `Request(...)` with browser-like headers):**
+
+~~~python
+    # ... 
+    catalogue_url = f"{base_url}/catalogue"
+
+        # Build an explicit HTTP request with browser-like headers insetad of using the 
+        # urllib from Python’s standard library. Reason: The public edge returned 
+        # 'HTTP 403 Forbidden' when the default urllib request profile was used.
+        request = Request(
+            catalogue_url,
+            headers={
+                "User-Agent": "Mozilla/5.0",
+                "Accept": "application/json",
+            },
+        )
+
+        with urlopen(request, timeout=10) as response:
+           if response.status != 200:
+                pytest.fail(f"Live catalogue request returned HTTP {response.status}: {catalogue_url}")
+            # ...
+~~~
+
+### Result
+
+After switching from the default `urllib` request profile to an explicit request with browser-like headers, the **live Python contract smoke test passed successfully against the public `dev` edge**.
+
+### Permanent Fix & Prevention
+
+The header-based request shape is now part of `tests/python/test_contract_guard_live.py`, so future local runs and later CI runs use the same compatible request profile by default.

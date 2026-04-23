@@ -204,8 +204,6 @@ Phase 06 is considered done when the following conditions are met:
 - The production Sock Shop environment already exists and is reachable at:
   - `https://prod-sockshop.cdco.dev`
 - Helm is available on the workstation
-- The local repository checkout is on the intended Phase 06 working branch
-- The user is able to create one gitignored local secret override file for the Grafana admin password
 
 ---
 

@@ -12,6 +12,8 @@ KUBECTL         := kubectl
 CURL            := curl
 RUBY            := ruby
 
+E2E_DIR := tests/e2e
+
 P02_INGRESS_FILE := deploy/kubernetes/manifests-local/phase-02-front-end-ingress.yaml
 
 P03_DEV_OVERLAY  := deploy/kubernetes/kustomize/overlays/dev
@@ -36,13 +38,87 @@ P07_CONTRACT_GUARD_TEST := tests/python/test_contract_guard.py
 P07_CONTRACT_GUARD_LIVE_TEST := tests/python/test_contract_guard_live.py
 P07_CONTRACT_BASE_URL ?= https://dev-sockshop.cdco.dev
 
+P07_E2E_BASE_URL ?= https://dev-sockshop.cdco.dev
+P07_E2E_TEST := smoke.spec.js
+
+# -----------------------------------------------------------------------------
+# Make recipe syntax notes
+# -----------------------------------------------------------------------------
+#
+# Notes on recurring Makefile syntax / patterns / recipes used in target commands:
+#
+# - @command
+#   Run the command without Make echoing the raw command line first.
+#   This keeps output focused on controlled status messages instead of
+#   repeating every shell command verbatim.
+# 	Note: '@' only hides the raw comamnd line - it does not swallow errors.
+#   On error, the Make target execution is stopped imemdiately and exits 
+# 	non zero - any other code in the recipe after that command is never reached.
+#	This is also true for recursive / nested make calls, which propagate 
+#	failure upward.  	 
+#	This is especially useful for the phase 07 testing make targets and
+#	their recipes - especially for aggregated make targets   	
+#
+# - @echo "..."
+#   Print a short, human-readable status line intentionally.
+#   Used when explicit output is helpful even though the raw command itself
+#   stays hidden via '@'.
+#
+# - @# comment
+#   Shell-side comment line inside a recipe.
+#   This is useful for short inline explanations directly above a recipe
+#   command. A plain Make comment ('# ...') outside a recipe would not execute
+#   as part of the recipe itself.
+#
+# - @$(MAKE_CMD) target
+#   Recursive Make call using the configured Make command variable.
+#   This is used for aggregate targets that delegate to smaller helper targets.
+#
+# - --no-print-directory
+#   Suppresses recursive Make noise such as:
+#   "Entering directory ..." / "Leaving directory ..."
+#   This keeps aggregate-target output compact and easier to scan.
+#
+# - @if ...; then ...; else ...; fi
+#   Inline shell conditional used inside a recipe.
+#   Typically used for validation steps that print a controlled OK/FAIL
+#   message and then exit non-zero on failure.
+#
+# - exit 1 / non-zero exit code
+#   `exit 1` fails the current recipe deliberately.
+#   In Make, any non-zero exit code means failure.
+#   This is used after controlled FAIL messages so the target stops cleanly.
+#   Recursive `make` calls propagate that failure upward as well.
+#
+# - \  (line continuation)
+#   Continues one shell command across multiple Makefile lines for readability.
+#   Commonly used for longer conditionals or wrapped commands.
+#
+# - $$VARIABLE
+#   Escaped dollar sign for the shell.
+#   In Makefiles, '$' is special to Make itself, so '$$' is required when the
+#   shell should receive a literal '$' (for example: "$$PWD").
+#
+# - ?=
+#   Assign a default value only if the variable is not already set from the
+#   environment or command line. Useful for overridable defaults such as live
+#   target URLs.
+#
+# These patterns are used repeatedly in the Phase 07 targets to keep the output
+# compact, readable, and CI-friendly: 
+# - Aggregate targets stay mostly noiseless,
+# - Important status lines remain visible, 
+# - Failures still propagate through proper non-zero exit codes.
+#
+# -----------------------------------------------------------------------------
+
+
 # -----------------------------------------------------------------------------
 # Phony
 # -----------------------------------------------------------------------------
 
 # Public helper targets that do not correspond to real files.
 # Declaring them as .PHONY ensures Make always runs the target recipe when requested.
-
 .PHONY: \
 	help \
 	gen-complete-demo \
@@ -84,6 +160,10 @@ P07_CONTRACT_BASE_URL ?= https://dev-sockshop.cdco.dev
 	p07-contract-guard-live-dev \
 	p07-contract-guard-live-prod \
 	p07-contract-guard-live-local \
+	p07-e2e-install \
+	p07-e2e-smoke-dev \
+	p07-e2e-smoke-prod \
+	p07-e2e-report \
 	p07-tests \
 	p07-tests-live \
 	p07-tests-all
@@ -133,6 +213,10 @@ help:
 	@echo "  p07-contract-guard-live-dev - Run the Phase 07 live Python contract smoke against the dev edge"
 	@echo "  p07-contract-guard-live-prod - Run the Phase 07 live Python contract smoke against the prod edge"
 	@echo "  p07-contract-guard-live-local - Run the Phase 07 live Python contract smoke against a local port-forward"
+	@echo "  p07-e2e-install            - Create/update the local Phase 07 Playwright environment"
+	@echo "  p07-e2e-smoke-dev          - Run the Phase 07 Playwright browser smoke test against the dev edge"
+	@echo "  p07-e2e-smoke-prod         - Run the Phase 07 Playwright browser smoke test against the prod edge"
+	@echo "  p07-e2e-report             - Open the latest Phase 07 Playwright HTML report"
 	@echo "  p07-tests                  - Run all deterministic local Phase 07 Ruby, Bash, and Python checks"
 	@echo "  p07-tests-live             - Run the explicit live Phase 07 smoke checks"
 	@echo "  p07-tests-all              - Run all deterministic and live Phase 07 checks"
@@ -398,7 +482,44 @@ p07-contract-guard-live-local:
 	@$(MAKE_CMD) --no-print-directory p07-contract-guard-live-test \
 		P07_CONTRACT_BASE_URL=http://127.0.0.1:18080
 
-# aggregate
+# Playwright browser smoke tests
+
+p07-e2e-install:
+	@# Verify Node.js tooling, then create/update the local Phase 07 Playwright environment.
+	@if command -v node >/dev/null 2>&1 && command -v npm >/dev/null 2>&1; then \
+		echo "OK: Node.js tooling detected for Phase 07 Playwright smoke tests" >&2; \
+	else \
+		echo "FAIL: Node.js and npm are required for Phase 07 Playwright smoke tests" >&2; \
+		exit 1; \
+	fi
+	@echo "RUN: Phase 07 Playwright setup -> $(E2E_DIR)" >&2
+	@cd $(E2E_DIR) && npm install >/dev/null
+	@cd $(E2E_DIR) && npx playwright install chromium >/dev/null
+	@echo "OK: Phase 07 Playwright environment ready -> $(E2E_DIR)" >&2
+
+p07-e2e-smoke-dev:
+	@# Run the Phase 07 Playwright browser smoke test against the dev edge.
+	@$(MAKE_CMD) --no-print-directory p07-e2e-install
+	@# Forward the current CI state explicitly into the Playwright execution context.
+	@CI_VAL=$${CI:-false}; \
+	echo "RUN: Phase 07 Playwright smoke -> $(P07_E2E_BASE_URL) (CI: $$CI_VAL)" >&2; \
+	cd $(E2E_DIR) && CI=$$CI_VAL BASE_URL=$(P07_E2E_BASE_URL) npx playwright test $(P07_E2E_TEST) --project=chromium
+	@echo "OK: Phase 07 Playwright smoke passed" >&2
+
+p07-e2e-smoke-prod:
+	@# Run the Phase 07 Playwright browser smoke test against the prod edge.
+	@$(MAKE_CMD) --no-print-directory p07-e2e-install
+	@# Forward the current CI state explicitly into the Playwright execution context.
+	@CI_VAL=$${CI:-false}; \
+	echo "RUN: Phase 07 Playwright smoke -> https://prod-sockshop.cdco.dev (CI: $$CI_VAL)" >&2; \
+	cd $(E2E_DIR) && CI=$$CI_VAL BASE_URL=https://prod-sockshop.cdco.dev npx playwright test $(P07_E2E_TEST) --project=chromium
+	@echo "OK: Phase 07 Playwright smoke passed" >&2
+
+p07-e2e-report:
+	@# Open the latest Playwright HTML report.
+	@cd $(E2E_DIR) && npx playwright show-report
+	
+# aggregate targets
 
 p07-tests:
 	@# Run all deterministic local Phase 07 Ruby, Bash, and Python checks in one go.
@@ -409,6 +530,7 @@ p07-tests:
 p07-tests-live:
 	@# Run the explicit live Phase 07 smoke checks.
 	@$(MAKE_CMD) --no-print-directory p07-contract-guard-live-dev
+	@$(MAKE_CMD) --no-print-directory p07-e2e-smoke-dev
 
 p07-tests-all:
 	@# Run all deterministic and live Phase 07 checks in one go.

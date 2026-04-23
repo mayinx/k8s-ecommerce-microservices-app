@@ -143,3 +143,8 @@ tests/node_modules/
 tests/venv/
 tests/test-results/
 tests/playwright-report/
+
+# Phase 07 E2E / Playwright artifacts
+tests/e2e/node_modules/
+tests/e2e/playwright-report/
+tests/e2e/test-results/
