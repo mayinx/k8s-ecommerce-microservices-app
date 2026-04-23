@@ -554,19 +554,22 @@ p07-tests-all:
 
 p07-trivy-repo-scan:
 	@# Run a Trivy filesystem scan on repo-owned paths for misconfigurations and secrets.
-	@echo "RUN: Phase 07 Trivy repo scan -> repo-owned paths" >&2
-	@docker run --rm \
-		-v "$(CURDIR)":/repo:ro \
-		-v "$(P07_TRIVY_CACHE_VOLUME)":/root/.cache/ \
-		-w /repo \
-		$(P07_TRIVY_IMAGE) fs \
-		--scanners misconfig,secret \
-		--severity $(P07_TRIVY_SEVERITY) \
-		--exit-code 1 \
-		--skip-dirs tests/e2e/node_modules \
-		--skip-dirs tests/venv \
-		--skip-dirs .git \
-		healthcheck scripts deploy/kubernetes .github tests
+	@set -e; \
+	for target in healthcheck scripts deploy/kubernetes .github tests; do \
+		echo "RUN: Phase 07 Trivy repo scan -> $$target" >&2; \
+		docker run --rm \
+			-v "$(CURDIR)":/repo:ro \
+			-v "$(P07_TRIVY_CACHE_VOLUME)":/root/.cache/ \
+			-w /repo \
+			$(P07_TRIVY_IMAGE) fs \
+			--scanners misconfig,secret \
+			--severity $(P07_TRIVY_SEVERITY) \
+			--exit-code 1 \
+			--skip-dirs tests/e2e/node_modules \
+			--skip-dirs tests/venv \
+			--skip-dirs .git \
+			"$$target"; \
+	done
 	@echo "OK: Phase 07 Trivy repo scan passed" >&2
 
 p07-trivy-healthcheck-image-scan:
@@ -580,8 +583,9 @@ p07-trivy-healthcheck-image-scan:
 		-v "$(P07_TRIVY_TMP_DIR)":/scan:ro \
 		-v "$(P07_TRIVY_CACHE_VOLUME)":/root/.cache/ \
 		$(P07_TRIVY_IMAGE) image \
-		--input /scan/sockshop-healthcheck.tar \
-		--severity $(P07_TRIVY_SEVERITY)
+		--scanners vuln \
+		--severity $(P07_TRIVY_SEVERITY) \
+		--input /scan/sockshop-healthcheck.tar
 	@rm -f $(P07_HEALTHCHECK_IMAGE_TAR)
 	@echo "OK: Phase 07 Trivy image scan completed" >&2
 
