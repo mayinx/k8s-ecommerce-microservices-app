@@ -786,7 +786,7 @@ This rerun shows a clear improvement in the owned image posture:
 
 *Figure 7: Trivy vulnerability scan of the rebuilt repo-owned Ruby healthcheck image after Dockerfile hardening. The image now uses Alpine 3.21.7, no longer shows the earlier unsupported-OS warning, and returns a clean result with 0 detected vulnerabilities.*
 
-#### Re-running the owned helper tests after the Dockerfile change
+#### Re-running the helper tests after the Dockerfile change
 
 Because the image packaging changed, rerun the relevant owned-helper tests as well:
 
@@ -800,26 +800,44 @@ $ make p07-healthcheck-target-env
 
 This ensures the container hardening does not accidentally break the helper’s expected behavior.
 
+#### Additional Trivy findings outside the scope of this step  
+
+Once the repo-owned `healthcheck/` path was successfully cleaned, a rerun of the broader `make p07-trivy-repo-scan` baseline no longer stopped at the Dockerfile findings from Step 8. 
+
+The scan instead produced numerous **additional older repo-owned issues** - and surfaced a **separate legacy hardening backlog**, mainly in:
+
+  - Kubernetes manifests (monitoring + Sock Shop manifests), for example:
+    - Missing or default `securityContext`
+    - Missing `readOnlyRootFilesystem`
+    - Host-level settings such as `hostNetwork`, `hostPID`, `hostPort`, and `hostPath` mounts
+  - Terraform / AWS infrastructure code, for example:
+    - Missing `IMDSv2` enforcement 
+    - Unrestricted ingress/egress rules 
+    - Public load-balancer exposure 
+    - Unencrypted root volumes
+
+Those broader findings need to be addresed, but they are **not part of the acceptance scope of this Step-9 `healthcheck` Dockerfile remediation**.
+
 ### Result
 
 Step 9 successfully completed the first **evidence-based security remediation cycle** on a repo-owned Docker image.
 
 - `healthcheck/Dockerfile` was hardened to:
-  - use a newer supported Alpine base
-  - install runtime packages with `--no-cache`
-  - run as a dedicated non-root user
-- the rebuilt `sockshop-healthcheck` image still preserves the expected basic CLI behavior
-- the owned Ruby healthcheck checks still pass after the Dockerfile hardening
-- the focused repo-level Trivy rerun now proves that the remediated `healthcheck/` path is clean:
+  - Use a newer supported Alpine base
+  - Install runtime packages with `--no-cache`
+  - Run as a dedicated non-root user
+- The rebuilt `sockshop-healthcheck` image still preserves the expected basic CLI behavior
+- The owned Ruby healthcheck checks still pass after the Dockerfile hardening
+- The focused repo-level Trivy rerun now proves that the remediated `healthcheck/` path is clean:
   - **0 misconfigurations**
   - **no detected secrets**
-- the rebuilt repo-owned image now scans cleanly through `make p07-trivy-healthcheck-image-scan`
-- the image vulnerability baseline improved from:
+- The rebuilt repo-owned image now scans cleanly through `make p07-trivy-healthcheck-image-scan`
+- The image vulnerability baseline improved from:
   - **Alpine 3.12.0** with **36 HIGH / CRITICAL vulnerabilities**
-  - to **Alpine 3.21.7** with **0 vulnerabilities**
-- the broader `make p07-trivy-repo-scan` baseline remains valuable, but it now surfaces **additional findings outside `healthcheck/`**
-  - that broader remediation backlog stays open after this step
-  - it does **not** change the successful completion of this focused Dockerfile remediation cycle
+  - To **Alpine 3.21.7** with **0 vulnerabilities**
+- The **broader `make p07-trivy-repo-scan` baseline** surfaced **additional findings outside `healthcheck/` in older repo-owned surfaces** (Kubernetes + Terraform). 
+  - While this does not change the successful completion of this focused Dockerfile remediation task, these additional findings act as a **legacy repo-hardening backlog** that stays open to be addressed in later phases. 
+  - Those findings are outside the scope of this focused Dockerfile remediation step. Step 9 therefore closes the repo-owned `healthcheck` image remediation path completely, while leaving the broader repo-hardening backlog for later folloe-up
 
 At this point, the **Phase 07 Test & Security layer** validates: 
 - **(1) Service health/reachability** (Ruby) 
@@ -829,9 +847,7 @@ At this point, the **Phase 07 Test & Security layer** validates:
 - **(5) Security-scanning for repo-owned surfaces** (Trivy)
 - **(6) Evidence-based security remediation on a repo-owned Docker image path** (Trivy + hardened `healthcheck` image)
 
-
 ---
-
 
 ## Step 10 — Establish an automated dependency-scanning baseline with Dependabot for repo-owned dependency surfaces
 
@@ -882,12 +898,12 @@ The first Dependabot baseline is split into **two owned dependency surfaces**:
 
 - **(1) GitHub Actions**
   - GitHub Actions are part of the project’s CI/CD control plane
-  - directory: repository root (`/`)
-  - practical effect: scan dependencies used in `/.github/workflows`
+  - Directory: repository root (`/`)
+  - Practical effect: Scan dependencies used in `/.github/workflows`
 - **(2) npm**
   - Playwright npm dependencies are part of the repo-owned browser-test toolchain
-  - directory: `/tests/e2e`
-  - practical effect: scan the Playwright smoke-test toolchain
+  - Directory: `/tests/e2e`
+  - Practical effect: Scan the Playwright smoke-test toolchain
 
 Both are clearly maintained within this repository and directly relevant for the next CI integration steps
 
@@ -989,13 +1005,13 @@ Step 10 establishes the first **dependency-scanning baseline** for repo-owned de
 
 The successful end state is shown by these signals / verification points:
 
-- the repository now contains a valid `.github/dependabot.yml` configuration
+- The repository now contains a valid `.github/dependabot.yml` configuration
 - Dependabot is scoped to **two clearly owned dependency surfaces**:
   - **GitHub Actions** under repository root workflow context
   - **npm** under `tests/e2e`
-- no additional host-side installation or local scanner setup is required
-- the dependency-scanning measure is now implemented in a **GitHub-native** and **low-friction** way
-- the repository is now prepared for the next step, where CI workflows will validate code and configuration changes coming from both normal development and future Dependabot pull requests
+- No additional host-side installation or local scanner setup is required
+- The dependency-scanning measure is now implemented in a **GitHub-native** and **low-friction** way
+- The repository is now prepared for the next step, where CI workflows will **validate code and configuration changes** coming from both **normal development** and **future Dependabot pull requests**
 
 At this point, the **Phase 07 Test & Security Layer** validates:
 - **(1) Service health/reachability** (Ruby)

@@ -395,6 +395,23 @@ By the end of the phase, the project had proven:
   - outdated unsupported Alpine base
 - **Next-step impact:** Phase 07 now demonstrates not only security detection but also owned security remediation on a concrete artifact path.
 
+
+#### P07-D24 — First remediation target = Prioritize the repo-owned `healthcheck` Dockerfile findings before tackling the broader Trivy backlog
+
+- **Decision:** Use the `healthcheck` Dockerfile findings as the first explicit security-remediation target, while treating additional legacy Kubernetes and Terraform findings from the broader Trivy baseline as a separate legacy hardening backlog.
+- **Why:** The Step-8 baseline surfaced a clear and actionable finding set:
+  - Repo-level Dockerfile misconfigurations
+  - Outdated base-image-driven vulnerability exposure (outdated Alpine base image)
+  Once teh `healtcheck/`-path was cleaned, the broader Trivy baseline exposed further findings in older repo-owned Kubernetes and Terraform surfaces. Those findings are relevant, but they form a wider hardening track clearly outside the focused Dockerfile remediation/hardening task.
+- **Proof:** Step 9 focuses on the `healthcheck` Dockerfile and resolves:
+  - missing non-root `USER`
+  - missing `--no-cache`
+  - outdated unsupported Alpine base
+  **Focused reruns then show:**
+  - `p07-trivy-healthcheck-repo-scan` => 0 misconfigurations
+  - `p07-trivy-healthcheck-image-scan` => 0 vulnerabilities
+- **Next-step impact:** Phase 07 now demonstrates a completed, evidence-based security-remediation cycle on a repo-owned Healtcheck Docker image path, while the broader repo-hardening backlog stays explicit for later follow-up.
+
 #### P07-D25 — Dockerfile hardening model = Use a up to date Alpine base, minimal runtime packages, and a non-root runtime user
 
 - **Decision:** Harden the `healthcheck` Dockerfile by:
@@ -418,6 +435,25 @@ By the end of the phase, the project had proven:
   - `p07-healthcheck-tests` still passing
 - **Next-step impact:** The Phase-07 security alyer now includes a completed, evidence-based remediation cycle on a repo-owned Docker image path.  
 
+### Step 10 — Dependabot dependency-scanning baseline
+
+#### P07-D27 — Dependency-scanning tool = Use GitHub-native Dependabot for the first automated dependency baseline
+
+- **Decision:** Implement the first automated dependency-scanning baseline with **GitHub Dependabot**.
+- **Why:** Dependabot directly covers the missing **code-dependency scanning** measure in a low-friction, GitHub-native way without introducing another local toolchain, host-side install, or extra CI complexity.
+- **Proof:** The repository now contains a valid `.github/dependabot.yml` configuration that defines automated update monitoring for selected package ecosystems.
+- **Next-step impact:** The repository is now prepared for CI workflows that can validate both normal development changes and future Dependabot-generated pull requests.
+
+#### P07-D28 — Dependency scope = Restrict Dependabot to clearly owned dependency surfaces
+
+- **Decision:** Restrict the initial Dependabot scope to **GitHub Actions** under `.github/workflows` and **npm dependencies** under `tests/e2e`.
+- **Why:** These dependency surfaces are clearly owned, maintained and operated in this repository. Excluding inherited legacy application dependency trees keeps alerts actionable and avoids noise from upstream code outside the ownership scope of this DevOps project.
+- **Proof:** `.github/dependabot.yml` defines updates for:
+  - `package-ecosystem: "github-actions"` with `directory: "/"` (i.e. `actions/checkout@v4`, `actions/setup-node@v4`)
+  - `package-ecosystem: "npm"` with `directory: "/tests/e2e"`
+- **Next-step impact:** Dependency monitoring is now aligned with the repo-owned CI/CD and browser-test toolchain, which is the most relevant dependency surface for the upcoming GitHub Actions integration step.
+
+ 
 
 
 ---
