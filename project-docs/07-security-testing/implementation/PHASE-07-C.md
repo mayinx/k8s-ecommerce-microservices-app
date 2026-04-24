@@ -515,7 +515,7 @@ The successful end state is shown by these signals / verification points:
     - **32 HIGH**
     - **4 CRITICAL**
 
-At this point, the **Phase 07 test & security layer** validates: 
+At this point, the **Phase 07 Test & Security layer** validates: 
 - **(1) Service health/reachability** (Ruby) 
 - **(2) Helper-script behavior (Traffic Generator)** (Bash) 
 - **(3) API Response-shape compatibility** (Python) 
@@ -821,10 +821,189 @@ Step 9 successfully completed the first **evidence-based security remediation cy
   - that broader remediation backlog stays open after this step
   - it does **not** change the successful completion of this focused Dockerfile remediation cycle
 
-At this point, the **Phase 07 test & security layer** validates: 
+At this point, the **Phase 07 Test & Security layer** validates: 
 - **(1) Service health/reachability** (Ruby) 
 - **(2) Helper-script behavior (Traffic Generator)** (Bash) 
 - **(3) API Response-shape compatibility** (Python) 
 - **(4) Storefront rendering in a real browser** (Playwright / JavaScript)
 - **(5) Security-scanning for repo-owned surfaces** (Trivy)
 - **(6) Evidence-based security remediation on a repo-owned Docker image path** (Trivy + hardened `healthcheck` image)
+
+
+---
+
+
+## Step 10 — Establish an automated dependency-scanning baseline with Dependabot for repo-owned dependency surfaces
+
+### Rationale
+
+Phase 07 already covers:
+
+- **Service health / reachability** through the Ruby healthcheck
+- **Observability-helper behavior** through the Bash observability-helper tests
+- **API response-shape compatibility** through the Python API contract guard
+- **Storefront rendering in a real browser** through the Playwright browser smoke test
+- **Security-scanning for repo-owned surfaces** through Trivy
+
+What is still missing is an explicit and automated **code dependency-scanning measure** to close the remaining DevSecOps requirement cleanly and with minimal friction.
+
+The next useful addition is therefore a **GitHub-native Dependabot baseline** focused only on dependency surfaces that are clearly owned and maintained in this repository.
+
+**Scope**
+
+The scope of this step stays intentionally narrow and actionable:
+
+- **GitHub Actions Workflow dependencies** under `/.github/workflows`
+- **Playwright-related npm dependencies Node.js / npm dependencies** under `tests/e2e`
+
+This puts the focus on actively maintained repo-code so that the resulting alerts should be manageable. This avoids getting buried in dependency noise from inherited legacy application code outside the immediate ownership scope of this phase. 
+
+> [!NOTE] **🛡️ Dependabot**
+>
+> **Dependabot** is GitHub’s built-in **automated dependency update service**. It **monitors** package ecosystems, **detects** available updates, and **opens pull requests** when dependency versions should be bumped.
+>
+> In this phase it is used to establish a first **dependency-scanning and update baseline** for repo-owned dependency surfaces:
+>
+> - **GitHub Actions** used by CI/CD workflows
+> - **npm packages** used by the Playwright smoke-test setup
+>
+> This makes Dependabot a strong fit here: it is GitHub-native, low-friction, and directly addresses the code-dependency part of DevSecOps requirements.
+
+### Action
+
+The goal of this step is to establish a first **repo-owned dependency-scanning baseline** through Dependabot:
+- **(1)** Define the initial update scope
+- **(2)** Create the `dependabot.yml` configuration
+- **(3)** Push that configuration so GitHub can start dependency monitoring and update generation
+
+#### Defining the Dependabot scan scope
+
+The first Dependabot baseline is split into **two owned dependency surfaces**:
+
+- **(1) GitHub Actions**
+  - GitHub Actions are part of the project’s CI/CD control plane
+  - directory: repository root (`/`)
+  - practical effect: scan dependencies used in `/.github/workflows`
+- **(2) npm**
+  - Playwright npm dependencies are part of the repo-owned browser-test toolchain
+  - directory: `/tests/e2e`
+  - practical effect: scan the Playwright smoke-test toolchain
+
+Both are clearly maintained within this repository and directly relevant for the next CI integration steps
+
+#### Creating the Dependabot configuration: `.github/dependabot.yml`
+
+~~~yaml
+# .github/dependabot.yml
+#
+# GitHub Dependabot Configuration File
+#
+# Scope & Strategy:
+# This configuration is strictly scoped to the infrastructure and tooling
+# actively maintained within this repository:
+# - (1) GitHub Actions: Scans CI/CD runner environments to prevent supply-chain attacks.
+# - (2) npm (Playwright): Scans the local E2E testing toolchain.
+#
+# Intentional Exclusion:
+# Scanning the upstream WeaveSocks legacy microservices is explicitly excluded. 
+# Scanning 8-year-old unmaintained upstream code would generate unactionable noise. 
+# The choosen DevSecOps strategy focuses strictly on the surfaces we own and operate.
+#
+#
+version: 2 # Required schema version for GitHub-native Dependabot
+
+updates:
+    # ---------------------------------------------------------------------------
+  # 1) Scan GitHub Actions Toolchain under .github/workflows
+  # ---------------------------------------------------------------------------
+  # This updates actions such as actions/checkout, actions/setup-node, and 
+  # similar workflow dependencies.
+
+  - package-ecosystem: "github-actions"     # Identifies the target package manager/ecosystem
+    directory: "/"                          # Instructs Dependabot to scan the repo root for .github/workflows
+    schedule:
+      interval: "weekly"                    # Check once per week for available updates (to prevent CI/CD pipeline noise)
+    labels:                                 # Automatically tags generated PRs for easy filtering                                 
+      - "dependencies"
+      - "security"
+
+  # ---------------------------------------------------------------------------
+  # 2) Scan Playwright E2E Testing Environment under tests/e2e
+  # ---------------------------------------------------------------------------
+  # This updates npm dependencies such as @playwright/test and other testing 
+  # utilities defined in package.json.
+  - package-ecosystem: "npm"                # Identifies Node.js dependencies (looks for package.json)
+    directory: "/tests/e2e"                 # Restricts the scan purely to the Playwright local Node.js project 
+    schedule:
+      interval: "weekly"
+    labels:
+      - "dependencies"
+      - "security"
+~~~
+
+> [!NOTE] **Dependabot Schema Version**
+>
+> The configuration explicitly declares `version: 2`. This is the required schema for GitHub's natively integrated Dependabot engine, replacing the deprecated `version: 1` syntax used before GitHub acquired the tool.
+
+#### Committing and activating the Dependabot baseline
+
+Once `.github/dependabot.yml` exists, committing and pushing it to the default branch activates Dependabot monitoring for the configured ecosystems:   
+
+~~~bash
+# Stage the new Dependabot configuration.
+$ git add .github/dependabot.yml
+
+# Commit the baseline configuration.
+$ git commit -m "chore(deps): add dependabot baseline for actions and playwright"
+
+# Push to the default branch so GitHub can activate the configuration.
+$ git push
+~~~
+
+#### Verifying that Dependabot is active
+
+After the configuration is pushed, verify the result in the GitHub repository UI.
+
+Expected verification path:
+
+- **Security**
+- **Dependabot**
+- or the repository’s dependency-security area where Dependabot alerts / updates are shown
+
+The exact number of immediate alerts or pull requests may vary. The important point in this step is that the repository now contains a valid Dependabot configuration and GitHub can start monitoring the configured dependency surfaces.
+
+#### Local dev + dependency-security cycle
+
+The practical cycle introduced by this step is now:
+
+- (1) Maintain `.github/dependabot.yml`
+- (2) Review new Dependabot pull requests or alerts in GitHub
+- (3) Merge or defer dependency updates intentionally
+- (4) Use the upcoming CI workflows to validate Dependabot-generated update PRs safely
+
+This means the dependency-scanning baseline is now in place before the CI gate is wired.
+
+### Result
+
+Step 10 establishes the first **dependency-scanning baseline** for repo-owned dependency surfaces through GitHub Dependabot.
+
+The successful end state is shown by these signals / verification points:
+
+- the repository now contains a valid `.github/dependabot.yml` configuration
+- Dependabot is scoped to **two clearly owned dependency surfaces**:
+  - **GitHub Actions** under repository root workflow context
+  - **npm** under `tests/e2e`
+- no additional host-side installation or local scanner setup is required
+- the dependency-scanning measure is now implemented in a **GitHub-native** and **low-friction** way
+- the repository is now prepared for the next step, where CI workflows will validate code and configuration changes coming from both normal development and future Dependabot pull requests
+
+At this point, the **Phase 07 Test & Security Layer** validates:
+- **(1) Service health/reachability** (Ruby)
+- **(2) Helper-script behavior (Traffic Generator)** (Bash)
+- **(3) API response-shape compatibility** (Python)
+- **(4) Storefront rendering in a real browser** (Playwright / JavaScript)
+- **(5) Security-scanning for repo-owned surfaces** (Trivy)
+- **(6) Evidence-based security remediation on a repo-owned Docker image path** (Trivy + hardened `healthcheck` image)
+- **(7) Dependency-scanning for repo-owned dependency surfaces** (Dependabot)
+
+The next step is now clear: **wire the deterministic local validation targets into a GitHub Actions PR-gate workflow.**
