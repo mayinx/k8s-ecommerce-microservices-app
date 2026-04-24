@@ -323,12 +323,102 @@ By the end of the phase, the project had proven:
   - deterministic local checks stay deterministic
   - live/browser smoke checks stay explicit
  
-### P07-D18 — Playwright execution model = Make the browser smoke layer CI-aware in both config and Make targets
+#### P07-D18 — Playwright execution model = Make the browser smoke layer CI-aware in both config and Make targets
 
 - **Decision:** Make the first Playwright browser smoke layer explicitly CI-aware in both `playwright.config.js` and the Phase 07 Make targets.
 - **Why:** The browser smoke path should run predictably in both local and CI environments without requiring separate test files or ad hoc command variants. This required coordinated handling of `CI`, retries, worker count, failure artifacts, and target execution flow.
 - **Proof:** `playwright.config.js` reacts to `process.env.CI` for `forbidOnly`, `workers`, and `retries`, while the Make targets forward the current `CI` state explicitly and keep output controlled and automation-friendly.
 - **Next-step impact:** The Playwright smoke layer is ready for later workflow integration without restructuring the tests or introducing separate local-vs-CI implementations.
+
+### Steps 8–9 — Trivy security baseline and repo-owned image remediation
+
+#### P07-D19 — Security scanner choice = Use Trivy as the first Phase-07 security baseline
+
+- **Decision:** Introduce **Trivy** as the first security scanner for Phase 07.
+- **Why:** One tool covers the three most relevant owned security surfaces needed at this stage:
+  - filesystem misconfigurations
+  - filesystem secret scanning
+  - container image vulnerability scanning
+  This keeps the first security layer compact without introducing a separate tool per security category.
+- **Proof:** Step 8 uses Trivy successfully for:
+  - repo-level filesystem scanning
+  - image-level vulnerability scanning of the repo-owned `healthcheck` image
+- **Next-step impact:** Security scanning can now be extended and later wired into CI from a single, already working scanner baseline.
+
+#### P07-D20 — Security-scan scope = Start with repo-owned surfaces, not the full inherited upstream stack
+
+- **Decision:** Limit the first Trivy baseline to **repo-owned helper/config surfaces** and the **repo-owned `healthcheck` image**.
+- **Why:** A full-stack scan of the inherited upstream application would immediately surface a large volume of legacy findings that are outside the current owned remediation scope. The first security layer needs to stay realistic and actionable.
+- **Proof:** Step 8 focuses on:
+  - `healthcheck/`
+  - `scripts/`
+  - `deploy/kubernetes/`
+  - `.github/`
+  - `tests/`
+  plus the local `sockshop-healthcheck` image
+- **Next-step impact:** Phase 07 now has a clean security baseline on repo-owned surfaces, while the broader repo/remediation backlog can still be addressed later.
+
+#### P07-D21 — Trivy execution model = Run Trivy containerized with a persistent cache volume
+
+- **Decision:** Run Trivy through its official container image and mount a persistent Docker cache volume.
+- **Why:** This avoids requiring a workstation-local Trivy install, keeps the execution model close to later CI usage, and avoids repeated database/check downloads on every scan run.
+- **Proof:** Step 8 executes Trivy through `docker run ... aquasec/trivy:latest` and reuses `trivy-cache` across runs.
+- **Next-step impact:** The security scan flow stays reproducible, portable, and fast enough for repeated local reruns and later workflow reuse.
+
+#### P07-D22 — Trivy repo-scan shape = Scan repo-owned filesystem paths one by one and keep a focused healthcheck-only target alongside the broad baseline target
+
+- **Decision:** Structure the repo scan so that the broad baseline iterates over repo-owned paths one by one, and add a second focused target for `healthcheck/` only.
+- **Why:** `trivy fs` accepts exactly one target path per invocation. The broad baseline is still useful as a general security sweep, while the focused `healthcheck/` target is needed later as a precise remediation-proof scan for the owned Dockerfile path.
+- **Proof:** Step 8 finalizes:
+  - `p07-trivy-repo-scan` for the broad repo-owned baseline
+  - `p07-trivy-healthcheck-repo-scan` for path-specific verification
+- **Next-step impact:** Phase 07 gains both:
+  - A broader security baseline
+  - A precise path-level proof target for later remediation validation
+
+#### P07-D23 — Image-scan transport = Export the local image to a tar file instead of coupling Trivy to the Docker socket
+
+- **Decision:** Scan the repo-owned `healthcheck` image via exported image tar and `--input`, not via direct Docker-socket coupling.
+- **Why:** Trivy can scan a mounted image file directly, without needing privileged access to the host Docker daemon, which often causes permission and runner-environment complications. This is easier to reuse in a later CI setting.     
+- **Proof:** Step 8 builds `sockshop-healthcheck`, exports it to `/tmp/p07-trivy/sockshop-healthcheck.tar`, and scans that tar through Trivy.
+- **Next-step impact:** The image-scan path is easier to reuse, and better suited for later CI adaptation.
+
+#### P07-D24 — First remediation target = Prioritize the repo-owned `healthcheck` Dockerfile findings before tackling the broader Trivy backlog
+
+- **Decision:** Use the `healthcheck` Dockerfile findings as the first explicit security remediation target.
+- **Why:** The Step-8 baseline surfaced a clear and actionable finding set:
+  - Repo-level Dockerfile misconfigurations
+  - Outdated base-image-driven vulnerability exposure (outdated Apline version)
+- **Proof:** Step 9 focuses on the `healthcheck` Dockerfile and resolves:
+  - missing non-root `USER`
+  - missing `--no-cache`
+  - outdated unsupported Alpine base
+- **Next-step impact:** Phase 07 now demonstrates not only security detection but also owned security remediation on a concrete artifact path.
+
+#### P07-D25 — Dockerfile hardening model = Use a up to date Alpine base, minimal runtime packages, and a non-root runtime user
+
+- **Decision:** Harden the `healthcheck` Dockerfile by:
+  - Moving to a modern Alpine base
+  - Reducing the runtime package set to what is actually needed
+  - Running the container as a dedicated non-root user
+- **Why:** This directly addresses the Step-8 findings while keeping the remediation small.
+- **Proof:** Step 9 replaces the old Alpine 3.12-based image with a Alpine 3.21-based runtime image and reruns the helper checks successfully.
+- **Next-step impact:** The Healthcheck image is now ready for new Trivy scans.
+
+#### P07-D26 — Remediation proof model = Validate Dockerfile hardening with both targeted Trivy reruns and owned helper checks
+
+- **Decision:** Prove the Dockerfile remediation through:
+  - A focused repo-level Trivy rerun on `healthcheck/`
+  - A rebuilt-image vulnerability rerun
+  - Rerun of the Ruby helper tests 
+- **Why:** Security hardening must reduce the findings but should also preserve the helper’s intended behavior. The proof needs both security evidence and functional regression protection.
+- **Proof:** Step 9 shows:
+  - `p07-trivy-healthcheck-repo-scan` => 0 misconfigurations
+  - `p07-trivy-healthcheck-image-scan` => 0 vulnerabilities
+  - `p07-healthcheck-tests` still passing
+- **Next-step impact:** The Phase-07 security alyer now includes a completed, evidence-based remediation cycle on a repo-owned Docker image path.  
+
+
 
 ---
 

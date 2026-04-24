@@ -1,5 +1,7 @@
 # Project Debug Log & Incident Reports
 
+TODO: Add an index!
+
 This document tracks technical anomalies discovered during deployment, the investigation process, and the resulting architectural decisions.
 
 ---
@@ -221,4 +223,94 @@ After switching from the default `urllib` request profile to an explicit request
 
 ### Permanent Fix & Prevention
 
-The header-based request shape is now part of `tests/python/test_contract_guard_live.py`, so future local runs and later CI runs use the same compatible request profile by default.
+The header-based request is now part of `tests/python/test_contract_guard_live.py`, so future local runs and later CI runs use the same compatible request profile by default.
+
+---
+
+## [Issue 04] Makefile: Trivy filesystem scan target failed (Phase 07)
+
+During the first implementation of the Trivy filesystem baseline, the new Make target for the repo scan failed before any actual security findings could be evaluated.
+
+### Observed Behavior
+
+The initial `p07-trivy-repo-scan` target tried to pass multiple repo paths into a single `trivy fs` invocation, which caused a `Fatal error multiple targets cannot be specified` when running that Makefile target:
+
+~~~bash
+$ make p07-trivy-repo-scan
+RUN: Phase 07 Trivy repo scan -> repo-owned paths
+...
+FATAL   Fatal error     multiple targets cannot be specified
+...
+make: *** [Makefile:558: p07-trivy-repo-scan] Error 1
+~~~
+
+### Investigation & Diagnosis
+
+The issue was not caused by a security finding in the repository. It was caused by the Make target used in the first Makefile implementation.
+
+**Initial Make target (problematic)**
+
+~~~make
+p07-trivy-repo-scan:
+	@echo "RUN: Phase 07 Trivy repo scan -> repo-owned paths" >&2
+	@docker run --rm \
+		-v "$(CURDIR)":/repo:ro \
+		-v "$(P07_TRIVY_CACHE_VOLUME)":/root/.cache/ \
+		-w /repo \
+		$(P07_TRIVY_IMAGE) fs \
+		--scanners misconfig,secret \
+		--severity $(P07_TRIVY_SEVERITY) \
+		--exit-code 1 \
+		--skip-dirs tests/e2e/node_modules \
+		--skip-dirs tests/venv \
+		--skip-dirs .git \
+		healthcheck scripts deploy/kubernetes .github tests # <= The culprit
+~~~
+
+**Root cause:**
+
+- `trivy fs` accepts exactly **one target path per invocation**
+- the initial target passed **five target paths at once**:
+    - see `healthcheck scripts deploy/kubernetes .github tests` 
+- Trivy therefore aborted immediately with:
+  - `multiple targets cannot be specified`
+
+### Resolution
+
+The Make target was reworked so that the selected repo-owned paths are scanned **one after another** in a shell loop. On top of that, the updated command now uses `@set -e` to stop the further execution imemdiately once a command fails. This preserve failure propagation even from within the loop and an early exit with a clear exit code: 
+
+**Corrected Make target**
+
+~~~make
+p07-trivy-repo-scan:
+	@set -e; \
+	for target in healthcheck scripts deploy/kubernetes .github tests; do \
+		echo "RUN: Phase 07 Trivy repo scan -> $$target" >&2; \
+		docker run --rm \
+			-v "$(CURDIR)":/repo:ro \
+			-v "$(P07_TRIVY_CACHE_VOLUME)":/root/.cache/ \
+			-w /repo \
+			$(P07_TRIVY_IMAGE) fs \
+			--scanners misconfig,secret \
+			--severity $(P07_TRIVY_SEVERITY) \
+			--exit-code 1 \
+			--skip-dirs tests/e2e/node_modules \
+			--skip-dirs tests/venv \
+			--skip-dirs .git \
+			"$$target"; \
+	done
+	@echo "OK: Phase 07 Trivy repo scan passed" >&2
+~~~
+
+### Why this solved the issue
+
+This corrected implementation matches Trivy’s CLI contract:
+
+- Each `trivy fs` run receives **exactly one path**
+- The broad baseline still covers all selected repo-owned paths
+- `set -e` causes ensures early exits on fail to preserve proper failure propagation even from within the loop. 
+    - Without `set -e`, a failing `docker run ...` inside the loop could be ignored, and the loop might continue with the next target - which could cause misleading outputs 
+
+### Result
+
+After this correction the broad repo scan target became executable and the scan could proceed into real findings instead of failing on argument shape.

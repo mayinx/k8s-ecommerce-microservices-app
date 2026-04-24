@@ -1,6 +1,5 @@
 # Sock Shop — Production-like DevOps Delivery Path
 
-This repository uses the Sock Shop microservices application as the base for a production-like DevOps project.
 
 The goal is not just to run the application once, but to build a **reproducible, phase-based delivery path** with evidence-grade documentation that gradually proves the core capabilities expected from a modern DevOps project:
 
@@ -15,46 +14,88 @@ The goal is not just to run the application once, but to build a **reproducible,
 
 The project is intentionally implemented in phases so that each new capability builds on an already proven baseline.
 
-## Live target environments
+
+# 🧦 Sock Shop: Production-Grade DevOps Delivery Path
+
+### Proxmox VE Target Delivery • K3s Multi-Environment (`dev` / `prod`) • GitHub Actions CI/CD • Cloudflare Tunnels • Tailscale Private Access • Prometheus/Grafana Observability
+
+Production grade DevOps project based on the upstream WeaveSocks microservices application. This repository demonstrates a complete, **reproducible, phase-based delivery path** from **local Docker Compose baseline** to a **production-like Proxmox target environment**.
+
+> **Project focus:** The goal is not just to run the application once, but to build a **reproducible, phase-based delivery path** with **evidence-grade documentation** that gradually proves the **core capabilities expected from a modern DevOps project**: containerized delivery, environment separation, observability, security measures, and infrastructure-oriented deployment evolution.
+
+---
+
+## 🧱 Tech Stack
+🐳 **Docker** | ☸️ **Kubernetes (K3s)** | 🐙 **GitHub Actions** | 🚜 **Proxmox VE** | 🛡️ **Tailscale** | ☁️ **Cloudflare Tunnels** | 🚦 **Traefik** | 🧩 **Kustomize** | 📈 **Prometheus & Grafana** 
+
+TOOD: Bring into the mix (with icons): Trivy
+
+---
+
+
+## 🚀 Live target environments
 
 The project now exposes both long-lived target environments (`dev-sockshop` + `prod-sockshop`) publicly through a Proxmox-based delivery path:
 
-- **Development:** `https://dev-sockshop.cdco.dev/`
-- **Production:** `https://prod-sockshop.cdco.dev/`
+- **Development:** https://dev-sockshop.cdco.dev/ 
+- **Production:** https://prod-sockshop.cdco.dev/ 
 
-These URLs represent the current live public entrypoints of the target platform proven in Phase 05.
+These URLs represent the current live public entrypoints of the target platform proven in Phase 05 of the implementation path.
 
-## Environment model on the current target
+## 🌍 Environment model on the current target
 
-The current `dev` and `prod` environments do **not** run on separate machines.
+The current `dev` and `prod` environments do not run on separate machines.
 
 Both run on the **same Proxmox-based target VM** inside the **same single-node K3s cluster**.
 
 The **Environment separation is logical** and implemented through:
 
-- Separate Kubernetes namespaces:
-  - `sock-shop-dev`
-  - `sock-shop-prod`
-- Separate Kustomize overlays:
-  - `deploy/kubernetes/kustomize/overlays/dev`
-  - `deploy/kubernetes/kustomize/overlays/prod`
+- Separate Kubernetes namespaces (`sock-shop-dev`, `sock-shop-prod`)
+- Separate Kustomize overlays (`deploy/kubernetes/kustomize/overlays/dev|prod`)
 - Host-based ingress routing through Traefik for both environments 
 - Separate public hostnames:
-  - `https://dev-sockshop.cdco.dev/`
-  - `https://prod-sockshop.cdco.dev/`
-- Separate workflow behavior:
-  - Automated `dev` deployment
-  - Approval-gated `prod` deployment
+  - https://dev-sockshop.cdco.dev/
+  - https://prod-sockshop.cdco.dev/
+- Separate workflow behavior (automated `dev` deployment, approval-gated `prod` deployment)
 
-Public traffic reaches the same target platform through Cloudflare Tunnel and is then routed by **hostname** through **Traefik** to the correct namespace-backed application environment.
+Public traffic reaches the same target platform through Cloudflare Tunnel and is then routed by **hostname** through **Traefik** to the correct namespace-based application environment.
 
-**Result:** `1 VM -> 1 cluster -> 2 namespaces -> 2 app environments`
+**Result: `1 VM -> 1 cluster -> 2 namespaces -> 2 app environments`**
+
+~~~text
+Public Internet
+       |
+       v
++-------------------------------------------------------------+
+| Cloudflare Tunnel (Edge Security)                           |
++-------------------------------------------------------------+
+       |
+       | (HTTPS routed by hostname)
+       v
++-------------------------------------------------------------+
+| Target VM (Proxmox / K3s Single-Node)                       |
+|                                                             |
+|   +-----------------------------------------------------+   |
+|   | Traefik Ingress Controller                          |   |
+|   +-----------------------------------------------------+   |
+|          |                                     |            |
+|   dev-sockshop.cdco.dev              prod-sockshop.cdco.dev |
+|          |                                     |            |
+|          v                                     v            |
+|   +-----------------------+         +-----------------------+
+|   | Namespace:            |         | Namespace:            |
+|   | sock-shop-dev         |         | sock-shop-prod        |
+|   |                       |         |                       |
+|   | (Automated via CI)    |         | (Approval-gated CI)   |
+|   +-----------------------+         +-----------------------+
++-------------------------------------------------------------+
+~~~
 
 These namespaces are logical partitions inside one Kubernetes cluster, not separate clusters. When the `dev` overlay is applied, Kubernetes updates the desired state of the resources in `sock-shop-dev` only. The `prod` namespace remains unchanged until the `prod` overlay is applied and approved.
 
 The delivery workflow does not copy the repository onto the VM or run the application from a Git checkout on the target machine. Instead, GitHub Actions applies Kubernetes manifests to the cluster API. Kubernetes stores that desired state and reconciles the affected namespace resources. 
 
-## Delivery workflow model
+## 🔄 Delivery workflow model
 
 The current delivery path follows a **trunk-based CI/CD model with gated promotion**:
 
@@ -64,32 +105,39 @@ The current delivery path follows a **trunk-based CI/CD model with gated promoti
 
 **Result:** This project uses a professional **single-branch promotion workflow** rather than separate long-lived Git branches per environment.
 
-## Target Scope
+## 🎯 Target Scope
 
-- Kubernetes deployment (k3s locally → Proxmox target)
-- CI/CD (build/test/push/deploy with approval-gated `prod`)
-- Observability (Prometheus/Grafana baseline proven on the real target)
-- IaC (Terraform planned for stable target/bootstrap pieces)
-- DevSecOps controls (>= 3 measures planned)
-- DR / rollback approach (planned)
-- Documentation: phase logs + runbooks + decisions + ADRs
+✅ **Kubernetes deployment** (k3s locally → Proxmox target)\
+✅ **CI/CD** (build/test/push/deploy with approval-gated `prod`)\
+✅ **Observability** (Prometheus/Grafana baseline proven on the real target)\
+⏳ **Testing** (...)\
+⏳ **IaC** (Terraform planned for stable target/bootstrap pieces)\
+⏳ **DevSecOps controls** (>= 3 measures planned)\
+⏳ **DR / rollback approach** (planned)\
+✅ **Documentation:** phase logs + runbooks + decisions + ADRs
 
-## What this repository already demonstrates
+
+---
+
+
+
+## ✅ What this repository already demonstrates
 
 This repository demonstrates an iterative DevOps delivery path built around Sock Shop, including:
 
-- Docker-based application execution
-- Kubernetes deployment via proven raw manifests
-- Environment-specific deployment layering with Kustomize
-- GitHub Actions CI/CD
-- GHCR image publishing
-- Approval-gated promotion flow
-- Evidence-oriented technical documentation
-- A real Proxmox-backed target-delivery platform
-- A delivery path that now spans local proof, CI/CD proof, and a long-lived target environment
-- Oberservability with Grafan + Prometheus 
+✅ Docker-based application execution\
+✅ Kubernetes deployment via proven raw manifests\
+✅ Environment-specific deployment layering with Kustomize\
+✅ GitHub Actions CI/CD with GHCR image publishing\
+✅ Approval-gated promotion flow\
+✅ Evidence-oriented technical documentation\
+✅ A real Proxmox-backed target-delivery platform\
+✅ A delivery path spanning local proof, CI/CD proof, and a long-lived target environment\
+✅ Observability with Grafana + Prometheus
 
-### Current proven highlights include: 
+---
+
+### 🌟 Current proven highlights include: 
 
 TOOD: This should be structured by topics / phases (like traffic generator section below):
 
@@ -119,7 +167,7 @@ TOOD: This should be structured by topics / phases (like traffic generator secti
 - Namespace-level workload visibility for `sock-shop-prod`
 - Healthy core monitoring targets through Prometheus
 
-#### Traffic Generator (Observability Helper)
+#### 🚥 Traffic Generator (Observability Helper)
 
 Reusable observability helper script (introduced in Phase 06):
 
@@ -183,7 +231,7 @@ The repository exposes a few thin Makefile helpers for the most common bservabil
 
 ---
 
-## Architecture direction
+## 🏗️ Architecture direction
 
 The current architecture direction is:
 
@@ -209,7 +257,7 @@ The current architecture direction is:
 
 This means the project is no longer only proving delivery mechanics in isolation; it is now also proving those mechanics against a real long-lived target environment.
 
-## Documentation (start here)
+## 📚 Documentation (start here)
 
 - **Project docs index:** [project-docs/INDEX.md](project-docs/INDEX.md)
 
@@ -255,7 +303,7 @@ Depending on the phase, a folder may contain:
 - Architecture Decision Records (ADRs):
   - [adr/](adr/)
 
-## Architecture Decision Records (ADRs)
+## 🏛️ Architecture Decision Records (ADRs)
 
 Project-wide standards and long-lived decisions live in:
 
@@ -265,7 +313,7 @@ Project-wide standards and long-lived decisions live in:
 - ADR-0001 — Git conventions (workflow, branching, commit messages): [adr/[2026-03-17] ADR-0001 -- Git-Conventions.md](adr/%5B2026-03-17%5D%20ADR-0001%20--%20Git-Conventions.md)
 - ADR-0002 — Documentation system and locations: [adr/[2026-03-18] ADR-0002 -- Docs-System.md](adr/%5B2026-03-18%5D%20ADR-0002%20--%20Docs-System.md)
 
-## Current verified scope
+## 📁 Current verified scope
 
 The repository currently contains proven work across these phases:
 
@@ -383,19 +431,16 @@ Additional planned layers include:
 
 Helm is also present in the repository and was evaluated, but deferred for the current CI/CD baseline because the chart path still introduces legacy compatibility friction. [TODO: Update Helm-usage for monitoring/observability] ...
  
-## Evidence
+## 📸 Evidence
 
-Evidence is captured phase-by-phase under:
+Evidence is captured phase-by-phase under:\
+`project-docs/<phase-folder>/evidence/`
 
-- `project-docs/<phase-folder>/evidence/`
+For the CI/CD baseline f. i., key workflow evidence lives under:\
+`project-docs/03-ci-cd-baseline/evidence/gh/`
 
-For the current CI/CD baseline, key workflow evidence lives under:
-
-- `project-docs/03-ci-cd-baseline/evidence/gh/`
-
-The full evidence index for each phase is documented inside the corresponding `IMPLEMENTATION.md`, for example:
-
-- [project-docs/03-ci-cd-baseline/IMPLEMENTATION.md](project-docs/03-ci-cd-baseline/IMPLEMENTATION.md)
+The full evidence index for each phase is documented inside the corresponding `IMPLEMENTATION.md`, for example:\
+[project-docs/03-ci-cd-baseline/IMPLEMENTATION.md](project-docs/03-ci-cd-baseline/IMPLEMENTATION.md)
 
 ---
 
@@ -427,14 +472,14 @@ The full evidence index for each phase is documented inside the corresponding `I
 - `project-docs/` — phase documentation, evidence, and decisions
 - `deploy/` — upstream deployment assets (Compose, Kubernetes manifests, Helm chart, related deployment material)
 
-## What comes next
+## 🔮 What comes next
 
 This README is intentionally kept open for the next implementation phases.
 
 ### Core phases still to complete
-- Security hardening + testing
-- Disaster recovery / rollback strategy
-- Selective IaC codification of stable target/bootstrap pieces
+- **Security hardening + testing**  
+- **Disaster recovery / rollback strategy**
+- **Selective IaC codification** (Terraform for stable target/bootstrap pieces)
 
 ### Strong stretch goals before evaluation, if time allows
 - **Testing track:**
@@ -444,14 +489,14 @@ This README is intentionally kept open for the next implementation phases.
   - Order Guard / Policy Service
   - FastAPI-based service extension with its own tests and deployment path
 - **Stronger image / supply-chain checks:**
-  - image scanning / SBOM generation
+  - image scanning (Trivy/Gitleaks) / SBOM generation
   - optional later signing / verification
 
 ### Later portfolio extensions
 - GitOps layer (for example Argo CD)
 - stronger secret-management integration
 - optional AWS target as an additional Terraform-driven deployment track
-- recruiter-facing live dashboard / situation-room style proof layer
+- **Portfolio Polish:** Recruiter-facing live dashboard / situation-room style proof layer.
 
 For the fuller internal planning view, see:
 - [project-docs/ROADMAP.md](project-docs/ROADMAP.md)

@@ -175,6 +175,7 @@ P07_HEALTHCHECK_IMAGE_TAR := $(P07_TRIVY_TMP_DIR)/sockshop-healthcheck.tar
 	p07-tests-live \
 	p07-tests-all \
 	p07-trivy-repo-scan \
+	p07-trivy-healthcheck-repo-scan \
 	p07-trivy-healthcheck-image-scan \
 	p07-trivy-scans
 
@@ -231,6 +232,7 @@ help:
 	@echo "  p07-tests-live             - Run the explicit live Phase 07 smoke checks"
 	@echo "  p07-tests-all              - Run all deterministic and live Phase 07 checks"
 	@echo "  p07-trivy-repo-scan        - Run the Phase 07 Trivy filesystem scan on repo-owned paths"
+	@echo "  p07-trivy-healthcheck-repo-scan - Run the focused Phase 07 Trivy filesystem scan on healthcheck"
 	@echo "  p07-trivy-healthcheck-image-scan - Run the Phase 07 Trivy image scan on the repo-owned healthcheck image"
 	@echo "  p07-trivy-scans            - Run the full Phase 07 Trivy security baseline"
 
@@ -551,9 +553,19 @@ p07-tests-all:
 	@$(MAKE_CMD) --no-print-directory p07-tests-live
 
 # Trivy security baseline
+#	
+# Documentation on the wrapped raw docker /trivy commands and flags 
+# can be found in the Docs for Phase 07/Step08  
 
+# Run the broad repo-owned Trivy filesystem baseline.
+# (targets healthcheck/, scripts/, deploy/kubernetes/, .github/, tests/)
+#
+# - Iterate over the selected repo-owned paths one by one (`trivy fs` accepts only one path per run)
+# - Scan each path for misconfigurations and leaked secrets
+# - Fail fast on HIGH / CRITICAL findings via `--exit-code 1`
+# - Reuse the persistent Trivy cache volume to avoid repeated DB/check downloads
 p07-trivy-repo-scan:
-	@# Run a Trivy filesystem scan on repo-owned paths for misconfigurations and secrets.
+	@# Run the broad Trivy filesystem baseline across repo-owned paths for misconfigurations and secrets.
 	@set -e; \
 	for target in healthcheck scripts deploy/kubernetes .github tests; do \
 		echo "RUN: Phase 07 Trivy repo scan -> $$target" >&2; \
@@ -572,6 +584,34 @@ p07-trivy-repo-scan:
 	done
 	@echo "OK: Phase 07 Trivy repo scan passed" >&2
 
+# Run a focused repo-level Trivy scan for the owned 'healthcheck/' path only.
+# 
+# - Scan only `healthcheck/` 
+# - Use the same misconfig + secret scan mode as the broad repo scan
+# - Keep `--exit-code 1` so the target fails if the path still contains HIGH / CRITICAL findings
+p07-trivy-healthcheck-repo-scan:
+	@# Run a focused Trivy filesystem scan on the repo-owned healthcheck path only.
+	@echo "RUN: Phase 07 Trivy repo scan -> healthcheck" >&2
+	@docker run --rm \
+		-v "$(CURDIR)":/repo:ro \
+		-v "$(P07_TRIVY_CACHE_VOLUME)":/root/.cache/ \
+		-w /repo \
+		$(P07_TRIVY_IMAGE) fs \
+		--scanners misconfig,secret \
+		--severity $(P07_TRIVY_SEVERITY) \
+		--exit-code 1 \
+		--skip-dirs tests/e2e/node_modules \
+		--skip-dirs tests/venv \
+		--skip-dirs .git \
+		healthcheck
+	@echo "OK: Phase 07 Trivy healthcheck repo scan passed" >&2
+
+# Build and scan the repo-owned 'healthcheck' container image.
+# 
+# - Rebuild the local `sockshop-healthcheck` image from `./healthcheck`
+# - Export that image to a tar file
+# - Scan that tar with Trivy in vulnerability-only mode
+# - Avoid Docker-socket coupling by using `--input` on the exported tar
 p07-trivy-healthcheck-image-scan:
 	@# Build the repo-owned healthcheck image and scan it as an initial vulnerability baseline.
 	@echo "RUN: Build repo-owned healthcheck image -> $(P07_HEALTHCHECK_IMAGE)" >&2
@@ -589,6 +629,10 @@ p07-trivy-healthcheck-image-scan:
 	@rm -f $(P07_HEALTHCHECK_IMAGE_TAR)
 	@echo "OK: Phase 07 Trivy image scan completed" >&2
 
+# Run the full Step-08 Trivy baseline.
+# 
+# - Execute the broad repo-owned filesystem baseline first
+# - Then execute the healthcheck image vulnerability baseline
 p07-trivy-scans:
 	@# Run the full local Phase 07 Trivy security baseline.
 	@$(MAKE_CMD) --no-print-directory p07-trivy-repo-scan

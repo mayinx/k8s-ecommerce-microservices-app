@@ -351,6 +351,33 @@ $ tests/venv/p07-python/bin/python -m py_compile \
 $ tests/venv/p07-python/bin/python -m pytest tests/python/test_contract_guard.py
 ~~~
 
+#### Playwright HTML report
+
+The Playwright HTML report provides browser-level evidence for the successful smoke run:
+
+**Playwright report dashboard - smoke suite success**
+
+![Playwright report dashboard - smoke suite success](../evidence/01-PR-Playwright-test-report-dashboard_smoke-spec-success.png)
+
+*Figure 1: Playwright HTML report overview for `smoke.spec.js`. The report shows the Chromium smoke suite completed successfully and that both browser smoke checks passed in the generated report.*
+
+---
+
+**Playwright report - storefront landing-content smoke test success**
+
+![Playwright report - storefront landing-content smoke test success](../evidence/02-PR-Palywright-test-report_Storefront-loads-landing-content-success.png)
+
+*Figure 2: Playwright HTML report detail view for the test `storefront root loads and key landing content is visible`. The report confirms the landing-page smoke test passed.*
+
+---
+
+**Playwright report - catalogue-image smoke test success**
+
+![Playwright report - catalogue-image smoke test success](../evidence/03-PR-Playwright-test-report_Storefront-renders-catalogue-image-success.png)
+
+*Figure 3: Playwright HTML report detail view for the test `storefront renders at least one catalogue image`. The report confirms the image-rendering smoke test passed.*
+
+
 #### Local dev + test cycle
 
 The local loop for further Python QA work is now:
