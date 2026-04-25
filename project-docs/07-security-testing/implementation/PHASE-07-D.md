@@ -295,3 +295,325 @@ At this point, the **Phase 07 Test & Security Layer** validates:
 - **(8) Deterministic PR-gate validation in CI** (GitHub Actions)
 
 The next step is now clear: **wire the live/environment-dependent validation path into a separate GitHub Actions workflow.**
+
+---
+
+
+## Step 12 — Wire the live smoke checks into a GitHub Actions workflow for deployed environments
+
+### Rationale
+
+Now we need to implement a **GitHub-native live validation workflow** for the already deployed application environments. 
+
+This **separate live smoke workflow** will validate the deployed storefront against a chosen target environment, using exsiting **Python and Playwright live smoke tests**. It's purpose is not broad feature testing. It is a focused check that the deployed storefront still behaves correctly at a small but meaningful level:
+
+- The **live application URL** responds
+- The **catalogue API** still returns the expected **response shape**
+- The **storefront** still **renders key visible content** in a **real browser**
+
+This workflow is intentionally kept **separate from the PR gate** because it depends on a deployed environment and can therefore be affected by factors outside the pull request itself.  
+
+#### Scope
+
+- **1 GitHub Actions workflow** for live smoke validation
+- **Manual execution through `workflow_dispatch`**
+- **Optional later reuse through `workflow_call`**
+- **Support for both `dev` and `prod`**
+- Reuse of the already existing **Phase-07 live smoke test bundle**:
+  - Python live contract smoke
+  - Playwright browser smoke
+
+#### Environment separation through GitHub repository variables
+
+This workflow validates **deployed environments**, not only repository code. It therefore needs a target-specific **base URL**.
+The environment separation is handled through separate GitHub repository variables:
+
+- `P07_DEV_BASE_URL`
+- `P07_PROD_BASE_URL`
+
+This also reinforces the multi-environment requirement by keeping `dev` and `prod` configuration values explicitly separated.
+
+### Action
+
+The goal of this step is to establish a first **GitHub-native live smoke workflow** for the deployed storefront:
+- **(1)** Define the environment-specific base-URLs 
+- **(2)** Create the live-smoke GitHub Actions workflow
+- **(3)** Reuse the already existing local live smoke test bundle in CI
+- **(4)** Produce a clean post-run artifact for Playwright evidence and debugging
+
+#### Defining the environment-specific base URLs
+
+**Public environment URLs should not be hard-coded** directly into the workflow file.  
+
+Instead, we define the two URLs as **GitHub repository variables**:
+
+- `P07_DEV_BASE_URL` = `https://dev-sockshop.cdco.dev`
+- `P07_PROD_BASE_URL` = `https://prod-sockshop.cdco.dev`
+
+These values can be configured in the GitHub repository UI under:
+
+- Settings > Secrets and variables > Actions > Tab "Variables" > Button "New repository variable" 
+
+This keeps the workflow configuration clean and makes environment changes easier later without editing the workflow YAML itself.
+
+#### Creating the live-validation workflow: `.github/workflows/phase-07-live-smoke.yml`
+
+#### Expected live workflow execution path
+
+The reusable live-validation workflow established here follows this execution path:
+
+- **(1)** Resolve the selected target environment
+- **(2)** Resolve the matching base URL from repository variables
+- **(3)** Set up Python and Node.js
+- **(4)** Run the existing `make p07-tests-live` bundle
+- **(5)** Upload the Playwright report and test-results as GitHub Actions artifacts
+
+This means the workflow validates both existing live Phase-07 surfaces in one CI run:
+
+- **Python live contract smoke**
+- **Playwright live browser smoke**
+
+For this, the workflow reuses the already existing Phase-07 live smoke bundle via the environment-agnostic Make target `p07-tests-live`, instead of introducing CI-specific test execution commands or additional Make targets:
+
+- The same smoke tests are usable **locally** and in **CI**
+- Live-validation behavior stays defined in **one place**
+- Environment selection happens through **inputs + variables**
+- The workflow is already structured for later reuse through `workflow_call`
+
+~~~yaml
+# .github/workflows/phase-07-live-smoke.yml
+#
+# Phase 07 - Reusable Live Validation Workflow
+#
+# Purpose:
+#   Validate already deployed environments (dev/prod) using the existing Phase 07
+#   live smoke bundle:
+#   - Python API contract smoke tests
+#   - Playwright browser smoke tests
+#
+# Scope & Strategy:
+#   This workflow is intentionally separate from the required PR gate.
+#   Because it validates a deployed environment, results can be influenced by
+#   factors outside the pull request itself, such as target availability,
+#   deployed runtime state, and browser timing.
+#
+# Trigger Model:
+#   - workflow_dispatch : Manual on-demand validation from the GitHub Actions UI
+#   - workflow_call     : Reusable hook for automated post-deployment validation
+#
+# Environment Handling:
+#   Target environments (dev/prod) and base URLs are resolved dynamically via
+#   repository variables or explicit workflow_call inputs.
+#
+# Usage Example (via workflow_call):
+# ---------------------------------------------------------------------------
+# jobs:
+#   verify-prod-deployment:
+#     uses: ./.github/workflows/phase-07-live-smoke.yml
+#     with:
+#       target_environment: "prod"
+#       base_url: "https://prod-sockshop.cdco.dev"
+# ---------------------------------------------------------------------------
+
+name: Phase 07 - Live Smoke
+
+on:
+  # Manual trigger for ad-hoc environment validation
+  workflow_dispatch:
+    inputs:
+      target_environment:
+        description: "Deployed environment to validate"
+        required: true
+        type: choice
+        options:
+          - dev
+          - prod
+        default: dev
+
+  # Reusable workflow hook for automated post-deployment validation
+  # (i.e. reusable by another GitHub Actiosn workflow)
+  workflow_call:
+    inputs:
+      target_environment:
+        description: "Deployed environment to validate"
+        required: true
+        type: string
+      base_url:
+        description: "Optional explicit base URL override"
+        required: false
+        type: string
+
+# Security: Enforce principle of least privilege
+permissions:
+  contents: read
+
+jobs:
+  # ---------------------------------------------------------------------------
+  # 1) Live Environment Validation Bundle
+  # ---------------------------------------------------------------------------
+  p07-live-smoke:
+    name: p07-live-smoke
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      # Provide runtime for the Python API contract-guard tests
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      # Provide runtime for the Playwright E2E browser tests
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      # -----------------------------------------------------------------------
+      # Dynamic Target Environment Resolution
+      # -----------------------------------------------------------------------
+      # Resolve the target environment and choose the matching base URL.
+      #
+      # Resolution order:
+      # 1) Explicit workflow_call input `base_url`
+      # 2) Repository variable P07_PROD_BASE_URL (for prod)
+      # 3) Repository variable P07_DEV_BASE_URL (for dev)
+      - name: Resolve live target URL
+        id: resolve-target
+        shell: bash
+        env:
+          INPUT_TARGET_ENVIRONMENT: ${{ inputs.target_environment }}
+          INPUT_BASE_URL: ${{ inputs.base_url }}
+          DEV_BASE_URL: ${{ vars.P07_DEV_BASE_URL }}
+          PROD_BASE_URL: ${{ vars.P07_PROD_BASE_URL }}
+        run: |
+          # Default to 'dev' if the target environment is not explicitly passed.
+          target_environment="${INPUT_TARGET_ENVIRONMENT:-dev}"
+          base_url="${INPUT_BASE_URL:-}"
+
+          # Fallback to repository variables if no explicit base_url override is provided
+          if [ -z "$base_url" ]; then
+            case "$target_environment" in
+              dev)
+                base_url="$DEV_BASE_URL"
+                ;;
+              prod)
+                base_url="$PROD_BASE_URL"
+                ;;
+              *)
+                echo "ERROR: Unsupported target_environment: $target_environment" >&2
+                exit 1
+                ;;
+            esac
+          fi
+
+          # Fail workflow immediately if base URL is still empty.
+          if [ -z "$base_url" ]; then
+            echo "ERROR: No base URL resolved for environment '$target_environment'." >&2
+            echo "Set repository variable P07_DEV_BASE_URL / P07_PROD_BASE_URL or pass base_url explicitly." >&2
+            exit 1
+          fi
+
+          echo "target_environment=$target_environment" >> "$GITHUB_OUTPUT"
+          echo "base_url=$base_url" >> "$GITHUB_OUTPUT"
+
+      # Print the resolved target in the workflow logs for traceability.
+      - name: Show resolved live target
+        shell: bash
+        run: |
+          echo "Resolved target environment: ${{ steps.resolve-target.outputs.target_environment }}"
+          echo "Resolved target base URL:    ${{ steps.resolve-target.outputs.base_url }}"
+
+      # -----------------------------------------------------------------------
+      # Live Smoke Tests Execution & Artifacts
+      # -----------------------------------------------------------------------
+      # Execute the live smoke test bundle against the resolved target environment.
+      #
+      # BASE_URL is injected explicitly into the environment-agnostic Make target
+      # `p07-tests-live`, which passes it on to:
+      # - Python live contract smoke tests
+      # - Playwright browser smoke tests
+      #
+      # CI=true activates the CI-aware Playwright behavior already defined in
+      # the Phase-07 Playwright configuration.
+      - name: Run Phase 07 live smoke test bundle
+        shell: bash
+        env:
+          BASE_URL: ${{ steps.resolve-target.outputs.base_url }}
+          CI: "true"
+        run: make p07-tests-live
+
+      # Preserve the Playwright HTML report for debugging, even if the job fails.
+      # The report is uploaded to GitHub Actions artifact storage and can be
+      # downloaded from the workflow run page.
+      - name: Upload Playwright HTML report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: p07-playwright-report-${{ steps.resolve-target.outputs.target_environment }}
+          path: tests/e2e/playwright-report
+          if-no-files-found: ignore
+          retention-days: 7
+
+      # Preserve deep-dive artifacts (traces, screenshots) on failure
+      - name: Upload Playwright test-results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: p07-playwright-test-results-${{ steps.resolve-target.outputs.target_environment }}
+          path: tests/e2e/test-results
+          if-no-files-found: ignore
+          retention-days: 7
+~~~
+
+#### Triggering the first live workflow run
+
+After the workflow file is committed and pushed, the first live run can be started through the GitHub Actions UI:
+
+- Actions > "Phase 07 - Live Smoke" > Run workflow
+- Select branch 
+- Select `target_environment`
+- Run workflow
+
+A first run should be executed against **`dev`**. 
+
+### Result
+
+Step 12 establishes the first **GitHub-native live smoke workflow** for deployed environments in Phase 07.
+
+The successful end state is shown by these signals / verification points:
+
+- The repository now contains a dedicated live-validation workflow:
+  - `.github/workflows/phase-07-live-smoke.yml`
+- The workflow is explicitly **environment-aware**:
+  - `dev` and `prod` are selected through a workflow input
+  - the matching base URLs are resolved from separate repository variables
+- The workflow reuses the already existing **Phase-07 live smoke bundle**
+  - Python live contract smoke
+  - Playwright browser smoke
+- The workflow remains intentionally **separate from the deterministic PR gate**
+- The workflow uploads **Playwright artifacts** for later inspection and debugging
+- The workflow is already shaped for two usage modes:
+  - **manual live validation** through `workflow_dispatch`
+  - **later reuse from another workflow** through `workflow_call`
+
+At this point, the **Phase 07 Test & Security Layer** validates:
+
+- **(1) Service health/reachability** (Ruby)
+- **(2) Helper-script behavior (Traffic Generator)** (Bash)
+- **(3) API response-shape compatibility** (Python)
+- **(4) Storefront rendering in a real browser** (Playwright / JavaScript)
+- **(5) Security-scanning for repo-owned surfaces** (Trivy)
+- **(6) Evidence-based security remediation on a repo-owned Docker image path** (Trivy + hardened `healthcheck` image)
+- **(7) Dependency-scanning for repo-owned dependency surfaces** (Dependabot)
+- **(8) Stable PR-gate validation in GitHub Actions** (deterministic workflow)
+- **(9) Live deployed-environment smoke validation in GitHub Actions** (manual / reusable live-smoke workflow)
+
+The next step is now clear: 
+- Apply repository governance by locking the default branch to the stable PR-gate checks
+- While keeping the live workflow available as an explicit post-deploy validation path. 
+
+---

@@ -33,12 +33,18 @@ P07_TRAFFIC_HELPER_TEST := tests/bash/test_generate_sockshop_traffic.sh
 P07_PYTHON_BIN := tests/venv/p07-python/bin/python
 P07_PYTHON_REQUIREMENTS := tests/python/requirements-p07.txt
 P07_CONTRACT_GUARD_FILE := tests/python/sockshop_contract_guard.py
-P07_CONTRACT_GUARD_TEST := tests/python/test_contract_guard.py	
+P07_CONTRACT_GUARD_TEST := tests/python/test_contract_guard.py
 
 P07_CONTRACT_GUARD_LIVE_TEST := tests/python/test_contract_guard_live.py
-P07_CONTRACT_BASE_URL ?= https://dev-sockshop.cdco.dev
 
-P07_E2E_BASE_URL ?= https://dev-sockshop.cdco.dev
+# Shared live-target base URLs for Phase 07: 
+# - Generic live targets can still be redirected externally via BASE_URL
+#   (for example by GitHub Actions).
+# - Named dev/prod/local convenience targets are pinned to these fixed URLs.
+P07_DEV_BASE_URL := https://dev-sockshop.cdco.dev
+P07_PROD_BASE_URL := https://prod-sockshop.cdco.dev
+P07_LOCAL_BASE_URL := http://127.0.0.1:18080
+
 P07_E2E_TEST := smoke.spec.js
 
 P07_TRIVY_IMAGE ?= aquasec/trivy:latest
@@ -108,8 +114,8 @@ P07_HEALTHCHECK_IMAGE_TAR := $(P07_TRIVY_TMP_DIR)/sockshop-healthcheck.tar
 #
 # - ?=
 #   Assign a default value only if the variable is not already set from the
-#   environment or command line. Useful for overridable defaults such as live
-#   target URLs.
+#   environment or command line. Useful for overridable defaults where caller
+#   overrides should remain possible.
 #
 # These patterns are used repeatedly in the Phase 07 targets to keep the output
 # compact, readable, and CI-friendly: 
@@ -168,6 +174,7 @@ P07_HEALTHCHECK_IMAGE_TAR := $(P07_TRIVY_TMP_DIR)/sockshop-healthcheck.tar
 	p07-contract-guard-live-prod \
 	p07-contract-guard-live-local \
 	p07-e2e-install \
+	p07-e2e-smoke \
 	p07-e2e-smoke-dev \
 	p07-e2e-smoke-prod \
 	p07-e2e-report \
@@ -225,6 +232,7 @@ help:
 	@echo "  p07-contract-guard-live-prod - Run the Phase 07 live Python contract smoke against the prod edge"
 	@echo "  p07-contract-guard-live-local - Run the Phase 07 live Python contract smoke against a local port-forward"
 	@echo "  p07-e2e-install            - Create/update the local Phase 07 Playwright environment"
+	@echo "  p07-e2e-smoke             - Run the Phase 07 Playwright browser smoke test against the configured base URL"
 	@echo "  p07-e2e-smoke-dev          - Run the Phase 07 Playwright browser smoke test against the dev edge"
 	@echo "  p07-e2e-smoke-prod         - Run the Phase 07 Playwright browser smoke test against the prod edge"
 	@echo "  p07-e2e-report             - Open the latest Phase 07 Playwright HTML report"
@@ -477,25 +485,29 @@ p07-contract-guard-tests:
 # python - contract guard tests - live target
 
 p07-contract-guard-live-test:
-	@# Run the Phase 07 live Python contract smoke against the configured base URL.
-	@echo "RUN: Phase 07 live Python contract smoke -> $(P07_CONTRACT_BASE_URL)/catalogue" >&2
-	@SOCKSHOP_CONTRACT_BASE_URL=$(P07_CONTRACT_BASE_URL) \
-	$(P07_PYTHON_BIN) -m pytest -q $(P07_CONTRACT_GUARD_LIVE_TEST)
-	@echo "OK: Phase 07 live Python contract smoke passed" >&2
+	@# Run the Phase 07 live Python contract smoke implementation target.
+	@# If BASE_URL is provided by the caller (for example by GitHub Actions),
+	@# use that value. Otherwise fall back to the shared dev default.
+	@LIVE_URL=$${BASE_URL:-$(P07_DEV_BASE_URL)}; \
+	echo "RUN: Phase 07 live Python contract smoke -> $$LIVE_URL/catalogue" >&2; \
+	SOCKSHOP_CONTRACT_BASE_URL=$$LIVE_URL \
+	$(P07_PYTHON_BIN) -m pytest -q $(P07_CONTRACT_GUARD_LIVE_TEST); \
+	echo "OK: Phase 07 live Python contract smoke passed" >&2
 
 p07-contract-guard-live-dev:
 	@# Run the live Python contract smoke test against the dev edge.
-	@$(MAKE_CMD) --no-print-directory p07-contract-guard-live-test
+	@BASE_URL=$(P07_DEV_BASE_URL) \
+	$(MAKE_CMD) --no-print-directory p07-contract-guard-live-test
 
 p07-contract-guard-live-prod:
 	@# Run the live Python contract smoke test against the prod edge.
-	@$(MAKE_CMD) --no-print-directory p07-contract-guard-live-test \
-		P07_CONTRACT_BASE_URL=https://prod-sockshop.cdco.dev
+	@BASE_URL=$(P07_PROD_BASE_URL) \
+	$(MAKE_CMD) --no-print-directory p07-contract-guard-live-test
 
 p07-contract-guard-live-local:
 	@# Run the live Python contract smoke test against a local port-forward.
-	@$(MAKE_CMD) --no-print-directory p07-contract-guard-live-test \
-		P07_CONTRACT_BASE_URL=http://127.0.0.1:18080
+	@BASE_URL=$(P07_LOCAL_BASE_URL) \
+	$(MAKE_CMD) --no-print-directory p07-contract-guard-live-test
 
 # Playwright browser smoke tests
 
@@ -512,23 +524,28 @@ p07-e2e-install:
 	@cd $(E2E_DIR) && npx playwright install chromium >/dev/null
 	@echo "OK: Phase 07 Playwright environment ready -> $(E2E_DIR)" >&2
 
-p07-e2e-smoke-dev:
-	@# Run the Phase 07 Playwright browser smoke test against the dev edge.
+# CI aware
+p07-e2e-smoke:
+	@# Run the Phase 07 Playwright browser smoke implementation target.
+	@# If BASE_URL is provided by the caller (for example by GitHub Actions),
+	@# use that value. Otherwise fall back to the shared dev default.
 	@$(MAKE_CMD) --no-print-directory p07-e2e-install
 	@# Forward the current CI state explicitly into the Playwright execution context.
 	@CI_VAL=$${CI:-false}; \
-	echo "RUN: Phase 07 Playwright smoke -> $(P07_E2E_BASE_URL) (CI: $$CI_VAL)" >&2; \
-	cd $(E2E_DIR) && CI=$$CI_VAL BASE_URL=$(P07_E2E_BASE_URL) npx playwright test $(P07_E2E_TEST) --project=chromium
-	@echo "OK: Phase 07 Playwright smoke passed" >&2
+	LIVE_URL=$${BASE_URL:-$(P07_DEV_BASE_URL)}; \
+	echo "RUN: Phase 07 Playwright smoke -> $$LIVE_URL (CI: $$CI_VAL)" >&2; \
+	cd $(E2E_DIR) && CI=$$CI_VAL BASE_URL=$$LIVE_URL npx playwright test $(P07_E2E_TEST) --project=chromium; \
+	echo "OK: Phase 07 Playwright smoke passed" >&2
+
+p07-e2e-smoke-dev:
+	@# Pin the Phase 07 Playwright browser smoke test to the dev edge.
+	@BASE_URL=$(P07_DEV_BASE_URL) \
+	$(MAKE_CMD) --no-print-directory p07-e2e-smoke
 
 p07-e2e-smoke-prod:
-	@# Run the Phase 07 Playwright browser smoke test against the prod edge.
-	@$(MAKE_CMD) --no-print-directory p07-e2e-install
-	@# Forward the current CI state explicitly into the Playwright execution context.
-	@CI_VAL=$${CI:-false}; \
-	echo "RUN: Phase 07 Playwright smoke -> https://prod-sockshop.cdco.dev (CI: $$CI_VAL)" >&2; \
-	cd $(E2E_DIR) && CI=$$CI_VAL BASE_URL=https://prod-sockshop.cdco.dev npx playwright test $(P07_E2E_TEST) --project=chromium
-	@echo "OK: Phase 07 Playwright smoke passed" >&2
+	@# Pin the Phase 07 Playwright browser smoke test to the prod edge.
+	@BASE_URL=$(P07_PROD_BASE_URL) \
+	$(MAKE_CMD) --no-print-directory p07-e2e-smoke
 
 p07-e2e-report:
 	@# Open the latest Playwright HTML report.
@@ -542,10 +559,13 @@ p07-tests:
 	@$(MAKE_CMD) --no-print-directory p07-traffic-helper-tests
 	@$(MAKE_CMD) --no-print-directory p07-contract-guard-tests
 
+# CI aware
 p07-tests-live:
-	@# Run the explicit live Phase 07 smoke checks.
-	@$(MAKE_CMD) --no-print-directory p07-contract-guard-live-dev
-	@$(MAKE_CMD) --no-print-directory p07-e2e-smoke-dev
+	@# Run the explicit live Phase 07 smoke bundle.
+	@# BASE_URL can be injected externally (for example by GitHub Actions).
+	@# Without BASE_URL override, this bundle falls back to the shared dev default.
+	@$(MAKE_CMD) --no-print-directory p07-contract-guard-live-test
+	@$(MAKE_CMD) --no-print-directory p07-e2e-smoke
 
 p07-tests-all:
 	@# Run all deterministic and live Phase 07 checks in one go.
