@@ -1,6 +1,6 @@
 # Implementation — Subphase 04: Stable PR gate, live CI validation, and branch protection (Steps 11–13)
 
-## Step 11 — Wire deterministic PR-gate checks into a new GitHub Actions workflow
+## Step 11 — Implement and activate a deterministic PR-gate workflow in GitHub Actions
 
 ### Rationale
 
@@ -13,7 +13,9 @@ Phase 07 now already provides a strong **local validation baseline**:
 - **Security-scanning for repo-owned surfaces** through Trivy
 - **Dependency-scanning for repo-owned dependency surfaces** through Dependabot
 
-What is still missing is a **GitHub-native deterministic PR gate** that runs automatically on pull requests and prevents regressions from reaching the default branch.
+What is still missing is a **GitHub-native deterministic PR gate** 
+- that runs **automatically on pull requests** 
+- and **prevents regressions** from reaching the **default branch**.
 
 The next useful addition is therefore a **deterministic PR-gate workflow** in GitHub Actions.
 
@@ -37,11 +39,11 @@ The following checks are **explicitly excluded** from this PR gate:
 - **Live Python contract smoke checks**
 - **The broad `make p07-trivy-repo-scan` baseline**
 
-That split is deliberate:
+Reason:
 
-- Live/browser checks are **environment-dependent**
-- The broad repo Trivy baseline currently surfaces **additional backlog outside the focused `healthcheck/` remediation path**
-- tThe PR gate in this step should stay **stable, explainable, and merge-blocking only for owned deterministic signals already under control**
+- Live/browser checks are **environment-dependent** and potentially **flaky**
+- The **broader Repo Trivy Issues Baseline** currently surfaces **additional backlog outside the focused `healthcheck/` remediation path**
+- The PR gate in this step should stay **stable, explainable, and merge-blocking only for owned deterministic signals already under control**
 
 > [!NOTE] **🛡️ Deterministic PR gate**
 >
@@ -133,6 +135,7 @@ name: Phase 07 - Deterministic PR Gate
 
 on:
   # Run automatically for pull requests targeting the protected default branch.
+  # This includes pull-request activity such as opening, reopening, and updating existing PRs.
   pull_request:
     branches:
       - master
@@ -223,47 +226,41 @@ jobs:
 
 #### Why the broad Trivy repo baseline is not used as the PR gate
 
-As noted in Step 9 (Healthcheck Dockerfile Hardening), the broader target `make p07-trivy-repo-scan` currently surfaces **additional findings outside the focused `healthcheck/` remediation path**. This Make target functions as **Legacy Hardening Backlog** and will be addressed again in later phases. At this point, before its remediation, it is therefore not suitable to be used in the current PR gate workflow. 
+As noted in Step 9 (Healthcheck Dockerfile Hardening), the broader target `make p07-trivy-repo-scan` currently surfaces **additional findings outside the focused `healthcheck/` remediation path**. This Make target (i.e. its current output) functions as **Legacy Hardening Backlog** and will be addressed again in later phases. At this point, before its remediation, it is therefore not suitable to be used in the current PR gate workflow. 
 
-For the deterministic PR gate in this step, the correct Trivy repo target is `make p07-trivy-healthcheck-repo-scan` - because it blocks only on the **owned and already-remediated `healthcheck/`-path**, that is under active control.
-
+For the deterministic PR gate in this step, the **correct Trivy repo target** is `make p07-trivy-healthcheck-repo-scan` - because it blocks only on the **owned and already-remediated `healthcheck/`-path**, that is under active control.
 
 #### Trigger behavior of the workflow
 
 This workflow is triggered by:
 
 - **Pull requests targeting `master`**
+    - On **PR activity** like openening, reopening, or updating a PR with new commits 
 - **Manual workflow dispatch**
+    - On manual execution - via the manual "Run workflow" / "rerun all steps" button in the GitHub UI
 
 This gives us two useful execution paths:
 
 - **Normal PR validation**
 - **Manual rerun/debug run** from the Actions tab when needed
 
-A `push` trigger is intentionally not required for this step. The main purpose here is to establish the merge-relevant PR gate first.
-
 #### Running and verifying the workflow
 
-Once the workflow file is committed and pushed, opening a pull request targeting `master` will have this outcome in **GitHub Actions**:
+Once the workflow file is committed and pushed, the deterministic PR-gate workflow is already live in GitHub Actions. It runs automatically for pull-request activity targeting `master`, i.e. when a new pull request is opened or new commits are pushed to an existing one.
 
-- Workflow: **Phase 07 - Deterministic PR Gate**
+In GitHub Actions, this appears as:
+
+- Workflow: `Phase 07 - Deterministic PR Gate`
 - Jobs:
-  - **p07-deterministic-tests**
-  - **p07-trivy-healthcheck-repo-scan**
-  - **p07-trivy-healthcheck-image-scan**
+  - `p07-deterministic-tests`
+  - `p07-trivy-healthcheck-repo-scan`
+  - `p07-trivy-healthcheck-image-scan`
 
-A successful run should show all three jobs green.
+A successful run shows all three jobs green. 
 
-#### Relationship to the next step
+At this stage, however, the workflow is **not yet enforced as a truly mandatory merge gate**. It runs automatically - but merges are still possible, even when teh PR gate worflow failed. 
 
-This step establishes the **deterministic PR gate**.
-
-The next step adds the **separate live/environment workflow**, for example:
-
-- Playwright smoke tests
-- live Python contract smoke checks
-
-Only after the deterministic workflow has run successfully and its job names are stable does it make sense to finalize **branch protection** with required status checks.
+That enforcement follows later through default-branch protection and required status checks.
 
 ### Result
 
@@ -281,8 +278,8 @@ The successful end state is shown by these signals / verification points:
 - The job names are stable and suitable for later branch-protection enforcement
 - Local and CI execution paths now stay aligned through the same Make targets
 - The repository is now prepared for:
-  - a separate live smoke workflow in the next step
-  - required status-check enforcement through branch protection afterward
+  - A separate live smoke workflow in the next step
+  - Required status-check enforcement through branch protection afterward
 
 At this point, the **Phase 07 Test & Security Layer** validates:
 - **(1) Service health/reachability** (Ruby)
@@ -294,18 +291,20 @@ At this point, the **Phase 07 Test & Security Layer** validates:
 - **(7) Dependency-scanning for repo-owned dependency surfaces** (Dependabot)
 - **(8) Deterministic PR-gate validation in CI** (GitHub Actions)
 
-The next step is now clear: **wire the live/environment-dependent validation path into a separate GitHub Actions workflow.**
+The remaining two steps are now:
+
+- (1) Implement a separate GitHub Actions workflow for live smoke validation against the public `dev` and `prod`` environments
+- (2) Make the PR gate mandatory and keep the live smoke workflow optional: turn the already active deterministic PR-gate workflow into a real mandatory merge gate through branch protection, while keeping the separate live smoke workflow available as a non-blocking validation check
 
 ---
 
-
-## Step 12 — Wire the live smoke checks into a GitHub Actions workflow for deployed environments
+## Step 12 — Implement and activate a live-smoke workflow in GitHub Actions for deployed environments
 
 ### Rationale
 
 Now we need to implement a **GitHub-native live validation workflow** for the already deployed application environments. 
 
-This **separate live smoke workflow** will validate the deployed storefront against a chosen target environment, using exsiting **Python and Playwright live smoke tests**. It's purpose is not broad feature testing. It is a focused check that the deployed storefront still behaves correctly at a small but meaningful level:
+This **separate live smoke workflow** will validate the deployed storefront against a chosen target environment, using exsiting **Python and Playwright live smoke tests**. It's purpose is not broad feature testing. It is a focused check that the deployed storefront still behaves correctly on a basic but meaningful level:
 
 - The **live application URL** responds
 - The **catalogue API** still returns the expected **response shape**
@@ -323,15 +322,21 @@ This workflow is intentionally kept **separate from the PR gate** because it dep
   - Python live contract smoke
   - Playwright browser smoke
 
-#### Environment separation through GitHub repository variables
+#### Environment separation through explicit base-URL injection and repository-variable defaults
 
-This workflow validates **deployed environments**, not only repository code. It therefore needs a target-specific **base URL**.
-The environment separation is handled through separate GitHub repository variables:
+This workflow validates **deployed environments** and needs a target-specific **base URL**.
 
-- `P07_DEV_BASE_URL`
-- `P07_PROD_BASE_URL`
+The **environment separation** is handled in two layers:
 
-This also reinforces the multi-environment requirement by keeping `dev` and `prod` configuration values explicitly separated.
+- (1) **GitHub repository variables** - as the default source for manually selected `dev` and `prod` runs:
+  - `P07_DEV_BASE_URL`
+  - `P07_PROD_BASE_URL`
+- (2) **Explicit `base_url` input** - for reusable `workflow_call` executions
+
+**Result:** 
+
+- The workflow stays **reusable and environment-agnostic** at execution level - and can be run against the live edges of `dev` or `prod`
+- At the same time, the workflow keeps the standard `dev` and `prod` configuration values **explicitly separated in GitHub as repository variables**.
 
 ### Action
 
@@ -383,7 +388,7 @@ For this, the workflow reuses the already existing Phase-07 live smoke bundle vi
 ~~~yaml
 # .github/workflows/phase-07-live-smoke.yml
 #
-# Phase 07 - Reusable Live Validation Workflow
+# Phase 07 - Reusable Live Smoke Validation Workflow
 #
 # Purpose:
 #   Validate already deployed environments (dev/prod) using the existing Phase 07
@@ -580,6 +585,10 @@ After the workflow file is committed and pushed, the first live run can be start
 
 A first run should be executed against **`dev`**. 
 
+At this stage, the workflow is intended to be used used primarily through `workflow_dispatch` for manual validation runs. 
+
+The additional `workflow_call` trigger is implemented so that a later deployment workflow can call the same live-smoke workflow automatically after a successful `dev` or `prod` rollout.
+
 ### Result
 
 Step 12 establishes the first **GitHub-native live smoke workflow** for deployed environments in Phase 07.
@@ -617,3 +626,149 @@ The next step is now clear:
 - While keeping the live workflow available as an explicit post-deploy validation path. 
 
 ---
+
+## Step 13 — Default-branch protection and enforcement of the mandatory PR gate
+
+### Rationale
+
+- Step 11 introduced the first **deterministic GitHub Actions PR gate** for Phase 07.  
+- Step 12 added the separate **live smoke test workflow** for deployed environments.
+- Still missing: The **final governance layer** that actually **enforces the deterministic PR gate as potential merge blocker**.
+
+The next (and phase-final) addition is therefore a **default-branch protection ruleset** in GitHub:
+
+- (1) Changes to `master` **must be introduced through a pull request** - and not through direct branch updates
+- (2) **Direct updates** that bypass the CI validation path are **not permitted**
+- (3) A pull request can only be merged into `master` if the **mandatory deterministic PR-gate workflow completes successfully**
+- (4) The **live smoke validation workflow remains separate** from the required merge gate
+
+This completes the transition from:
+
+- **local validation** 
+- to **CI validation**
+- to **repository-level merge governance**
+
+In consequence, the deterministic workflow functions as the stable **merge gate**
+while the live workflow remains an **post-deploy / environment-validation path**. 
+
+> [!NOTE] **🛡️ Branch protection / ruleset governance**
+>
+> A CI workflow alone may run automatic and function eprfectly - but it can't frunciton as a rue Merge Gate without a corresponding GH Actions Ruleset to enforce branch protection.
+>
+> Without branch protection, a repository owner or collaborator could still push directly to the default branch and bypass the validation workflow entirely.
+>
+> This step turns the deterministic PR gate into an actual repository rule:
+>
+> - Changes must go through a pull request
+> - The required deterministic checks must pass
+> - Direct pushes or CI bypasses are not allowed
+
+### Action
+
+The goal of this step is to enforce the already established deterministic PR gate at the repository level:
+- **(1)** Create a default-branch ruleset for `master`
+- **(2)** Require the deterministic Step-11 jobs as "status checks" and thus as merge blockers
+- **(3)** Verify that direct merge bypass is no longer possible through the normal path
+
+#### Creating the ruleset in GitHub
+
+A new branch ruleset can be created in the GitHub UI of the repo via  
+
+- **Settings** > **Rules** > **Rulesets** > **New branch ruleset**
+
+##### Rule Identity + Target Branches 
+
+For the created ruleset the following configuration was chosen
+
+- **Ruleset name**: "Protect Master" 
+- **Enforcement status**: `Active`
+- **Bypass list**: Left empty
+- **Target branches**: "Default branch" (ensures the ruleset applies only to `master`)
+
+
+##### Branch rules to enable/edit 
+
+- **"Restrict deletions"**: Enabled
+- **"Require a pull request before merging"**: Enabled - optional edit:
+        **Require conversation resolution before merging** - optional
+- **„Block force pushes"**: Enabled
+    When enabled, users may still work normally through PRs and regular merges, but they may not rewrite the protected branch history with force-push operations: Existing commits on `master` cannot later be replaced, removed, or moved to a different history by a force-push.
+- **"Require status checks to pass before merging"**: Enabled - edit:
+   - **"Status checks that are required"** lists the **deterministic Step-11 checks/job names**:  
+        - `p07-deterministic-tests`
+        - `p07-trivy-healthcheck-repo-scan`
+        - `p07-trivy-healthcheck-image-scan`
+    - **"Require branches to be up to date before merging"**: Enabled (ensures that a pull request is tested against the latest state of `master`, not against an outdated earlier branch state)
+
+Note: If those job names/required checks are not available, it is necessary to make sure that the Step-11 workflow has already produced successful check results in the repository - at least once. Otherwise the jobs/checks might not be available for selection here! 
+
+#### Resulting merge path
+
+Once the ruleset is saved, the intended merge path becomes:
+
+- (1) Open a pull request against `master` 
+- (2) GitHub runs the deterministic PR-gate workflow
+- (3) The following checks must pass:
+  - `p07-deterministic-tests`
+  - `p07-trivy-healthcheck-repo-scan`
+  - `p07-trivy-healthcheck-image-scan`
+- (4) Only then can the pull request be merged 
+- (5) Pushing into the PR triggers the PR-gate workflow as well  
+
+**Rule of the Step-12 live smoke validation workflow**
+
+The live smoke workflow remains:
+- Manually runnable
+- Reusable from other workflows later
+- Visible as deployment/environment validation
+- Not required for merge 
+
+Later phases can iterate over this behavior and implement a successful automatic Live Check against the dev edge as gate for a production env deployment (given, the corresponding live tests are stable enough).  
+
+#### Triggering the PR gate 
+
+- A pull request to `master` triggers the deterministic PR-gate. The required deterministic checks (workflow job names) are visible. 
+- The merge button remains blocked while those checks are pending or failing
+- The merge becomes available only after all required checks are green
+- Direct default-branch bypass through the normal merge path are not permitted
+
+A quick repository-governance sanity check is now:
+
+- Deterministic PR gate = **required**
+- Live smoke workflow = **available, but not required**
+- Default branch = **protected**
+
+### Result
+
+Step 13 enforces the first **repository-level governance rule** for Phase 07 by protecting the default branch with the deterministic PR gate.
+
+The successful end state is shown by these signals / verification points:
+
+- The repository now has a **default-branch ruleset** targeting `master`
+- Direct default-branch work is now governed through a **pull-request-first** flow
+- The deterministic Step-11 checks are now configured as **required status checks**:
+  - `p07-deterministic-tests`
+  - `p07-trivy-healthcheck-repo-scan`
+  - `p07-trivy-healthcheck-image-scan`
+- The required merge gate stays intentionally limited to **stable deterministic checks**
+- The Step-12 live smoke workflow remains available as a **separate deployed-environment validation path**
+- Phase 07 now covers the full chain:
+  - local validation
+  - CI validation
+  - enforced repository governance
+
+At this point, the **Phase 07 Test & Security Layer** validates:
+
+- **(1) Service health/reachability** (Ruby)
+- **(2) Helper-script behavior (Traffic Generator)** (Bash)
+- **(3) API response-shape compatibility** (Python)
+- **(4) Storefront rendering in a real browser** (Playwright / JavaScript)
+- **(5) Security-scanning for repo-owned surfaces** (Trivy)
+- **(6) Evidence-based security remediation on a repo-owned Docker image path** (Trivy + hardened `healthcheck` image)
+- **(7) Dependency-scanning for repo-owned dependency surfaces** (Dependabot)
+- **(8) Deterministic PR-gate validation in CI** (GitHub Actions)
+- **(9) Live deployed-environment smoke validation in GitHub Actions** (manual / reusable live-smoke workflow)
+- **(10) Repository-level merge governance on the default branch** (ruleset + required deterministic checks)
+
+This concludes the implementation of Phase 07. 
+

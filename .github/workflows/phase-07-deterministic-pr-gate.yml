@@ -3,7 +3,7 @@
 # Phase 07 - Deterministic PR Gate
 #
 # Purpose:
-# Run the deterministic, repo-owned validation bundle on pull requests 
+# Run the deterministic, repo-owned validation bundle on pull request 
 # targeting the default branch. 
 #
 # This workflow intentionally excludes live/environment-dependent checks 
@@ -30,6 +30,7 @@ name: Phase 07 - Deterministic PR Gate
 
 on:
   # Run automatically for pull requests targeting the protected default branch.
+  # This includes pull-request activity such as opening, reopening, and updating existing PRs.
   pull_request:
     branches:
       - master

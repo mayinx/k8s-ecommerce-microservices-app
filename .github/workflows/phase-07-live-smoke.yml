@@ -1,6 +1,6 @@
 # .github/workflows/phase-07-live-smoke.yml
 #
-# Phase 07 - Reusable Live Validation Workflow
+# Phase 07 - Reusable Live Smoke Validation Workflow
 #
 # Purpose:
 #   Validate already deployed environments (dev/prod) using the existing Phase 07
