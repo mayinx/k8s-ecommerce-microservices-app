@@ -1,11 +1,44 @@
-name: ci
+# .github/workflows/main.yaml
+#
+# Legacy Upstream CI Workflow (Archived)
+#
+# Purpose:
+#   Retained strictly for historical reference. This workflow is no longer part
+#   of the active project CI/CD path.
+#
+# Status:
+#   Manual only. Automatic push / tag execution was intentionally removed to
+#   prevent legacy upstream CI runs from adding failure noise to the active
+#   project workflows.
+#
+# Rationale:
+# - Architecture Mismatch: Reflects the inherited upstream CI model rather than 
+#   the custom Proxmox/K3s target delivery path built for this project.
+# - Obsolete Targets: Tests legacy complete-demo and local KinD assumptions.
+# - Stale Registry Auth: Attempts an old Docker Hub publish path requiring 
+#   upstream-specific secrets, whereas this project utilizes GHCR.
+
+# - Architecture mismatch: reflects the inherited upstream CI model rather than
+#   the repo-specific Proxmox / K3s delivery path used in this project.
+# - Obsolete targets: Validates legacy complete-demo and local Kind assumptions.
+# - Docekr Hub based: includes an old Docker Hub publish flow requiring
+#   upstream-specific secrets (DOCKER_USER, DOCKER_PASS) and image tags like 
+#   `weaveworksdemos/<image>:<sha>`, while this project uses GHCR.
+
+name: Legacy Upstream CI (Manual Only)
 
 on:
-  push:
-    branches:
-    - "*"  # run for branches
-    tags:
-    - "*"  # run for tags
+  # Retained solely for manual on-demand execution if historical debugging is needed.
+  workflow_dispatch:
+
+  # ---------------------------------------------------------------------------
+  # ARCHIVED TRIGGERS
+  # ---------------------------------------------------------------------------
+  # push:
+  #   branches:
+  #     - "*"  
+  #   tags:
+  #     - "*"
 
 jobs:
   #
