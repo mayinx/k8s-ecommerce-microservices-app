@@ -1,0 +1,55 @@
+# .github/dependabot.yml
+#
+# GitHub Dependabot Configuration File
+#
+# Phase 07 - Security Testing (Code Dependency Scanning)
+#
+# Purpose:
+# Establish an automated dependency-scanning baseline to identify and remediate 
+# vulnerable dependencies in repository-owned code surfaces.
+#
+# Scope & Strategy:
+# This configuration is strictly scoped to the infrastructure and tooling
+# actively maintained within this repository:
+# - (1) GitHub Actions: Scans CI/CD runner environments to prevent supply-chain attacks.
+# - (2) npm (Playwright): Scans the local E2E testing toolchain.
+#
+# Intentional Exclusion:
+# Scanning the upstream WeaveSocks legacy microservices is explicitly excluded. 
+# Scanning 8-year-old unmaintained upstream code would generate unactionable noise. 
+# The choosen DevSecOps strategy focuses strictly on the surfaces we own and operate.
+#
+
+version: 2 # Required schema version for GitHub-native Dependabot
+
+updates:
+    # ---------------------------------------------------------------------------
+  # 1) Scan GitHub Actions Toolchain under .github/workflows
+  # ---------------------------------------------------------------------------
+  # Scans the repository root for workflow files (.github/workflows/) to ensure
+  # the CI/CD pipelines do not rely on deprecated or vulnerable action versions.
+  # This updates actions such as actions/checkout, actions/setup-node, and 
+  # similar workflow dependencies.
+
+  - package-ecosystem: "github-actions"     # Identifies the target package manager/ecosystem
+    directory: "/"                          # Instructs Dependabot to scan the repo root for .github/workflows
+    schedule:
+      interval: "weekly"                    # Check once per week for available updates (to prevent CI/CD pipeline noise)
+    labels:                                 # Automatically tags generated PRs for easy filtering                                 
+      - "dependencies"
+      - "security"
+
+  # ---------------------------------------------------------------------------
+  # 2) Scan Playwright E2E Testing Environment under tests/e2e
+  # ---------------------------------------------------------------------------
+  # Scans the isolated Node.js project used for our browser smoke tests to ensure
+  # the local testing toolchain remains secure against vulnerable packages.
+  # This updates npm dependencies such as @playwright/test and other testing 
+  # utilities defined in package.json.
+  - package-ecosystem: "npm"                # Identifies Node.js dependencies (looks for package.json)
+    directory: "/tests/e2e"                 # Restricts the scan purely to the Playwright local Node.js project 
+    schedule:
+      interval: "weekly"
+    labels:
+      - "dependencies"
+      - "security"

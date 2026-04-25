@@ -3,7 +3,7 @@
 > ## 👤 About
 > This document is the implementation log and detailed project build diary for **Phase 00 (Compose Repo Baseline)**.  
 > It records the full implementation path including rationales, key observations, corrections, verification/validation steps, and evidence pointers so the work remains auditable and reproducible.  
-> For a shorter, reproducible **TL;DR command checklist / rerun guide**, see: **[00-compose-repo-baseline/RUNBOOK.md](RUNBOOK.md)**.
+> For a shorter, reproducible **TL;DR command checklist / rerun guide**, see: **[00-compose-baseline/RUNBOOK.md](RUNBOOK.md)**.
 
 ---
 
@@ -710,7 +710,7 @@ $ docker compose -f docker-compose.yml -f docker-compose.logging.yml down
   - `http://localhost:9100/` (node-exporter)
 
 #### Artifacts captured:
-  - Screenshots under `docs/00-compose-repo-baseline/evidence/`
+  - Screenshots under `docs/00-compose-baseline/evidence/`
 
 ---
 

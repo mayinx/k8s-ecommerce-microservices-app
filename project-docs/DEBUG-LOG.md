@@ -1,5 +1,7 @@
 # Project Debug Log & Incident Reports
 
+TODO: Add an index!
+
 This document tracks technical anomalies discovered during deployment, the investigation process, and the resulting architectural decisions.
 
 ---
@@ -137,3 +139,178 @@ switched to db data
 System integrity was further validated using a **persistent user account**. By logging in, the application bypasses the buggy anonymous session logic. In this state, the cart functions perfectly. 
 
 As the core infrastructure (K8s, Ingress, Tunnel, and Persistence) is confirmed healthy, patching the upstream Node.js source code for this legacy demo was deemed **Out of Scope** for this deployment phase.
+
+---
+
+---
+
+## [Issue 03] Public Edge Rejects Default `urllib` Request Profile (Phase 07, Step 07)
+
+During the first implementation of the **live Python catalogue contract-guard smoke test**, the request reached the public `dev` edge but failed with **`HTTP 403 Forbidden`**.
+
+### Observed Behavior
+
+The live smoke test failed even though the catalogue endpoint itself was reachable via `curl`.
+
+~~~bash
+$ make p07-contract-guard-live-dev
+RUN: Phase 07 live Python contract smoke -> https://dev-sockshop.cdco.dev/catalogue
+...
+E   Failed: Live catalogue request failed with HTTP status 403: https://dev-sockshop.cdco.dev/catalogue
+~~~
+
+At the same time, direct manual checks against the same edge returned `200 OK`:
+
+~~~bash
+$ curl -I https://dev-sockshop.cdco.dev/catalogue
+HTTP/2 200
+...
+~~~
+
+### Investigation & Triage
+
+The proven reachability via `curl` and browser checks ruled out a basic outage of the `dev` edge itself. 
+
+The problem was narrowed down to the **request profile** used by the Python live smoke test:
+
+**Diagnosis:** 
+- The **default Python `urllib` request profile was rejected by the public edge**, while **browser-like requests were accepted**. 
+- This was therefore **not an authentication problem**, but a request-profile / edge-filtering problem.
+
+### Resolution
+
+To mimic browser-like requests, the live **Python smoke test** was updated **to build an explicit `Request(...)` with browser-like headers**:
+
+**Original implementation (default  `urllib` request profile):**
+
+~~~python
+    # ...
+    catalogue_url = f"{base_url}/catalogue"
+
+    try:        
+        with urlopen(catalogue_url, timeout=10) as response:
+           if response.status != 200:
+                pytest.fail(f"Live catalogue request returned HTTP {response.status}: {catalogue_url}")
+            # ...
+~~~
+
+**Updated implementation (explicit `Request(...)` with browser-like headers):**
+
+~~~python
+    # ... 
+    catalogue_url = f"{base_url}/catalogue"
+
+        # Build an explicit HTTP request with browser-like headers insetad of using the 
+        # urllib from Python’s standard library. Reason: The public edge returned 
+        # 'HTTP 403 Forbidden' when the default urllib request profile was used.
+        request = Request(
+            catalogue_url,
+            headers={
+                "User-Agent": "Mozilla/5.0",
+                "Accept": "application/json",
+            },
+        )
+
+        with urlopen(request, timeout=10) as response:
+           if response.status != 200:
+                pytest.fail(f"Live catalogue request returned HTTP {response.status}: {catalogue_url}")
+            # ...
+~~~
+
+### Result
+
+After switching from the default `urllib` request profile to an explicit request with browser-like headers, the **live Python contract smoke test passed successfully against the public `dev` edge**.
+
+### Permanent Fix & Prevention
+
+The header-based request is now part of `tests/python/test_contract_guard_live.py`, so future local runs and later CI runs use the same compatible request profile by default.
+
+---
+
+## [Issue 04] Makefile: Trivy filesystem scan target failed (Phase 07)
+
+During the first implementation of the Trivy filesystem baseline, the new Make target for the repo scan failed before any actual security findings could be evaluated.
+
+### Observed Behavior
+
+The initial `p07-trivy-repo-scan` target tried to pass multiple repo paths into a single `trivy fs` invocation, which caused a `Fatal error multiple targets cannot be specified` when running that Makefile target:
+
+~~~bash
+$ make p07-trivy-repo-scan
+RUN: Phase 07 Trivy repo scan -> repo-owned paths
+...
+FATAL   Fatal error     multiple targets cannot be specified
+...
+make: *** [Makefile:558: p07-trivy-repo-scan] Error 1
+~~~
+
+### Investigation & Diagnosis
+
+The issue was not caused by a security finding in the repository. It was caused by the Make target used in the first Makefile implementation.
+
+**Initial Make target (problematic)**
+
+~~~make
+p07-trivy-repo-scan:
+	@echo "RUN: Phase 07 Trivy repo scan -> repo-owned paths" >&2
+	@docker run --rm \
+		-v "$(CURDIR)":/repo:ro \
+		-v "$(P07_TRIVY_CACHE_VOLUME)":/root/.cache/ \
+		-w /repo \
+		$(P07_TRIVY_IMAGE) fs \
+		--scanners misconfig,secret \
+		--severity $(P07_TRIVY_SEVERITY) \
+		--exit-code 1 \
+		--skip-dirs tests/e2e/node_modules \
+		--skip-dirs tests/venv \
+		--skip-dirs .git \
+		healthcheck scripts deploy/kubernetes .github tests # <= The culprit
+~~~
+
+**Root cause:**
+
+- `trivy fs` accepts exactly **one target path per invocation**
+- the initial target passed **five target paths at once**:
+    - see `healthcheck scripts deploy/kubernetes .github tests` 
+- Trivy therefore aborted immediately with:
+  - `multiple targets cannot be specified`
+
+### Resolution
+
+The Make target was reworked so that the selected repo-owned paths are scanned **one after another** in a shell loop. On top of that, the updated command now uses `@set -e` to stop the further execution imemdiately once a command fails. This preserve failure propagation even from within the loop and an early exit with a clear exit code: 
+
+**Corrected Make target**
+
+~~~make
+p07-trivy-repo-scan:
+	@set -e; \
+	for target in healthcheck scripts deploy/kubernetes .github tests; do \
+		echo "RUN: Phase 07 Trivy repo scan -> $$target" >&2; \
+		docker run --rm \
+			-v "$(CURDIR)":/repo:ro \
+			-v "$(P07_TRIVY_CACHE_VOLUME)":/root/.cache/ \
+			-w /repo \
+			$(P07_TRIVY_IMAGE) fs \
+			--scanners misconfig,secret \
+			--severity $(P07_TRIVY_SEVERITY) \
+			--exit-code 1 \
+			--skip-dirs tests/e2e/node_modules \
+			--skip-dirs tests/venv \
+			--skip-dirs .git \
+			"$$target"; \
+	done
+	@echo "OK: Phase 07 Trivy repo scan passed" >&2
+~~~
+
+### Why this solved the issue
+
+This corrected implementation matches Trivy’s CLI contract:
+
+- Each `trivy fs` run receives **exactly one path**
+- The broad baseline still covers all selected repo-owned paths
+- `set -e` causes ensures early exits on fail to preserve proper failure propagation even from within the loop. 
+    - Without `set -e`, a failing `docker run ...` inside the loop could be ignored, and the loop might continue with the next target - which could cause misleading outputs 
+
+### Result
+
+After this correction the broad repo scan target became executable and the scan could proceed into real findings instead of failing on argument shape.

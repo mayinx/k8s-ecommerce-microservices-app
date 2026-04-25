@@ -1,0 +1,119 @@
+# .github/workflows/phase-07-deterministic-pr-gate.yml
+#
+# Phase 07 - Deterministic PR Gate
+#
+# Purpose:
+# Run the deterministic, repo-owned validation bundle on pull request 
+# targeting the default branch. 
+#
+# This workflow intentionally excludes live/environment-dependent checks 
+# (such as Playwright smoke runs against the deployed edge) to prevent 
+# temporary network issues from blocking code merges.
+#
+# Job design:
+# - p07-deterministic-tests           -> Evaluates contract guards and helper health:
+#                                        * Ruby Healthcheck-tests
+#                                        * Bash Traffic-Generator-helper-tests
+#                                        * Python Contract-guard-tests
+#
+# - p07-trivy-healthcheck-repo-scan   -> Focused repo-level misconfiguration & secret gate (Trivy):
+#                                        Intentionally scoped down to owned assets to 
+#                                        avoid unfixable upstream legacy noise.
+#
+# - p07-trivy-healthcheck-image-scan  -> Owned-image vulnerability gate (Trivy)
+#
+# Governance Note:
+# These job names/keys need to be kept stable so they can later be selected as 
+# 'required status checks' in GitHub branch protection.
+
+name: Phase 07 - Deterministic PR Gate
+
+on:
+  # Run automatically for pull requests targeting the protected default branch.
+  # This includes pull-request activity such as opening, reopening, and updating existing PRs.
+  pull_request:
+    branches:
+      - master
+
+  # Allow manual reruns from the GitHub Actions UI.
+  workflow_dispatch:
+
+# Keep the default token minimal.
+permissions:
+  contents: read
+
+# Cancel older runs for the same ref when a newer commit is pushed.
+concurrency:
+  group: phase-07-deterministic-pr-gate-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # ---------------------------------------------------------------------------
+  # 1) Deterministic repo-owned test bundle
+  # ---------------------------------------------------------------------------
+  # Reuses the existing Make target from local development:
+  # - Ruby helper tests
+  # - Bash helper tests
+  # - local Python contract-guard tests
+  p07-deterministic-tests:
+    name: p07-deterministic-tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      # Check out the repository contents for this PR revision.
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # Install a Ruby runtime for the repo-owned Ruby helper tests.
+      - name: Set up Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: "3.2"
+
+      # Install a Python runtime for the repo-owned Python test path.
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      # Execute the deterministic validation bundle.
+      - name: Run deterministic Phase 07 validation bundle
+        run: make p07-tests
+
+  # ---------------------------------------------------------------------------
+  # 2) Focused repo-level Trivy gate for the owned healthcheck path
+  # ---------------------------------------------------------------------------
+  # This is intentionally the focused healthcheck/-specific scan, so the PR gate 
+  # only blocks on the currently owned scope.
+  p07-trivy-healthcheck-repo-scan:
+    name: p07-trivy-healthcheck-repo-scan
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      # Check out the repository so Trivy can scan the current PR content.
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # Reuse the focused repo-level Trivy scan already proven locally.
+      - name: Run focused Trivy repo scan for healthcheck
+        run: make p07-trivy-healthcheck-repo-scan
+
+  # ---------------------------------------------------------------------------
+  # 3) Owned image vulnerability gate
+  # ---------------------------------------------------------------------------
+  # Rebuild the repo-owned healthcheck image and scan that image in CI.
+  p07-trivy-healthcheck-image-scan:
+    name: p07-trivy-healthcheck-image-scan
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      # Check out the repository so Docker can build the owned image.
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # Reuse the existing Make target that builds and scans the owned image.
+      - name: Run Trivy image scan for healthcheck
+        run: make p07-trivy-healthcheck-image-scan

@@ -77,8 +77,8 @@
   - compose baseline
   - host-port conflict diagnosis
 - docs:
-  - [Implementation](./00-compose-repo-baseline/IMPLEMENTATION.md)
-  - [Runbook](./00-compose-repo-baseline/RUNBOOK.md)
+  - [Implementation](./00-compose-baseline/IMPLEMENTATION.md)
+  - [Runbook](./00-compose-baseline/RUNBOOK.md)
 
 ### Phase 01 — Port-based Kubernetes baseline
 - status:

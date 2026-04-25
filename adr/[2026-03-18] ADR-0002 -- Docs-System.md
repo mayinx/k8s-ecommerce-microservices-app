@@ -100,7 +100,7 @@ Example:
 - `evidence/` (screenshots/log artifacts when used)
 
 **Current phases:**
-- `project-docs/00-compose-repo-baseline/`
+- `project-docs/00-compose-baseline/`
 - `project-docs/01-local-k3s-baseline/`
 
 ### ADR structure and naming

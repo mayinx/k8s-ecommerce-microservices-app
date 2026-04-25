@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 ################################################################################
 # SCRIPT: generate-sockshop-traffic.sh
@@ -6,7 +6,7 @@
 # TRAFFIC GENERATOR (Observability Helper)
 #
 # DESCRIPTION:
-#   A synthetic workload generator for the Sock Shop microservices demo.
+#   A workload generator for the Sock Shop microservices demo.
 #   It simulates light but repeated user-like storefront activity by calling
 #   several application endpoints in a continuous loop.
 #
@@ -74,13 +74,16 @@
 #   Terminate with Ctrl+C.
 ################################################################################
 
+# -----------------------------------------------------------------------------
+# Shared runtime data and preset inputs
+# -----------------------------------------------------------------------------
+
 # Store and reuse session cookies in a temporary local file  
 # so repeated requests behave more like one browser session.
 COOKIE_JAR=/tmp/sockshop-cookies.txt
 
 # Declare + populate the targets dictionary
 declare -A targets
-
 targets=(
     ["home"]="/"
     ["categories"]="/category.html"
@@ -111,6 +114,10 @@ category_tags=(
     "tags=formal"
     "tags=smelly"
 ) 
+
+# -----------------------------------------------------------------------------
+# Generic shell utility helpers
+# -----------------------------------------------------------------------------
 
 #######################################
 # Prints an error message to stderr and exits the script with a non-zero status.
@@ -147,6 +154,10 @@ require_cmd() {
     # ||         = if the command check fails, execute die() immediately    
     command -v "$1" >/dev/null 2>&1 || die "Required command '$1' not found - please make sure to install '$1' before running this script!"
 }
+
+# -----------------------------------------------------------------------------
+# Data-source preparation helpers
+# -----------------------------------------------------------------------------
 
 #######################################
 # Ensures that the script will use the built-in fallback / preset data sets 
@@ -274,99 +285,9 @@ load_live_data(){
     echo ""
 }
 
-
-sockshop_env=$1
-data_mode=$2
-
-echo "(1) DEFINE TARGET ENVIRONMENT (dev|prod)" 
-# Check if environment is passed as an argument, otherwise prompt for it
-if [[ -z "$sockshop_env" ]]; then
-    read -p "- Please define the target sock-shop environment ('dev' or 'prod'): " sockshop_env 
-    echo "- Target sock-shop environment from selection: '$sockshop_env'" 
-    echo ""
-else
-    echo "- Preset target sock-shop environment from args: '$sockshop_env'" 
-    echo ""    
-fi
-
-# Normalize to lowercase for comparison
-sockshop_env_normalized="${sockshop_env,,}"
-
-if [[ "${sockshop_env_normalized}" != "dev" && "${sockshop_env_normalized}" != "prod" ]]; then
-    die "Unknown sock-shop environment '$sockshop_env'. Available environments are 'dev' or 'prod'."    
-fi
-
-BASE_URL="https://${sockshop_env_normalized}-sockshop.cdco.dev"
-
-echo "(2) DEFINE DATA SOURCE MODE (live|preset)" 
-# Check if data_mode is passed as an argument, otherwise prompt for it
-if [[ -z "$data_mode" ]]; then
-    read -p "- Use live-discovered products and categories from the actual target env, or the built-in preset lists (which could be stale) ? ('live' or 'preset'): " data_mode
-    echo "- Data source mode from selection: '$data_mode'" 
-    echo ""
-else
-    echo "- Preset data source mode from args: '$data_mode'" 
-    echo ""      
-fi
-
-# Normalize for comparison
-data_mode_normalized="${data_mode,,}"
-
-if [[ "${data_mode_normalized}" == "live" || "${data_mode_normalized}" == "preset" ]]; then
-    echo "Configuration complete."
-    echo "- Target environment: '$sockshop_env_normalized'"
-    echo "- Data source mode: '$data_mode_normalized'"
-    echo "- Preparing '$data_mode_normalized' data source ..."
-    echo ""
-
-    prepare_data_source "$data_mode"    
-
-    read -p "Press [Enter] to start traffic - or [Ctrl+C] to exit..."
-    echo ""
-    echo ""
-    echo ""
-    echo "--- Generating traffic on the sock-shop '$sockshop_env' environment using '$data_mode' data for product IDs + category tags ---"
-    echo "Calling different targets on ${BASE_URL}:"
-    echo "(hit [Ctrl+C] to exit)"
-    echo ""
-else
-    die "Unknown data source mode '$data_mode'. Available data source modes are 'live' or 'preset'."  
-fi
-
-
-
-
-#######################################
-# Calls a given Sock Shop storefront endpoint and prints the formatted 
-# table row including the Host, Endpoint, Param, Status, and Latency.
-#
-# Arguments:
-#   $1 - The full URL path (e.g., "/detail.html?id=123")
-#   $2 - The endpoint name (e.g., "detail")
-#   $3 - The parameter used (e.g., "id=123", or "-")
-#######################################
-call_endpoint() {
-  local full_path="$1"
-  local endpoint="$2"
-  local param="$3"
-
-  # -f = fail on HTTP errors (for example 404 / 500)
-  # -s = silent mode (hide normal progress meter)
-  # -S = still show an error message if a request fails
-  # -A = send a browser-like User-Agent string
-  # --cookie = send cookies from the cookie jar file
-  # --cookie-jar = update/write cookies back to the cookie jar file
-  # -o /dev/null = discard the response body
-  # -w = write-out format string:
-  #      print the formatted table row after the request finishes
-  # %{http_code}  = final HTTP status code
-  # %{time_total} = total end-to-end request time in seconds  
-  curl -fsS -A "Mozilla/5.0" --cookie "$COOKIE_JAR" --cookie-jar "$COOKIE_JAR" \
-    -o /dev/null \
-    -w "$(printf '| %-25s | %-10s | %-40s | ' "${sockshop_env_normalized}-sockshop.cdco.dev" "$endpoint" "$param")%{http_code}    | %{time_total} |\n" \
-    "${BASE_URL}${full_path}"   
-}
-
+# -----------------------------------------------------------------------------
+# Request construction and endpoint execution helpers
+# -----------------------------------------------------------------------------
 
 #######################################
 # Generates a complete URL path by appending random parameters 
@@ -388,14 +309,14 @@ get_path_and_param() {
     case "$endpoint" in 
         "detail")
             # random id
-            random_ids_index=$(( RANDOM % ${#detail_ids[@]} ))
-            random_id="${detail_ids[$random_ids_index]}"
+            local random_ids_index=$(( RANDOM % ${#detail_ids[@]} ))
+            local random_id="${detail_ids[$random_ids_index]}"
             echo ${base_path}?${random_id} ${random_id}  
             ;;
         "category")
             # random category tag
-            random_tags_index=$(( RANDOM % ${#category_tags[@]} ))
-            random_tag="${category_tags[$random_tags_index]}"
+            local random_tags_index=$(( RANDOM % ${#category_tags[@]} ))
+            local random_tag="${category_tags[$random_tags_index]}"
             echo ${base_path}?${random_tag} ${random_tag}
             ;;   
         *)
@@ -407,36 +328,151 @@ get_path_and_param() {
     esac
 }
 
-while true; do
-    # Print the Table Header 
-    printf "|---------------------------+------------+------------------------------------------+--------+----------|\n"
-    printf "|                                           --- %s ---                                            |\n" "$(date '+%H:%M:%S')"
-    printf "|---------------------------+------------+------------------------------------------+--------+----------|\n"
-    printf "| %-25s | %-10s | %-40s | %-6s | %-8s |\n" "Host" "Endpoint" "Param" "Status" "Latency"
-    printf "|---------------------------+------------+------------------------------------------+--------+----------|\n"
+#######################################
+# Calls a given Sock Shop storefront endpoint and prints a formatted 
+# table row including the Host, Endpoint, Param, Status, and Latency.
+#
+# Arguments:
+#   $1 - The full URL path (e.g., "/detail.html?id=123")
+#   $2 - The endpoint name (e.g., "detail")
+#   $3 - The parameter used (e.g., "id=123", or "-")
+#######################################
+call_endpoint() {
+    local full_path="$1"
+    local endpoint="$2"
+    local param="$3"
 
+    # -f = fail on HTTP errors (for example 404 / 500)
+    # -s = silent mode (hide normal progress meter)
+    # -S = still show an error message if a request fails
+    # -A = send a browser-like User-Agent string
+    # --cookie = send cookies from the cookie jar file
+    # --cookie-jar = update/write cookies back to the cookie jar file
+    # -o /dev/null = discard the response body
+    # -w = write-out format string:
+    #      print the formatted table row after the request finishes
+    # %{http_code}  = final HTTP status code
+    # %{time_total} = total end-to-end request time in seconds  
+    curl -fsS -A "Mozilla/5.0" --cookie "$COOKIE_JAR" --cookie-jar "$COOKIE_JAR" \
+        -o /dev/null \
+        -w "$(printf '| %-25s | %-10s | %-40s | ' "${sockshop_env_normalized}-sockshop.cdco.dev" "$endpoint" "$param")%{http_code}    | %{time_total} |\n" \
+        "${BASE_URL}${full_path}"   
+}
 
-    # Call the Sock Shop storefront endpoints repeatedly to generate visible recent workload activity for the Grafana dashboards.
-    for endpoint in "${!targets[@]}"; do
-        # 1. Grab the base path
-        base_path="${targets[$endpoint]}"
+# -----------------------------------------------------------------------------
+# Main runtime entrypoint
+# -----------------------------------------------------------------------------
 
-        # 2. Get the full path and param (in case we have random params available) 
-        #    
-        #-------------------------------------------------------------------------------
-        # FYI: Regarding that "bash way of receiving multiple return values": 
-        #
-        # 1. $(get_path_and_param ...) executes and echoes: "/path?id=123 id=123"
-        # 2. <<< (Here-String) feeds that string into the 'read' command's stdin.
-        # 3. 'read' splits the string at the first space (the default IFS delimiter).
-        # 4. The 1st word is assigned to $full_path, the 2nd word to $param.
-        # 5. -r ensures backslashes in URLs are treated literally (raw mode).
-        #-------------------------------------------------------------------------------
-        read -r full_path param <<< "$(get_path_and_param "${base_path}" "$endpoint")" 
+# Main runtime entrypoint for the traffic helper.
+# Handles environment selection, data-source preparation,
+# and the long-running traffic loop when the file is executed directly.
+#
+# Arguments:
+#   $1 - Target environment ("dev"|"prod")
+#   $2 - Data source mode ("live"|"preset")
+main() {
+    # To capture user input from args or interactive selection 
+    # ('local' to prevent leaking into the script's top level state) 
+    local sockshop_env=$1
+    local data_mode=$2
 
-        # 3. Hit the endpoint and report the results in the table
-        call_endpoint "$full_path" "$endpoint" "$param" 
-    done 
+    echo "(1) DEFINE TARGET ENVIRONMENT (dev|prod)" 
+    # Check if environment is passed as an argument, otherwise prompt for it
+    if [[ -z "$sockshop_env" ]]; then
+        read -p "- Please define the target sock-shop environment ('dev' or 'prod'): " sockshop_env 
+        echo "- Target sock-shop environment from selection: '$sockshop_env'" 
+        echo ""
+    else
+        echo "- Preset target sock-shop environment from args: '$sockshop_env'" 
+        echo ""    
+    fi
 
-  sleep 1
-done
+    # Normalize to lowercase for comparison
+    local sockshop_env_normalized="${sockshop_env,,}"
+
+    if [[ "${sockshop_env_normalized}" != "dev" && "${sockshop_env_normalized}" != "prod" ]]; then
+        die "Unknown sock-shop environment '$sockshop_env'. Available environments are 'dev' or 'prod'."    
+    fi
+
+    local BASE_URL="https://${sockshop_env_normalized}-sockshop.cdco.dev"
+
+    echo "(2) DEFINE DATA SOURCE MODE (live|preset)" 
+    # Check if data_mode is passed as an argument, otherwise prompt for it
+    if [[ -z "$data_mode" ]]; then
+        read -p "- Use live-discovered products and categories from the actual target env, or the built-in preset lists (which could be stale) ? ('live' or 'preset'): " data_mode
+        echo "- Data source mode from selection: '$data_mode'" 
+        echo ""
+    else
+        echo "- Preset data source mode from args: '$data_mode'" 
+        echo ""      
+    fi
+
+    # Normalize for comparison
+    local data_mode_normalized="${data_mode,,}"
+
+    if [[ "${data_mode_normalized}" == "live" || "${data_mode_normalized}" == "preset" ]]; then
+        echo "Configuration complete."
+        echo "- Target environment: '$sockshop_env_normalized'"
+        echo "- Data source mode: '$data_mode_normalized'"
+        echo "- Preparing '$data_mode_normalized' data source ..."
+        echo ""
+
+        prepare_data_source "$data_mode_normalized"    
+
+        read -p "Press [Enter] to start traffic - or [Ctrl+C] to exit..."
+        echo ""
+        echo ""
+        echo ""
+        echo "--- Generating traffic on the sock-shop '$sockshop_env' environment using '$data_mode' data for product IDs + category tags ---"
+        echo "Calling different targets on ${BASE_URL}:"
+        echo "(hit [Ctrl+C] to exit)"
+        echo ""
+    else
+        die "Unknown data source mode '$data_mode'. Available data source modes are 'live' or 'preset'."  
+    fi
+
+    while true; do
+        # Print the Table Header 
+        printf "|---------------------------+------------+------------------------------------------+--------+----------|\n"
+        printf "|                                           --- %s ---                                            |\n" "$(date '+%H:%M:%S')"
+        printf "|---------------------------+------------+------------------------------------------+--------+----------|\n"
+        printf "| %-25s | %-10s | %-40s | %-6s | %-8s |\n" "Host" "Endpoint" "Param" "Status" "Latency"
+        printf "|---------------------------+------------+------------------------------------------+--------+----------|\n"
+
+        # Call the Sock Shop storefront endpoints repeatedly to generate visible recent workload activity for the Grafana dashboards.
+        for endpoint in "${!targets[@]}"; do
+            # 1. Grab the base path
+            local base_path="${targets[$endpoint]}"
+
+            # 2. Get the full path and param (in case we have random params available) 
+            #    
+            #-------------------------------------------------------------------------------
+            # FYI: Regarding that "bash way of receiving multiple return values": 
+            #
+            # 1. $(get_path_and_param ...) executes and echoes: "/path?id=123 id=123"
+            # 2. <<< (Here-String) feeds that string into the 'read' command's stdin.
+            # 3. 'read' splits the string at the first space (the default IFS delimiter).
+            # 4. The 1st word is assigned to $full_path, the 2nd word to $param.
+            # 5. -r ensures backslashes in URLs are treated literally (raw mode).
+            #-------------------------------------------------------------------------------
+            local full_path
+            local param
+            read -r full_path param <<< "$(get_path_and_param "${base_path}" "$endpoint")" 
+
+            # 3. Hit the endpoint and report the results in the table
+            call_endpoint "$full_path" "$endpoint" "$param" 
+        done 
+
+        sleep 1  
+    done
+} # main
+
+# -----------------------------------------------------------------------------
+# Direct-execution guard
+# -----------------------------------------------------------------------------
+
+# Only execute the helper when the file is run directly.
+# When the file is sourced by tests, do not start prompts or the traffic loop.
+if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+    main "$@"
+fi

@@ -13,15 +13,15 @@
 #   (Environment Parity: Prod runs the exact same container images as Dev)
 #
 # Design choices:
-# - stays on GitHub-hosted runners for this phase
-# - uses kind as a temporary Kubernetes smoke target
-# - can later be retargeted from kind to Proxmox by replacing the cluster setup / kubeconfig section
+# - Stays on GitHub-hosted runners for this phase
+# - Uses kind as a temporary Kubernetes smoke target
+# - Can later be retargeted from kind to Proxmox by replacing the cluster setup / kubeconfig section
 #
 # References:
 # - GitHub Actions workflow syntax
 # - GitHub environments
 # - GitHub-hosted runners
-# - see project-docs/03-ci-cd-baseline/IMPLEMENTATION.md for rationale and source links
+# - See project-docs/03-ci-cd-baseline/IMPLEMENTATION.md for rationale and source links
 
 name: phase-03-delivery
 

@@ -137,3 +137,14 @@ output-virtualbox-iso
 
 # Local Helm secrets override for Phase 06 observability
 deploy/kubernetes/observability/prometheus-local.secrets.yaml
+
+# Phase 07 test dependencies and generated artifacts
+tests/node_modules/
+tests/venv/
+tests/test-results/
+tests/playwright-report/
+
+# Phase 07 E2E / Playwright artifacts
+tests/e2e/node_modules/
+tests/e2e/playwright-report/
+tests/e2e/test-results/

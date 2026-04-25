@@ -247,20 +247,20 @@ Phase 05 deliberately focuses on establishing the **real delivery foundation**.
 That means later phases no longer need to re-solve:
 
 - VM provisioning
-- first-cluster bootstrap
-- environment separation
-- ingress architecture
-- or real target-cluster workflow access
+- First-cluster bootstrap
+- Environment separation
+- Ingress architecture
+- Remote target-cluster workflow access
 
 Those foundations are now already in place.
 
 Later phases can therefore focus on the remaining capstone layers, especially:
 
-- observability
-- security hardening
-- disaster recovery / rollback
-- test-path expansion
-- architecture visualization
-- and final documentation polish
+- Observability
+- Security hardening
+- Disaster recovery / rollback
+- Test-path expansion
+- Architecture visualization
+- Final documentation polish
 
 **In short:** Phase 05 establishes the delivery platform; the later phases now build on top of it.

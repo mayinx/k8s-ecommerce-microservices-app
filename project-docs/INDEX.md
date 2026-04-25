@@ -8,8 +8,8 @@ Documentation is iterative and phase-aligned: baseline notes first, then milesto
 - **[Project Debug Log](./DEBUG-LOG.md)**  
 
 ## Phase 00: Compose + repo baseline (local poke-around + repo mapping)
-- **[Phase 00 — Implementation Log](./00-compose-repo-baseline/IMPLEMENTATION.md)**
-- **[Phase 00 — Runbook (TL;DR)](./00-compose-repo-baseline/RUNBOOK.md)**
+- **[Phase 00 — Implementation Log](./00-compose-baseline/IMPLEMENTATION.md)**
+- **[Phase 00 — Runbook (TL;DR)](./00-compose-baseline/RUNBOOK.md)**
 
 ## Phase 01: Local k3s cluster baseline (port-based Sock Shop deploy, conflict-free)
 - **[Phase 01 — Implementation Log](./01-nodeport-baseline/IMPLEMENTATION.md)**
