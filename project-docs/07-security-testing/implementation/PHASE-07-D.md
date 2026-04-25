@@ -258,6 +258,38 @@ In GitHub Actions, this appears as:
 
 A successful run shows all three jobs green. 
 
+**GitHub Actions deterministic PR-gate run summary**
+
+![GitHub Actions deterministic PR-gate run summary](../evidence/08-CI-GitHub-Actions_phase-07-deterministic-pr-gate-run-summary-success.png)
+
+*Figure 8: GitHub Actions run summary of the `Phase 07 - Deterministic PR Gate` workflow for the open Phase-07 pull request. The summary shows all three required jobs in a successful state. The annotation area also shows non-blocking Node.js action-runtime deprecation warnings, but the workflow itself completed successfully.*
+
+---
+
+**GitHub Actions job `p07-deterministic-tests`**
+
+![GitHub Actions job p07-deterministic-tests](../evidence/09-CI-GitHub-Actions_job-p07-deterministic-tests-success.png)
+
+*Figure 9: Detailed GitHub Actions job view for `p07-deterministic-tests`. The screenshot shows the deterministic validation bundle succeeding in CI, including repository checkout, runtime setup, and execution of the Phase-07 deterministic test bundle. A non-blocking Node.js action-runtime deprecation warning is visible in the completed job output.*
+
+---
+
+**GitHub Actions job `p07-trivy-healthcheck-repo-scan`**
+
+![GitHub Actions job p07-trivy-healthcheck-repo-scan](../evidence/10-CI-GitHub-Actions_job-p07-trivy-healthcheck-repo-scan-success.png)
+
+*Figure 10: Detailed GitHub Actions job view for `p07-trivy-healthcheck-repo-scan`. The screenshot shows the focused Trivy repository scan for the owned `healthcheck/` path completing successfully inside the deterministic PR-gate workflow.*
+
+---
+
+**GitHub Actions job `p07-trivy-healthcheck-image-scan`**
+
+![GitHub Actions job p07-trivy-healthcheck-image-scan](../evidence/11-CI-GitHub-Actions_job-p07-trivy-healthcheck-image-scan-success.png)
+
+*Figure 11: Detailed GitHub Actions job view for `p07-trivy-healthcheck-image-scan`. The screenshot shows the CI-side rebuild and Trivy scan of the repo-owned `sockshop-healthcheck` image succeeding as part of the deterministic PR gate.*
+
+---
+
 At this stage, however, the workflow is **not yet enforced as a truly mandatory merge gate**. It runs automatically - but merges are still possible, even when teh PR gate worflow failed. 
 
 That enforcement follows later through default-branch protection and required status checks.
@@ -360,6 +392,12 @@ These values can be configured in the GitHub repository UI under:
 - Settings > Secrets and variables > Actions > Tab "Variables" > Button "New repository variable" 
 
 This keeps the workflow configuration clean and makes environment changes easier later without editing the workflow YAML itself.
+
+**GitHub repository variables for live target URLs**
+
+![GitHub repository variables for live target URLs](../evidence/12-LV-GitHub-Actions_repository-variables-p07-dev-and-prod-base-url.png)
+
+*Figure 12: GitHub Actions repository variables configured for the live-smoke workflow. The screenshot shows `P07_DEV_BASE_URL` and `P07_PROD_BASE_URL` stored as separate repository-level variables, providing explicit default target URLs for the deployed `dev` and `prod` environments.*
 
 #### Creating the live-validation workflow: `.github/workflows/phase-07-live-smoke.yml`
 
@@ -676,6 +714,16 @@ A new branch ruleset can be created in the GitHub UI of the repo via
 
 - **Settings** > **Rules** > **Rulesets** > **New branch ruleset**
 
+---
+
+**GitHub ruleset overview**
+
+![GitHub ruleset overview](../evidence/13-BP-GitHub-Rulesets_overview-protect-master.png)
+
+*Figure 13: GitHub ruleset overview showing the active default-branch protection ruleset `Protect Master`. This confirms that repository-level branch-governance rules are configured for the default branch.*
+
+---
+
 ##### Rule Identity + Target Branches 
 
 For the created ruleset the following configuration was chosen
@@ -684,7 +732,6 @@ For the created ruleset the following configuration was chosen
 - **Enforcement status**: `Active`
 - **Bypass list**: Left empty
 - **Target branches**: "Default branch" (ensures the ruleset applies only to `master`)
-
 
 ##### Branch rules to enable/edit 
 
@@ -701,6 +748,14 @@ For the created ruleset the following configuration was chosen
     - **"Require branches to be up to date before merging"**: Enabled (ensures that a pull request is tested against the latest state of `master`, not against an outdated earlier branch state)
 
 Note: If those job names/required checks are not available, it is necessary to make sure that the Step-11 workflow has already produced successful check results in the repository - at least once. Otherwise the jobs/checks might not be available for selection here! 
+
+**GitHub ruleset details with required deterministic checks**
+
+![GitHub ruleset details with required deterministic checks](../evidence/14-BP-GitHub-Rulesets_protect-master-details-required-status-checks.png)
+
+*Figure 14: Detailed GitHub ruleset configuration for `Protect Master`. The screenshot shows pull-request enforcement, required status checks, up-to-date-before-merge enforcement, and blocked force-pushes. It also shows the three deterministic Phase-07 job names selected as required merge checks: `p07-deterministic-tests`, `p07-trivy-healthcheck-image-scan`, and `p07-trivy-healthcheck-repo-scan`.*
+
+---
 
 #### Resulting merge path
 
