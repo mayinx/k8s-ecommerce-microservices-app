@@ -793,6 +793,15 @@ A quick repository-governance sanity check is now:
 - Live smoke workflow = **available, but not required**
 - Default branch = **protected**
 
+#### EDIT: Post-merge cleanup of the inherited upstream workflow
+
+After the Phase 07 merge, the **inherited upstream `ci` workflow (`.github/workflows/main.yaml`)** became visible again as push-triggered legacy CI noise on `master`. 
+
+This **legacy workflow was deactivated and archived** as a manual-only historical reference: 
+- It is not part of the selected project pipeline 
+- It still reflects the original upstream complete-demo / Kind / Docker Hub model that is incompatible with our GitHub based GHCR appoarch
+- It pollutes the active project Actions view with irrelevant legacy failures
+
 ### Result
 
 Step 13 enforces the first **repository-level governance rule** for Phase 07 by protecting the default branch with the deterministic PR gate.

@@ -30,7 +30,7 @@
   - [**P05-D06 — Ingress model = built-in K3s Traefik with host-based routing for both environments**](#p05-d06--ingress-model--built-in-k3s-traefik-with-host-based-routing-for-both-environments)
   - [**P05-D07 — Private access model = Tailscale for operator and CI/CD access to the cluster API**](#p05-d07--private-access-model--tailscale-for-operator-and-cicd-access-to-the-cluster-api)
   - [**P05-D08 — Public edge model = Cloudflare Tunnel with first-level environment hostnames**](#p05-d08--public-edge-model--cloudflare-tunnel-with-first-level-environment-hostnames)
-  - [**P05-D09 — Workflow model = Preserve Phase 03 as historical baseline and create a dedicated Phase 05 target-delivery workflow**](#p05-d09--workflow-model--preserve-phase-03-as-historical-baseline-and-create-a-dedicated-phase-05-target-delivery-workflow)
+   - [**P05-D09 — Workflow model = Preserve Phase 03 as historical baseline, create a dedicated Phase 05 target-delivery workflow, and exclude the inherited upstream CI workflow from the active pipeline**](#p05-d09--workflow-model--preserve-phase-03-as-historical-baseline-create-a-dedicated-phase-05-target-delivery-workflow-and-exclude-the-inherited-upstream-ci-workflow-from-the-active-pipeline)
   - [**P05-D10 — Scope boundary = Keep the guest-session storefront bug out of the Phase 05 infrastructure scope**](#p05-d10--scope-boundary--keep-the-guest-session-storefront-bug-out-of-the-phase-05-infrastructure-scope)
 - [**Next-step implications**](#next-step-implications)
 
@@ -248,12 +248,12 @@ The real target-delivery foundation now exists, so the next phases can focus on 
 - **Proof:** The ingress hosts are aligned to the final public hostnames, the Cloudflare Tunnel is healthy, and both public HTTPS endpoints return successful responses.
 - **Next-step impact:** The project now has stable public environment URLs that can be used in docs, demos, and later operational dashboards.
 
-### P05-D09 — Workflow model = Preserve Phase 03 as historical baseline and create a dedicated Phase 05 target-delivery workflow
+### P05-D09 — Workflow model = Preserve Phase 03 as historical baseline, create a dedicated Phase 05 target-delivery workflow, and exclude the inherited upstream CI workflow from the active pipeline
 
-- **Decision:** Preserve the Phase 03 workflow as a manual-only historical baseline and create a dedicated Phase 05 workflow for the real target-delivery path.
-- **Why:** This keeps the project chronology understandable while preventing the older smoke-target workflow from conflicting with the real-target behavior.
-- **Proof:** The Phase 03 workflow is retained, the new Phase 05 workflow is introduced, and the real target-delivery path is proven through automated `dev` deployment and approval-gated `prod` deployment.
-- **Next-step impact:** The repository now preserves both the historical CI/CD milestone and the active real-target delivery path cleanly.
+- **Decision:** Preserve the Phase 03 workflow as a manual-only historical baseline, create a dedicated Phase 05 workflow for the real target-delivery path, and do not adopt the inherited upstream `.github/workflows/main.yaml` workflow as part of the active project pipeline.
+- **Why:** This keeps the project chronology understandable while preventing the older smoke-target workflow from conflicting with the real-target behavior. The inherited upstream workflow reflects a different CI model built around complete-demo sync checks, Kind-based deployment assumptions, and a Docker Hub publish path using `DOCKER_USER` / `DOCKER_PASS` together with `weaveworksdemos/...` image tags. That does not match the repo-specific GHCR + Proxmox / K3s target-delivery path selected for this project.
+- **Proof:** The Phase 03 workflow is retained, the new Phase 05 workflow is introduced, and the real target-delivery path is proven through automated `dev` deployment and approval-gated `prod` deployment. The inherited upstream workflow was later reduced to manual-only execution so that it remains available for historical reference without polluting the active project Actions view.
+- **Next-step impact:** The repository now preserves both the historical CI/CD milestone and the active real-target delivery path cleanly. Legacy upstream CI context remains inspectable, but no longer interferes with the selected project delivery architecture.
 
 ### P05-D10 — Scope boundary = keep the guest-session storefront bug out of the Phase 05 infrastructure scope
 

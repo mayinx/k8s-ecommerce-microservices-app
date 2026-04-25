@@ -99,7 +99,7 @@ This preserves environment parity while still allowing `dev` and `prod` to diffe
 
 **To clarify:**
 
-The workflow does **not** copy the repository onto the target VM or run the application from a Git working tree on that VM.
+The workflow does not copy the repository onto the target VM or run the application from a Git working tree on that VM.
 
 Instead:
 
@@ -110,6 +110,13 @@ Instead:
 - The node pulls the **referenced container images** when an actual runtime change is needed
 
 A repository change that does **not** alter the applied Kubernetes desired state, such as a docs-only change, can still trigger the workflow but does **not** by itself change the running application.
+
+**EDIT: Legacy Workflow** 
+
+The repository still contains an **inherited upstream `ci` workflow (`.github/workflows/main.yaml`)**, but it is intentionally **not part of the active project CI/CD target delivery path**: 
+- It reflects the original upstream model around complete-demo checks, KinD-based deployment tests, and Docker Hub publishing via `DOCKER_USER` / `DOCKER_PASS` and `weaveworksdemos/...` image tags. 
+- The Phase 05 Target Delivery Workflow instead uses the repo-specific GitHub Actions workflow (incl. GHCR) against the private Proxmox / K3s target
+- The legacy workflow was therefore deactivated and kept as a historical reference only (auto-triggers deactivated - manual execution only)  
 
 ## 🗺️ Implementation Roadmap & Phase 05 subphase quick navigation
 
