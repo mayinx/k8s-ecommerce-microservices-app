@@ -35,6 +35,8 @@ updates:
     directory: "/"                          # Instructs Dependabot to scan the repo root for .github/workflows
     schedule:
       interval: "weekly"                    # Check once per week for available updates (to prevent CI/CD pipeline noise)
+    exclude-paths:                          
+      - ".github/workflows/main.yaml"       # Excludes the archived legacy upstream workflow to prevent irrelevant updates/PRs
     labels:                                 # Automatically tags generated PRs for easy filtering                                 
       - "dependencies"
       - "security"

@@ -621,6 +621,24 @@ After the workflow file is committed and pushed, the first live run can be start
 - Select `target_environment`
 - Run workflow
 
+---
+
+**Image: Live-smoke workflow visible in GitHub Actions before the first manual run**
+
+![Phase 07 live-smoke workflow page before first run](../evidence/16-CI-GitHub-Actions_phase-07-live-smoke-workflow-view_no-runs-yet.png)
+
+*Figure 16: The GitHub Actions workflow page for **Phase 07 - Live Smoke** is visible on `master` before the first run. The workflow is shown as a `workflow_dispatch`-based manual workflow and has not been executed yet.*
+
+---
+
+**Image: Manual live-smoke run dialog with `master` and `dev` selected**
+
+![Phase 07 live-smoke run dialog with master branch and dev selected](../evidence/17-CI-GitHub-Actions_phase-07-live-smoke-run-dialog_master-branch_dev-selected.png)
+
+*Figure 17: The manual run dialog shows the workflow being triggered from branch `master` with deployed environment `dev` selected. This documents the intended first validation path for the post-merge live-smoke check.*
+
+---
+
 A first run should be executed against **`dev`**. 
 
 At this stage, the workflow is intended to be used used primarily through `workflow_dispatch` for manual validation runs. 
@@ -643,7 +661,42 @@ The successful end state is shown by these signals / verification points:
   - Playwright browser smoke
 - The workflow remains intentionally **separate from the deterministic PR gate**
 - The workflow uploads **Playwright artifacts** for later inspection and debugging
-- The workflow is already shaped for two usage modes:
+
+---
+
+**Image: Successful Phase 07 live-smoke run in GitHub Actions**
+
+![Successful Phase 07 live-smoke run with Playwright artifact](../evidence/18-CI-GitHub-Actions_phase-07-live-smoke-run-success_with-playwright-report-artifact.png)
+
+*Figure 18: The manually triggered **Phase 07 - Live Smoke** workflow completed successfully on `master`. The summary shows the green `p07-live-smoke` job and the uploaded artifact `p07-playwright-report-dev`, proving that the live validation path now runs natively in GitHub Actions and produces downloadable browser-test evidence.*
+
+---
+
+**Image: Live-smoke job details with all workflow steps completed successfully**
+
+![Phase 07 live-smoke job details with successful steps](../evidence/19-CI-GitHub-Actions_phase-07-live-smoke-job-steps-success.png)
+
+*Figure 19: The detailed job view shows the successful execution path of the live-smoke workflow, including target resolution, Python setup, Node.js setup, live smoke execution, and Playwright artifact upload steps.*
+
+---
+
+**Image: Playwright HTML report overview with both smoke tests passing**
+
+![Playwright HTML report overview with both smoke tests passed](../evidence/20-CI-Playwright-HTML-Report_phase-07-live-smoke-overview_all-tests-passed.png)
+
+*Figure 20: The uploaded Playwright HTML report shows both browser smoke tests in the `chromium` project passing successfully: the storefront root loads with the expected landing content, and the storefront renders at least one catalogue image.*
+
+---
+
+**Image: Playwright HTML report detail view for the storefront landing-content smoke test**
+
+![Playwright HTML report detail view for storefront landing-content smoke test](../evidence/21-CI-Playwright-HTML-Report_phase-07-live-smoke-test-detail_storefront-root-loads.png)
+
+*Figure 21: The detailed Playwright report view shows the individual test steps for the smoke check that verifies the storefront root, page title, and key landing-page text content. This demonstrates that the uploaded artifact is not just present, but also usable for deeper post-run inspection.*
+
+---
+
+- The workflow is prepared for two usage modes:
   - **manual live validation** through `workflow_dispatch`
   - **later reuse from another workflow** through `workflow_call`
 
@@ -787,11 +840,11 @@ Later phases can iterate over this behavior and implement a successful automatic
 - The merge becomes available only after all required checks are green
 - Direct default-branch bypass through the normal merge path are not permitted
 
-A quick repository-governance sanity check is now:
+**Image: Pull request view with all required deterministic Phase 07 checks green**
 
-- Deterministic PR gate = **required**
-- Live smoke workflow = **available, but not required**
-- Default branch = **protected**
+![Pull request view with required deterministic Phase 07 checks passed](../evidence/15-CI-GitHub-Pull-Request_phase-07-deterministic-pr-gate-required-checks-passed_merge-ready.png)
+
+*Figure 15: The pull-request view shows all three required deterministic Phase 07 checks passing successfully: `p07-deterministic-tests`, `p07-trivy-healthcheck-image-scan`, and `p07-trivy-healthcheck-repo-scan`. The merge button is available only after those required checks are green, which demonstrates that the PR gate is now enforced as a real merge blocker on the default branch.*
 
 #### EDIT: Post-merge cleanup of the inherited upstream workflow
 

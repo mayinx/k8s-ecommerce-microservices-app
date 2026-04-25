@@ -849,7 +849,7 @@ At this point, the **Phase 07 Test & Security layer** validates:
 
 ---
 
-## Step 10 — Establish an automated dependency-scanning baseline with Dependabot for repo-owned dependency surfaces
+## Step 10 — Establish an automated dependency-scanning baseline with Dependabot for repo-owned dependencies
 
 ### Rationale
 
@@ -939,6 +939,8 @@ updates:
     directory: "/"                          # Instructs Dependabot to scan the repo root for .github/workflows
     schedule:
       interval: "weekly"                    # Check once per week for available updates (to prevent CI/CD pipeline noise)
+    exclude-paths:                          
+      - ".github/workflows/main.yaml"       # Edit: Excludes the archived legacy upstream workflow to prevent irrelevant updates/PRs      
     labels:                                 # Automatically tags generated PRs for easy filtering                                 
       - "dependencies"
       - "security"
@@ -978,15 +980,53 @@ $ git push
 
 #### Verifying that Dependabot is active
 
-After the configuration is pushed, verify the result in the GitHub repository UI.
+After the configuration is pushed, we can verify the result in the GitHub repository UI:
 
-Expected verification path:
+---
 
-- **Security**
-- **Dependabot**
-- or the repository’s dependency-security area where Dependabot alerts / updates are shown
+**Dependabot version updates enabled in repository settings**
 
-The exact number of immediate alerts or pull requests may vary. The important point in this step is that the repository now contains a valid Dependabot configuration and GitHub can start monitoring the configured dependency surfaces.
+![Dependabot version updates enabled in Advanced Security settings](../evidence/22-DB-GitHub-Settings_advanced-security_dependabot-version-updates-enabled.png)
+
+*Figure 22: The repository’s Advanced Security settings show that **Dependabot version updates** are enabled and that the committed `.github/dependabot.yml` configuration file is recognized by GitHub.*
+
+---
+
+**Dependabot tab showing monitored update targets**
+
+![Dependabot tab showing monitored update targets](../evidence/23-DB-GitHub-Insights_dependency-graph_dependabot-tab_monitored-update-targets.png)
+
+*Figure 23: The **Dependabot** tab of the dependency graph shows the monitored update targets for the configured ecosystems, including the GitHub Actions workflow surface and the Playwright npm manifest under `tests/e2e/package.json`. This confirms that Dependabot is active and has recognized the configured update sources.*
+
+---
+
+**Dependency graph populated with detected repository dependency surfaces**
+
+![Dependency graph showing detected dependency surfaces](../evidence/24-DB-GitHub-Insights_dependency-graph_dependencies-tab_detected-package-surfaces.png)
+
+*Figure 24: The **Dependencies** tab shows that GitHub has parsed and populated the repository dependency graph, including Python dependencies from `tests/python/requirements-p07.txt` and npm dependencies from `tests/e2e/package-lock.json` and `openapi/package.json`.*
+
+---
+
+##### Automatically created version-update PRs
+
+We can also see, that Dependabot already created a set of version update PRs:
+
+---
+
+**Overview of open Dependabot pull requests**
+
+![Overview of open Dependabot pull requests](../evidence/26-DB-GitHub-Pull-Requests_Dependabot-prs-overview.png)
+
+*Figure 25: The pull-request overview shows the first batch of open Dependabot version-update PRs created for GitHub Actions dependencies. This also explains the temporary “cannot open any more pull requests” state: by default, Dependabot opens up to five version-update PRs at a time until some are merged or closed.*
+
+---
+
+**Example Dependabot pull request for a GitHub Actions dependency update**
+
+![Example Dependabot pull request for a GitHub Actions dependency update](../evidence/25-DB-GitHub-Pull-Request_dependabot-github-actions-update-pr.png)
+
+*Figure 26: An example Dependabot pull request is shown for a GitHub Actions dependency update (`actions/upload-artifact`). This demonstrates the expected Dependabot review flow: GitHub opens a normal pull request, the change can be inspected under “Files changed,” and the update can then be reviewed and merged like any other controlled dependency update.*
 
 #### Local dev + dependency-security cycle
 
