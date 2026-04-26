@@ -1,3 +1,24 @@
+# 📑 Subphase 07-D — Stable PR Gate, Live CI Validation & Branch Protection
+
+---
+> [!TIP] **Navigation**  
+> **[⬅️ Phase 07-C](./PHASE-07-C.md)** | **[🏠 Phase 07 Home](../IMPLEMENTATION.md)**
+---
+
+## 🎯 Subphase goal
+
+Move the stable Phase 07 validation layers into GitHub Actions, keep live checks separate from the merge gate, and enforce the deterministic PR gate through default-branch protection.
+
+## 📌 Index
+
+- [Step 11 — Implement and activate a deterministic PR-gate workflow in GitHub Actions](#step-11--implement-and-activate-a-deterministic-pr-gate-workflow-in-github-actions)
+- [Step 12 — Implement and activate a live-smoke workflow in GitHub Actions for deployed environments](#step-12--implement-and-activate-a-live-smoke-workflow-in-github-actions-for-deployed-environments)
+- [Step 13 — Default-branch protection and enforcement of the mandatory PR gate](#step-13--default-branch-protection-and-enforcement-of-the-mandatory-pr-gate)
+- [Sources](#sources)
+
+---
+<br>
+
 # Implementation — Subphase 04: Stable PR gate, live CI validation, and branch protection (Steps 11–13)
 
 ## Step 11 — Implement and activate a deterministic PR-gate workflow in GitHub Actions
@@ -10,8 +31,8 @@ Phase 07 now already provides a strong **local validation baseline**:
 - **Observability-helper behavior** through the Bash observability-helper tests
 - **API response-shape compatibility** through the Python API contract guard
 - **Storefront rendering in a real browser** through the Playwright browser smoke test
-- **Security-scanning for repo-owned surfaces** through Trivy
-- **Dependency-scanning for repo-owned dependency surfaces** through Dependabot
+- **Security-scanning for repo-owned targets** through Trivy
+- **Dependency-scanning for repo-owned dependency targets** through Dependabot
 
 What is still missing is a **GitHub-native deterministic PR gate** 
 - that runs **automatically on pull requests** 
@@ -319,8 +340,8 @@ At this point, the **Phase 07 Test & Security Layer** validates:
 - **(3) API response-shape compatibility** (Python)
 - **(4) Storefront rendering in a real browser** (Playwright / JavaScript)
 - **(5) Security-scanning for repo-owned surfaces** (Trivy)
-- **(6) Evidence-based security remediation on a repo-owned Docker image path** (Trivy + hardened `healthcheck` image)
-- **(7) Dependency-scanning for repo-owned dependency surfaces** (Dependabot)
+- **(6) Evidence-based security remediation of a repo-owned Docker image** (Trivy + `healthcheck` Dockerfile hardening) 
+- **(7) Dependency scanning for repo-owned dependency targets** (Dependabot)
 - **(8) Deterministic PR-gate validation in CI** (GitHub Actions)
 
 The remaining two steps are now:
@@ -707,8 +728,8 @@ At this point, the **Phase 07 Test & Security Layer** validates:
 - **(3) API response-shape compatibility** (Python)
 - **(4) Storefront rendering in a real browser** (Playwright / JavaScript)
 - **(5) Security-scanning for repo-owned surfaces** (Trivy)
-- **(6) Evidence-based security remediation on a repo-owned Docker image path** (Trivy + hardened `healthcheck` image)
-- **(7) Dependency-scanning for repo-owned dependency surfaces** (Dependabot)
+- **(6) Evidence-based security remediation of a repo-owned Docker image** (Trivy + `healthcheck` Dockerfile hardening) 
+- **(7) Dependency scanning for repo-owned dependency targets** (Dependabot)
 - **(8) Stable PR-gate validation in GitHub Actions** (deterministic workflow)
 - **(9) Live deployed-environment smoke validation in GitHub Actions** (manual / reusable live-smoke workflow)
 
@@ -881,11 +902,123 @@ At this point, the **Phase 07 Test & Security Layer** validates:
 - **(3) API response-shape compatibility** (Python)
 - **(4) Storefront rendering in a real browser** (Playwright / JavaScript)
 - **(5) Security-scanning for repo-owned surfaces** (Trivy)
-- **(6) Evidence-based security remediation on a repo-owned Docker image path** (Trivy + hardened `healthcheck` image)
-- **(7) Dependency-scanning for repo-owned dependency surfaces** (Dependabot)
+- **(6) Evidence-based security remediation of a repo-owned Docker image** (Trivy + `healthcheck` Dockerfile hardening) 
+- **(7) Dependency scanning for repo-owned dependency targets** (Dependabot)
 - **(8) Deterministic PR-gate validation in CI** (GitHub Actions)
 - **(9) Live deployed-environment smoke validation in GitHub Actions** (manual / reusable live-smoke workflow)
 - **(10) Repository-level merge governance on the default branch** (ruleset + required deterministic checks)
 
 This concludes the implementation of Phase 07. 
 
+---
+
+## Sources
+
+### Step 11 — Deterministic PR gate in GitHub Actions
+
+- [Google Testing Blog — Flaky Tests at Google and How We Mitigate Them](https://testing.googleblog.com/2016/05/flaky-tests-at-google-and-how-we.html)  
+  Flaky-test definition as inconsistent pass/fail behavior with the same code, plus common causes such as infrastructure and non-deterministic behavior.
+
+- [Thoughtworks — No more flaky tests on the Go team](https://www.thoughtworks.com/en-us/insights/blog/no-more-flaky-tests-go-team)  
+  CI trust problems caused by flaky functional tests and unreliable red builds.
+
+- [Thoughtworks — Just re-run the build, it should go green](https://www.thoughtworks.com/en-us/insights/blog/just-re-run-build-it-should-go-green)  
+  Non-deterministic test failures, build trust erosion, and the rationale for moving unstable checks away from the primary merge signal.
+
+- **GitHub Actions documentation** — Pull-request workflows, manual workflow runs, minimal token permissions, concurrency cancellation, job structure, Ubuntu runners, timeouts, and shell steps:
+  - [GitHub Docs — Workflow syntax for GitHub Actions](https://docs.github.com/actions/using-workflows/workflow-syntax-for-github-actions)
+  - [GitHub Docs — Secure use reference](https://docs.github.com/en/actions/reference/security/secure-use)
+  - [GitHub Well-Architected — Securing GitHub Actions Workflows](https://wellarchitected.github.com/library/application-security/recommendations/actions-security/)
+
+- **GitHub Actions setup actions** — Repository checkout and runtime setup for Ruby and Python jobs:
+  - [actions/checkout](https://github.com/actions/checkout)
+  - [ruby/setup-ruby](https://github.com/ruby/setup-ruby)
+  - [actions/setup-python](https://github.com/actions/setup-python)
+
+- **GNU Make documentation** — Make targets:
+  - [GNU Make Manual](https://www.gnu.org/software/make/manual/make.html)
+
+---
+
+### Step 12 — Live-smoke workflow for deployed environments
+
+- [Microsoft Engineering Playbook — Smoke Testing](https://microsoft.github.io/code-with-engineering-playbook/automated-testing/smoke-testing/)  
+  Smoke tests as a fast readiness signal before deeper functional or regression testing.
+
+- [Better Stack — Playwright End-to-End Testing: A Step-by-Step Guide](https://betterstack.com/community/guides/testing/playwright-end-to-end-testing/)  
+  Step-by-step Playwright setup, first test creation, and introductory browser-test workflow.
+
+- [Semaphore — How to Avoid Flaky Tests in Playwright](https://semaphore.io/blog/flaky-tests-playwright)  
+  Playwright flakiness risks in CI and practical stability considerations for browser-based tests.
+
+- [GitLab Docs — Smoke Tests](https://docs.gitlab.com/development/testing_guide/smoke/)  
+  Quick end-to-end checks against a specified environment to confirm basic functionality.
+
+- **GitHub Actions documentation** — Manual workflow dispatch, reusable workflow inputs, repository variables, `vars` and `inputs` contexts, step outputs through `$GITHUB_OUTPUT`, and environment-variable handling:
+  - [GitHub Docs — Workflow syntax for GitHub Actions](https://docs.github.com/actions/using-workflows/workflow-syntax-for-github-actions)
+  - [GitHub Docs — Reuse workflows](https://docs.github.com/en/actions/how-tos/reuse-automations/reuse-workflows)
+  - [GitHub Docs — Store information in variables](https://docs.github.com/actions/learn-github-actions/variables)
+  - [GitHub Docs — Contexts reference](https://docs.github.com/en/actions/reference/workflows-and-actions/contexts)
+  - [GitHub Docs — Workflow commands for GitHub Actions](https://docs.github.com/en/actions/reference/workflows-and-actions/workflow-commands)
+
+- **GitHub Actions setup and artifact actions** — Repository checkout, Python runtime setup, Node.js runtime setup, and Playwright report/test-result artifact upload:
+  - [actions/checkout](https://github.com/actions/checkout)
+  - [actions/setup-python](https://github.com/actions/setup-python)
+  - [actions/setup-node](https://github.com/actions/setup-node)
+  - [actions/upload-artifact](https://github.com/actions/upload-artifact)
+  - [GitHub Docs — Store and share data with workflow artifacts](https://docs.github.com/en/actions/tutorials/store-and-share-data)
+
+- **Playwright documentation** — CI execution, HTML reports, traces, screenshots, and browser-test artifacts:
+  - [Playwright Docs — Continuous Integration](https://playwright.dev/docs/ci)
+  - [Playwright Docs — Setting up CI](https://playwright.dev/docs/ci-intro)
+  - [Playwright Docs — HTML Reporter](https://playwright.dev/docs/test-reporters#html-reporter)
+  - [Playwright Docs — Trace Viewer](https://playwright.dev/docs/trace-viewer)
+  - [Playwright Docs — Screenshots](https://playwright.dev/docs/screenshots)
+
+- **GNU Make documentation** — Make targets:
+  - [GNU Make Manual](https://www.gnu.org/software/make/manual/make.html)
+
+---
+
+### Step 13 — Default-branch protection and required deterministic checks
+
+- [GitHub Docs — About protected branches](https://docs.github.com/repositories/configuring-branches-and-merges-in-your-repository/managing-protected-branches/about-protected-branches)  
+  Protected branches, required status checks, and merge restrictions for protected branches.
+
+- [GitHub Docs — Available rules for rulesets](https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/managing-rulesets/available-rules-for-rulesets)  
+  Branch rulesets, pull-request requirements, required status checks, up-to-date-before-merge enforcement, deletion restrictions, and force-push blocking.
+
+- [GitHub Docs — Managing rulesets for a repository](https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/managing-rulesets)  
+  Repository ruleset creation, enforcement status, target branches, and branch-governance configuration.
+
+- [GitHub Docs — About status checks](https://docs.github.com/en/pull-requests/collaborating-with-pull-requests/collaborating-on-repositories-with-code-quality-features/about-status-checks)  
+  Status-check behavior on pull requests and commit-level validation signals.
+
+- [GitHub Docs — Troubleshooting required status checks](https://docs.github.com/en/pull-requests/collaborating-with-pull-requests/collaborating-on-repositories-with-code-quality-features/troubleshooting-required-status-checks)  
+  Required checks against the latest commit SHA and merge availability when required checks pass.
+
+- [GitHub Well-Architected — Securing GitHub Actions Workflows](https://wellarchitected.github.com/library/application-security/recommendations/actions-security/)  
+  Repository rules, least-privilege workflow permissions, and workflow-governance practices.
+
+---
+
+### Cross-step CI/CD and governance concepts
+
+- [GitHub Docs — Understanding GitHub Actions](https://docs.github.com/en/actions/about-github-actions/understanding-github-actions)  
+  GitHub Actions as an automation platform for build, test, and deployment workflows.
+
+- [GitHub Docs — Events that trigger workflows](https://docs.github.com/en/actions/reference/events-that-trigger-workflows)  
+  Workflow triggers such as `pull_request`, `workflow_dispatch`, and `workflow_call`.
+
+- [GitHub Docs — Variables reference](https://docs.github.com/en/actions/reference/workflows-and-actions/variables)  
+  Default variables, configuration variables, and variable usage in GitHub Actions workflows.
+
+- [GitHub Docs — Limits for configuration variables](https://docs.github.com/en/actions/reference/workflows-and-actions/variables#limits-for-configuration-variables)  
+  Repository and workflow variable limits relevant to storing live target URLs as repository variables.
+
+
+---
+<br>
+
+> [!TIP] **Navigation**  
+> **[⬅️ Phase 07-C](./PHASE-07-C.md)** | **[🏠 Phase 07 Home](../IMPLEMENTATION.md)**

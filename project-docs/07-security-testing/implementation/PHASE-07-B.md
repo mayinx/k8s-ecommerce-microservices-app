@@ -1,4 +1,23 @@
-# Implementation — Subphase 02: Python API contract guard, live API smoke tests, and browser smoke tests with Playwright (Steps 5–7)
+# 📑 Subphase 07-B — Python Contract Guard, Live API Smoke Tests & Playwright Browser Smoke Tests
+
+---
+> [!TIP] **Navigation**  
+> **[⬅️ Phase 07-A](./PHASE-07-A.md)** | **[🏠 Phase 07 Home](../IMPLEMENTATION.md)** | **[Next: Phase 07-C ➡️](./PHASE-07-C.md)**
+---
+
+## 🎯 Subphase goal
+
+Add a Python consumer-side catalogue contract guard, reuse it against live deployed endpoints, and establish the first Playwright browser smoke layer for the storefront.
+
+## 📌 Index
+
+- [Step 5 — Add a Python consumer-side contract guard and local unit tests](#step-5--add-a-python-consumer-side-contract-guard-and-local-unit-tests)
+- [Step 6 — Live Python API contract-guard smoke test: Reuse the Python contract-guard against the live `catalogue` API](#step-6--live-python-api-contract-guard-smoke-test-reuse-the-python-contract-guard-against-the-live-catalogue-api)
+- [Step 7 — Establishing a minimal Playwright browser smoke test layer for the live storefront](#step-7--establishing-a-minimal-playwright-browser-smoke-test-layer-for-the-live-storefront)
+- [Sources](#sources)
+
+---
+<br>
 
 ## Step 5 — Add a Python consumer-side contract guard and local unit tests
 
@@ -1041,6 +1060,119 @@ At this point, the **Phase 07 test layer** validates:
 
 ---
 
+## Sources
+
+### Step 5 — Python contract guard, local unit tests, and schema baseline
+
+- [Martin Fowler — Consumer-Driven Contracts: A Service Evolution Pattern](https://martinfowler.com/articles/consumerDrivenContracts.html)  
+  Consumer-focused service contract thinking and service-evolution rationale.
+
+- [Martin Fowler — Tolerant Reader](https://martinfowler.com/bliki/TolerantReader.html)  
+  Tolerant reader pattern for consuming only the data needed while allowing provider-side additions.
+
+- [Pact Docs — Introduction](https://docs.pact.io/)  
+  Consumer-driven contract testing model and consumer-owned contract thinking.
+
+- [Pact Docs — Writing Consumer tests](https://docs.pact.io/consumer)  
+  Consumer test design starting from the API client’s expectations.
+
+- **Python Packaging documentation** — Project-local Python environments, `venv`, `pip`, and requirements-file based dependency installation:
+  - [Python Packaging User Guide — Install packages in a virtual environment using pip and venv](https://packaging.python.org/guides/installing-using-pip-and-virtual-environments/)
+  - [Python Docs — Installing Python modules](https://docs.python.org/3/installing/index.html)
+
+- **Python documentation** — Package markers, import-path stability, syntax compilation, environment variables, and JSON parsing:
+  - [Python Docs — Packages](https://docs.python.org/3/tutorial/modules.html#packages)
+  - [Python Docs — `py_compile`](https://docs.python.org/3/library/py_compile.html)
+  - [Python Docs — `os.getenv`](https://docs.python.org/3/library/os.html#os.getenv)
+  - [Python Docs — `json`](https://docs.python.org/3/library/json.html)
+
+- **pytest documentation** — Python test assertions and expected-exception checks:
+  - [pytest Docs — How to write and report assertions in tests](https://docs.pytest.org/en/stable/how-to/assert.html)
+  - [pytest Docs — API reference: `pytest.raises`](https://docs.pytest.org/en/stable/reference/reference.html)
+
+- **JSON Schema documentation** — Object, array, required-field, type, and tolerant additional-property validation:
+  - [JSON Schema — Understanding JSON Schema: Object](https://json-schema.org/understanding-json-schema/reference/object)
+  - [JSON Schema — Understanding JSON Schema: Array](https://json-schema.org/understanding-json-schema/reference/array)
+  - [JSON Schema — Type-specific keywords](https://json-schema.org/understanding-json-schema/reference/type)
+
+- **python-jsonschema documentation** — `jsonschema` validation engine and `Draft202012Validator` usage:
+  - [jsonschema Docs — Schema Validation](https://python-jsonschema.readthedocs.io/en/latest/validate/)
+  - [jsonschema Docs — Validators API](https://python-jsonschema.readthedocs.io/en/stable/api/jsonschema/validators/)
+
+- [jq Manual](https://jqlang.org/manual/)  
+  JSON inspection and slicing during catalogue response discovery.
+
+---
+
+### Step 6 — Live Python contract smoke test and deployed catalogue validation
+
+- [Microsoft Engineering Playbook — Smoke Testing](https://microsoft.github.io/code-with-engineering-playbook/automated-testing/smoke-testing/)  
+  Smoke testing as a fast readiness gate for basic system functionality.
+
+- [CircleCI — Smoke testing in CI/CD pipelines](https://circleci.com/blog/smoke-tests-in-cicd-pipelines/)  
+  Smoke tests for quick post-build or post-deployment validation in CI/CD workflows.
+
+- **Python documentation** — HTTP request construction, URL opening, HTTP/URL exception handling, environment-based target selection, and JSON response parsing:
+  - [Python Docs — `urllib.request`](https://docs.python.org/3/library/urllib.request.html)
+  - [Python Docs — HOWTO Fetch Internet Resources Using The urllib Package](https://docs.python.org/3/howto/urllib2.html)
+  - [Python Docs — `urllib.error`](https://docs.python.org/3/library/urllib.error.html)
+  - [Python Docs — `os.getenv`](https://docs.python.org/3/library/os.html#os.getenv)
+  - [Python Docs — `json`](https://docs.python.org/3/library/json.html)
+
+- **Kubernetes documentation** — Local debug path through service port forwarding:
+  - [Kubernetes Docs — Use port forwarding to access applications in a cluster](https://kubernetes.io/docs/tasks/access-application-cluster/port-forward-access-application-cluster/)
+  - [Kubernetes Docs — `kubectl port-forward`](https://kubernetes.io/docs/reference/kubectl/generated/kubectl_port-forward/)
+
+- **pytest documentation** — Live smoke test execution and explicit test failure handling:
+  - [pytest Docs — How to write and report assertions in tests](https://docs.pytest.org/en/stable/how-to/assert.html)
+  - [pytest Docs — API reference: `pytest.fail`](https://docs.pytest.org/en/stable/reference/reference.html)
+
+- [GNU Make Manual](https://www.gnu.org/software/make/manual/make.html)  
+  Makefile targets as repeatable entrypoints for deterministic and live Python contract checks.
+
+---
+
+### Step 7 — Playwright browser smoke layer for the live storefront
+
+- [Microsoft Engineering Playbook — Smoke Testing](https://microsoft.github.io/code-with-engineering-playbook/automated-testing/smoke-testing/)  
+  Smoke tests as a fast readiness signal before deeper functional or regression testing.
+
+- [GitLab Docs — Smoke Tests](https://docs.gitlab.com/development/testing_guide/smoke/)  
+  Quick end-to-end checks against a specified environment to confirm basic functionality.
+
+- [Better Stack — Playwright End-to-End Testing: A Step-by-Step Guide](https://betterstack.com/community/guides/testing/playwright-end-to-end-testing/)  
+  Step-by-step Playwright setup, first test creation, and introductory browser-test workflow.
+
+- [Semaphore — How to Avoid Flaky Tests in Playwright](https://semaphore.io/blog/flaky-tests-playwright)  
+  Playwright flakiness risks in CI and practical stability considerations for browser-based tests.
+
+- **Playwright documentation** — Installation, browser setup, test configuration, CI behavior, assertions, page navigation, locators, reports, screenshots, traces, and headed debugging:
+  - [Playwright Docs — Installation](https://playwright.dev/docs/intro)
+  - [Playwright Docs — Configuration](https://playwright.dev/docs/test-configuration)
+  - [Playwright Docs — Continuous Integration](https://playwright.dev/docs/ci)
+  - [Playwright Docs — Setting up CI](https://playwright.dev/docs/ci-intro)
+  - [Playwright Docs — Test assertions](https://playwright.dev/docs/test-assertions)
+  - [Playwright Docs — Playwright Test API](https://playwright.dev/docs/api/class-test)
+  - [Playwright Docs — Page API](https://playwright.dev/docs/api/class-page)
+  - [Playwright Docs — Locator assertions](https://playwright.dev/docs/api/class-locatorassertions)
+  - [Playwright Docs — Page assertions](https://playwright.dev/docs/api/class-pageassertions)
+  - [Playwright Docs — HTML Reporter](https://playwright.dev/docs/test-reporters#html-reporter)
+  - [Playwright Docs — Trace Viewer](https://playwright.dev/docs/trace-viewer)
+
+- **npm documentation** — Nested Node.js package setup, local dependency installation, and `npx` execution of project-local tools:
+  - [npm Docs — `package.json`](https://docs.npmjs.com/cli/v11/configuring-npm/package-json/)
+  - [npm Docs — `npm install`](https://docs.npmjs.com/cli/v8/commands/npm-install)
+  - [npm Docs — `npx`](https://docs.npmjs.com/cli/v8/commands/npx/)
+
+- [GNU Make Manual](https://www.gnu.org/software/make/manual/make.html)  
+  Makefile targets as repeatable entrypoints for Playwright setup, smoke execution, report viewing, and aggregate Phase 07 live checks.
+
+---
+
+<br>
+
+> [!TIP] **Navigation**  
+> **[⬅️ Phase 07-A](./PHASE-07-A.md)** | **[🏠 Phase 07 Home](../IMPLEMENTATION.md)** | **[Next: Phase 07-C ➡️](./PHASE-07-C.md)**
 
 
 
