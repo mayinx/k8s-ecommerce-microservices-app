@@ -100,7 +100,7 @@ jobs:
       # Authenticate the workflow to a container registry (here GHCR via ghcr.io) so the workflow 
       # can push the built support image with the repository-scoped GitHub token
       - name: Log in to GHCR
-        uses: docker/login-action@v3
+        uses: docker/login-action@v4
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
