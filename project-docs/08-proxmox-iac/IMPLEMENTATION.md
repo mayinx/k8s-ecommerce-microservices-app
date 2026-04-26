@@ -1,198 +1,218 @@
-# Implementation Log Template
----
+# 🛠️ Implementation Guide — Phase 08: Proxmox Infrastructure as Code Baseline
 
-# Implementation Guide — Phase 08: Proxmox Infrastructure as Code
-
-> ## About
-> This document is the implementation log and detailed build diary for **Phase XX (<Docs-Short-Name>)**.
-> It records the full implementation path including rationales, key observations, verification steps, and evidence pointers so the work remains auditable and reproducible.
+> ## 👤 About
+> This is the **temporary implementation summary** for **Phase 08 (Proxmox Infrastructure as Code Baseline)**.  
+> The full polished implementation guide, detailed rationale, decisions, and source trail **will be completed after hand-in**.
 >
-> For top-level project navigation, see: **[INDEX.md](../INDEX.md)**.
-> For cross-phase incident and anomaly tracking, see: **[DEBUG-LOG.md](../DEBUG-LOG.md)**.
-> For the broader project planning view, see: **[ROADMAP.md](../ROADMAP.md)**.
+> Current status: **Implementation complete, evidence captured, documentation polish pending.**
 
 ---
 
-## Index (top-level)
+## 📌 Temporary index
 
-- [**Purpose / Goal**](#purpose--goal)
-- [**Definition of done**](#definition-of-done)
-- [**Preconditions**](#preconditions)
-- [**Step 1 — -----]
-- [**Step 2 — -----]
-- [**Step 3 — -----]
-- [**Step 4 — -----]
-- [**Step 5 — -----]
-- [**Phase XX outcome summary**](#phase-XX-outcome-summary)
-- [**Sources**](#sources)
-
-
-
+- [Goal](#goal)
+- [What was implemented](#what-was-implemented)
+- [Verification result](#verification-result)
+- [Evidence captured](#evidence-captured)
+- [Repository updates](#repository-updates)
+- [Final Phase 08 status](#final-phase-08-status)
 
 ---
 
-## Purpose / Goal
+## Goal
 
-### Goal Line
+Phase 08 adds a minimal but working **Infrastructure as Code (IaC)** baseline for the Proxmox target environment.
 
-### Some Prose + Concept/Terms notes 
-
----
-
-## Definition of done (Phase 06)
-
-Phase XX is considered done when the following conditions are met:
-
-- Condition 1
-- Condition 2
-- Condition 3
-- ...
-- (Browser) evidence for X, Y is captured in the phase evidence folder
+The goal was to prove that Terraform can manage Proxmox infrastructure safely without touching the live K3s target VM `9200`.
 
 ---
 
-## Preconditions
+## What was implemented
 
-- The <feature> from Phase XX exists/whatever ... 
-- The local workstation ...
-- The production Sock Shop environment / The VM environment...
-- Tool X is available on the workstation | the VM | Whatever
+A dedicated Terraform workspace was created under:
 
----
-
-## Step 1 — ....
-
-
-## Step 1 — Audit / Check current trerraform setup + plan IaC scope
-
-
-### Rationale
-
-With XY already present/working/given, the next step is ...
-...
-
----
-
-### Action
-
-### Local Workstation (repo root)/VM 9200/...
-
-The goal now is:
-- ...
-- ...
-- ...
-
-~~~bash
-# Comment 1 
-$command1
-terminal output 1
-
-# Comment 2 
-$command2
-terminal output 2
-
-# Comment 3 
-$command3
-terminal output 3
-
-# ...
+~~~text
+infra/terraform/proxmox-smoke-vm/
 ~~~
 
-<Notes regarding the commands or action por decisions>
+The Terraform configuration defines one disposable Proxmox smoke VM:
 
-### Further sub steps ... 
+- Source template: `9010` (`ubuntu-2404-workload-ready-template-v1`)
+- Terraform-created smoke VM: `9300`
+- Smoke VM name: `ubuntu-2404-terraform-smoke-01`
+- Proxmox node: `sd-178532`
+- Storage: `vmdata`
+- Network bridge: `vmbr1`
+- Cloud-Init guest IP: `10.10.10.30/24`
+- Gateway: `10.10.10.1`
+- DNS: `1.1.1.1`
+- Live target VM deliberately avoided: `9200`
 
-### Further sub steps ... 
+The implementation proves the IaC flow:
 
-### Further sub steps ... 
-
-### Evidence 
-
-<list evidence / include screenshots>
-
-**Grafana namespace dashboard — memory and network overview**
-
-![Grafana namespace dashboard for sock-shop-prod showing memory and network overview](./evidence/03-grafana-k8s-namespace-pods-sock-shop-prod-memory-network.png)
-
-***Figure N:*** *Grafana dashboard `Kubernetes / Compute Resources / Namespace (Pods)` filtered to namespace `sock-shop-prod`. The screenshot shows live workload data for the production namespace, including memory usage, pod-level memory values, and current network usage for several Sock Shop workloads.*
-
-
-
-
-### Expected result / success criteria <-> Result
-
-[Note: This section starts in the planning/step implementation phase as a list of "Expected result(s) / success criteria" to have goals adn a path to collecting evidence one way or another. Once the step is impelmented, this section is transformed into a pure "Results" section which lists signals / verification points that signal successful execution]      
-
-The <feature> was <implemented|installed|whatever> successfully <in|on|for> <whatever> .
-
-The successful end state is shown by these signals / verification points:
-
-- signal 1
-- signal 2
-- signal 3
-- ....
-
-At this point, ... 
-- <new feature 1>
-- <new feature 2>
-- <new feature 3>
-- ...
+1. Initialize Terraform
+2. Validate the configuration
+3. Plan one Proxmox VM creation
+4. Apply the plan
+5. Verify the VM in Proxmox
+6. Verify guest networking through ping and QEMU Guest Agent
+7. Destroy the disposable VM again
 
 ---
 
-## Step 2 — ...
+## Verification result
+
+Terraform initialization succeeded:
+
+~~~bash
+# Initialize the Phase 08 Terraform workspace.
+$ make p08-tf-init
+Terraform has been successfully initialized!
+~~~
+
+Terraform validation succeeded:
+
+~~~bash
+# Validate the Terraform configuration.
+$ make p08-tf-validate
+Success! The configuration is valid.
+~~~
+
+Terraform planned exactly one new VM:
+
+~~~bash
+# Create a reviewed Terraform plan.
+$ make p08-tf-plan
+Plan: 1 to add, 0 to change, 0 to destroy.
+~~~
+
+Terraform created the disposable smoke VM successfully:
+
+~~~bash
+# Apply the reviewed Terraform plan.
+$ make p08-tf-apply
+proxmox_virtual_environment_vm.smoke_vm: Creation complete after 57s [id=9300]
+
+Apply complete! Resources: 1 added, 0 changed, 0 destroyed.
+
+Outputs:
+
+smoke_vm_id = 9300
+smoke_vm_ip_cidr = "10.10.10.30/24"
+smoke_vm_name = "ubuntu-2404-terraform-smoke-01"
+~~~
+
+The Proxmox host confirmed that VM `9300` existed and was running:
+
+~~~bash
+# Verify the Terraform-created VM on the Proxmox host.
+$ qm list --full
+9300 ubuntu-2404-terraform-smoke-01 running 2048 40.00
+~~~
+
+The VM configuration confirmed the intended Cloud-Init, network, storage, and tag settings:
+
+~~~bash
+# Inspect the Terraform-created Proxmox VM.
+$ qm config 9300
+name: ubuntu-2404-terraform-smoke-01
+ipconfig0: gw=10.10.10.1,ip=10.10.10.30/24
+nameserver: 1.1.1.1
+net0: virtio=<redacted>,bridge=vmbr1
+scsi0: vmdata:vm-9300-disk-0,size=40G
+tags: phase-08;smoke-vm;terraform
+~~~
+
+The smoke VM answered on the intended private IP:
+
+~~~bash
+# Verify guest reachability from the Proxmox host.
+$ ping -c 3 10.10.10.30
+3 packets transmitted, 3 received, 0% packet loss
+~~~
+
+The QEMU Guest Agent confirmed the expected guest network address:
+
+~~~bash
+# Confirm the guest-side network address through the QEMU Guest Agent.
+$ qm guest cmd 9300 network-get-interfaces
+[
+  {
+    "name": "eth0",
+    "ip-addresses": [
+      {
+        "ip-address": "10.10.10.30",
+        "ip-address-type": "ipv4",
+        "prefix": 24
+      }
+    ]
+  }
+]
+~~~
+
+After verification, the disposable VM was destroyed again:
+
+~~~bash
+# Destroy the disposable Terraform smoke VM.
+$ make p08-tf-destroy
+Plan: 0 to add, 0 to change, 1 to destroy.
+
+proxmox_virtual_environment_vm.smoke_vm: Destruction complete after 8s
+
+Destroy complete! Resources: 1 destroyed.
+~~~
 
 ---
 
-## Step 3 — ...
+## Evidence captured
+
+Evidence was captured for the complete IaC lifecycle:
+
+- Terraform init / validate / plan output
+- Terraform apply output showing VM `9300` creation
+- Proxmox UI screenshots showing the new tagged VM `9300`
+- Proxmox host terminal output showing `qm list --full`
+- Proxmox host terminal output showing `qm config 9300`
+- Guest reachability proof through ping to `10.10.10.30`
+- QEMU Guest Agent network proof for `eth0` and `10.10.10.30/24`
+- Terraform destroy output showing `1 destroyed`
 
 ---
 
-## Step 4 — ...
+## Repository updates
 
---- 
+The following repository updates were completed as part of Phase 08:
 
-## Result
-
-**The <main phase feature/goal > was <inatlled|implemeted|verified|...> successfully ...**
-
-The successful end state is shown by these signals / verification points:
-
-- signal 1
-- signal 2
-- signal 3
-- ...
-
-### Non-blocking observations and later follow-up
-
-The observations below <did (not) block> successful completion of Phase XX....:
-
-- observation 1
-- observation 2
-- observation 3
-- ...
+- Added isolated Terraform workspace:
+  - `infra/terraform/proxmox-smoke-vm/`
+- Added Terraform configuration for the disposable Proxmox smoke VM
+- Added `.terraform.lock.hcl` for provider-version reproducibility
+- Added/updated `.gitignore` rules for Terraform local state, plan files, and local secrets
+- Added Phase 08 Terraform Make targets:
+  - `make p08-tf-init`
+  - `make p08-tf-validate`
+  - `make p08-tf-plan`
+  - `make p08-tf-apply`
+  - `make p08-tf-destroy`
+- Updated broad Trivy repo scan coverage to include:
+  - `infra/terraform`
+- Updated Dependabot configuration to include Terraform provider dependency scanning for:
+  - `/infra/terraform/proxmox-smoke-vm`
 
 ---
 
-## Phase XX outcome summary
+## Final Phase 08 status
 
-Phase XX <established|demonstarred|implemented> succcessfully <main goal / feature>.
+Phase 08 is functionally complete.
 
-- outcome-1
-- outcome-2
-- outcome-3
-- ...
+The project now has a working Proxmox IaC baseline:
 
-This makes Phase XX the point **where the project moves from <previous feature/project state/phase> toward <current feature/project state/phase>** .
+- Terraform can authenticate against the Proxmox API
+- Terraform can clone a VM from the existing workload-ready template `9010`
+- Terraform can inject Cloud-Init network settings
+- Terraform can create and start a disposable smoke VM
+- The VM can be verified from Proxmox and through the guest agent
+- Terraform can destroy the managed VM again
+- The live target VM `9200` remained untouched
 
----
-
-## Sources
-
-- [Source 1 Caption](source-1-url) 
-  Source 1 optional details.
-- [Source 2 Caption](source-2-url)  
-  Source 2 optional details.
-- [Source 3 Caption](source-3-url)  
-  Source 3 optional details.
-- ...
+This satisfies the IaC requirement at a safe scope and creates a clean foundation for later expanded Proxmox automation.

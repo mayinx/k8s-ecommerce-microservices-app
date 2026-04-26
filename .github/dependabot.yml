@@ -5,19 +5,20 @@
 # Phase 07 - Security Testing (Code Dependency Scanning)
 #
 # Purpose:
-# Establish an automated dependency-scanning baseline to identify and remediate 
-# vulnerable dependencies in repository-owned code surfaces.
+#   Establish an automated dependency-update scanning for repository-owned tooling
+#   and infrastructure paths to identify vulnerable dependencies 
 #
 # Scope & Strategy:
-# This configuration is strictly scoped to the infrastructure and tooling
-# actively maintained within this repository:
-# - (1) GitHub Actions: Scans CI/CD runner environments to prevent supply-chain attacks.
-# - (2) npm (Playwright): Scans the local E2E testing toolchain.
+#   This configuration is strictly scoped to components actively maintained in
+#   this repository:
+#   - (1) GitHub Actions: Scans CI/CD runner environments to prevent supply-chain attacks.
+#   - (2) npm (Playwright): Scans the local E2E testing toolchain.
+#   - (3) Terraform: Phase 08 Proxmox IaC Smoke-VM Provider-dependencies
 #
 # Intentional Exclusion:
-# Scanning the upstream WeaveSocks legacy microservices is explicitly excluded. 
-# Scanning 8-year-old unmaintained upstream code would generate unactionable noise. 
-# The choosen DevSecOps strategy focuses strictly on the surfaces we own and operate.
+#   Scanning the upstream WeaveSocks legacy microservices is explicitly excluded. 
+#   Scanning 8-year-old unmaintained upstream code would generate unactionable noise. 
+#   The choosen DevSecOps strategy focuses strictly on the surfaces we own and operate.
 #
 
 version: 2 # Required schema version for GitHub-native Dependabot
@@ -40,6 +41,8 @@ updates:
     labels:                                 # Automatically tags generated PRs for easy filtering                                 
       - "dependencies"
       - "security"
+      - "github-actions"
+      - "ci"
 
   # ---------------------------------------------------------------------------
   # 2) Scan Playwright E2E Testing Environment under tests/e2e
@@ -55,3 +58,19 @@ updates:
     labels:
       - "dependencies"
       - "security"
+      - "npm"
+      - "playwright"      
+
+  # ---------------------------------------------------------------------------
+  # 3) Scan Terraform provider dependencies for the Phase 08 Proxmox IaC proof
+  # ---------------------------------------------------------------------------
+  # Scans Terraform provider versions used by the isolated Proxmox smoke-VM workspace.
+  - package-ecosystem: "terraform"
+    directory: "/infra/terraform/proxmox-smoke-vm"
+    schedule:
+      interval: "weekly"
+    labels:
+      - "dependencies"
+      - "security"
+      - "terraform"
+      - "iac"      
