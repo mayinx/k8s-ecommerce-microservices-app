@@ -23,26 +23,29 @@
 ## Current position
 
 - Current proven phase:
-  - Phase 06 — Observability
+  - Phase 07 — Security Testing
 - Primary next target:
-  - Phase 07 — Security baseline & testing
-- Main current objective:
-  - strengthen the now observable real target with a defensible security/testing baseline
-- Important planning note:
-  - the first useful observability baseline is now proven, so the next phases should build on that visibility layer instead of reopening baseline monitoring selection unless a real blocker appears
+  - Phase 08 — Infrastructure as Code (Terraform)
 
 ---
 
 ## Planning tiers
 
-### Tier A — Must complete before bootcamp evaluation
-- target deployment on the primary long-lived environment
-- IaC for that target
-- observability baseline
-- security baseline
+### Tier A — Must complete before evaluation
+- Target deployment on the primary long-lived environment
+  - status: done in Phase 05
+- Observability baseline
+  - status: done in Phase 06
+- Security baseline
+  - status: done in Phase 07
+- Testing track
+  - status: done as first baseline in Phase 07
+- IaC for the stable target/bootstrap pieces
+  - status: next core phase
 - DR / rollback baseline
-- explicit testing track
-- clean final project documentation
+  - status: still open
+- Clean final project documentation
+  - status: ongoing
 
 ### Tier B — Strong stretch goals before evaluation, if time allows
 - custom Python microservice:
@@ -66,7 +69,7 @@
 
 ---
 
-## Phase roadmap
+## Core Phase Roadmap
 
 ### Phase 00 — Compose baseline
 - status:
@@ -176,16 +179,36 @@
   - [Runbook](./06-observability/RUNBOOK.md)
   - [Decisions](./06-observability/DECISIONS.md)
 
-### Phase 07 — Security baseline & testing
+### Phase 07 — Security Testing
 - status:
-  - core phase still open
+  - done
 - purpose:
-  - add stronger security / workflow hardening and satisfy the minimum test requirement
-- likely work:
-  - Trivy vulnerability scanning in GitHub Actions
-  - Dependabot configuration
-  - explicit documentation of GitHub Secrets (no hard-coded secrets)
-  - implement the smallest defensible unit-test path (Capstone minimum requirement)
+  - add the first integrated testing, security, dependency-visibility, CI-validation, live-smoke, and branch-protection layer
+- already proven:
+  - Repo-owned Ruby healthcheck 
+    - Refactor into an importable, CLI-testable, unit-testable, and machine-chainable helper
+    - Ruby healthcheck tests
+  - Repo-owned Bash observability-helper 
+    - Refactor behind `main()` and an execution guard for safe sourcing in tests
+    - Bash observability-helper tests
+  - Python `/catalogue` contract guard with deterministic local tests
+  - live Python contract smoke checks for deployed endpoints
+  - Playwright browser smoke checks against the live storefront
+  - Trivy filesystem scan targets for repo-owned code/config components
+  - Trivy vulnerability scan for the repo-owned `healthcheck` image
+  - hardened `healthcheck` Dockerfile with focused clean Trivy reruns
+  - Dependabot baseline for GitHub Actions and the Playwright npm toolchain
+  - deterministic GitHub Actions PR gate
+  - separate manual/reusable live-smoke workflow
+  - default-branch protection with required deterministic Phase 07 checks
+- docs:
+  - [Setup](./07-security-testing/SETUP.md)
+  - [Implementation](./07-security-testing/IMPLEMENTATION.md)
+  - [Decisions](./07-security-testing/DECISIONS.md)
+  - [P07-A](./07-security-testing/implementation/PHASE-07-A.md)
+  - [P07-B](./07-security-testing/implementation/PHASE-07-B.md)
+  - [P07-C](./07-security-testing/implementation/PHASE-07-C.md)
+  - [P07-D](./07-security-testing/implementation/PHASE-07-D.md)
 
 ### Phase 08 — Infrastructure as Code (Terraform)
 - status:
@@ -196,7 +219,7 @@
   - do *not* rebuild the entire Proxmox VM layer to avoid timeline risk
   - use Terraform (and the Terraform Helm Provider) to manage Kubernetes namespaces
   - codify the Phase 06 monitoring stack installation via Terraform
-- why it matters:
+- Relevance:
   - safely satisfies the IaC requirement while demonstrating senior-level add-on management.
 
 ### Phase 09 — DR / rollback baseline
@@ -214,13 +237,14 @@
 
 ### Testing track
 - priority:
-  - strong stretch before evaluation
+  - baseline done in Phase 07; deeper coverage is a stretch goal
 - purpose:
-  - make the delivery path more defensible
+  - extend the existing validation model only where it adds clear project value
 - likely additions:
-  - pipeline smoke verification
-  - Playwright storefront smoke / E2E coverage
-  - unit tests for owned components
+  - Deeper Playwright user-flow checks if time allows
+  - Automatic post-deployment live-smoke reuse after `dev` or `prod` rollout
+  - Additional tests for future custom project-owned services
+  - Investigate openapi
 
 ### Custom Python microservice
 - priority:
@@ -241,18 +265,19 @@
   - `block`
   - `review`
   - plus reason
-- why it matters:
+- Relevance:
   - shows service ownership
   - creates a natural place for tests
   - strengthens deployment, networking, and observability stories
 
 ### Supply-chain / image-security track
 - priority:
-  - strong stretch before evaluation
+  - baseline done in Phase 07; broader hardening remains a follow-up
 - likely additions:
-  - image scanning / SBOM generation
+  - handle broader Trivy backlog outside the remediated `healthcheck` path
+  - optional SBOM generation
   - later optional signing / verification
-- why it matters:
+- Relevance:
   - improves the project’s security and modern-delivery signal
 
 ### GitOps extension
@@ -260,7 +285,7 @@
   - post-bootcamp portfolio extension
 - likely additions:
   - Argo CD or similar
-- why it matters:
+- Relevance:
   - strong modern delivery signal
 - note:
   - do this only after the core target deployment path is stable
@@ -270,7 +295,7 @@
   - post-bootcamp portfolio extension
 - likely additions:
   - external secret-management integration
-- why it matters:
+- Relevance:
   - strengthens the operational/security story
 
 ### Optional AWS target
@@ -280,7 +305,7 @@
   - add AWS relevance without replacing the primary Proxmox-first path
 - likely shape:
   - secondary Terraform-driven deployment track
-- why it matters:
+- Relevance:
   - strengthens AWS / SAA alignment
   - adds additional platform signal for job search
 
@@ -311,29 +336,29 @@
   - persistent storage for monitoring data
   - broader project-wide secret management
   - any public monitoring ingress or broader monitoring exposure
+- Phase 07 broader Trivy findings outside the remediated `healthcheck` path remain a later hardening backlog
+- Dependabot-generated PRs should be reviewed through the protected pull-request path and merged or deferred intentionally
+- The Phase 07 live-smoke workflow can later be called automatically after deployment workflows once that behavior is desired
+- Playwright coverage can later be expanded beyond the current smoke-level storefront checks
+- GitHub Actions runtime deprecation warnings remain a later workflow-maintenance cleanup item  
 
 ---
 
 ## Open planning questions
 
-- Which Security / Testing combination gives the strongest signal soonest:
-  - Trivy in CI
-  - Dependabot
-  - policy / secret handling improvements
-  - pipeline smoke checks
-  - Playwright
-  - service-level tests
 - Which Terraform scope is the strongest low-risk fit for the remaining timeline:
   - codify namespaces and selected Kubernetes resources
   - codify the monitoring baseline
   - codify only stable target/bootstrap pieces
+- Should the Phase 07 live-smoke workflow be called automatically after deployment workflows, or remain manually triggered for now?
+- Which broader Trivy findings outside the remediated `healthcheck` path should be prioritized first?
 - Should monitoring remain private-only through the next phase, or is there a later justified case for stronger controlled exposure?
-- Should the custom Python microservice be implemented before or after the first defensible security/testing baseline?
-- Is an AWS extension realistic before evaluation, or better kept for post-bootcamp portfolio work?
+- Should the custom Python microservice be implemented before or after the first IaC / DR baseline?
+- Is an AWS extension realistic before evaluation, or better kept for post-evaluation portfolio work?
 - Which later extension gives the strongest hiring signal per hour of effort:
   - Argo CD
   - Python microservice
-  - stronger testing
+  - stronger E2E coverage
   - AWS target
 
 ---

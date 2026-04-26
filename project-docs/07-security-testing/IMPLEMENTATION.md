@@ -26,7 +26,8 @@
 
 - [Phase 07 outcomes at a glance](#phase-07-outcomes-at-a-glance)
 - [Phase 07 validation stack](#phase-07-validation-stack)
-- [Validation and security model at a glance](#validation-and-security-model-at-a-glance)- [CI/CD governance model at a glance](#cicd-governance-model-at-a-glance)
+- [Validation and security model at a glance](#validation-and-security-model-at-a-glance)
+- [CI/CD governance model at a glance](#cicd-governance-model-at-a-glance)
 - [Implementation Roadmap & Phase 07 Subphase Quick Navigation](#️-implementation-roadmap--phase-07-subphase-quick-navigation)
 - [Purpose / Goal](#purpose--goal)
 - [Definition of done](#definition-of-done)
@@ -48,8 +49,8 @@ Phase 07 adds an integrated **security and testing layer** on top of the already
 **Phase 07 establishes:**
 
 - **Repo-owned validation scope:** Clear separation between actively maintained project components and inherited upstream legacy application components
-- **Ruby helper tests:** Characterization and unit tests for the repo-owned `healthcheck` helper
-- **Bash helper tests:** CLI and function-level tests for the repo-owned Observability Traffic Generator
+- **Ruby helper refactor + tests:** The repo-owned `healthcheck` helper was refactored into an importable `HealthChecker` class with an execution guard, CLI characterization tests, unit tests, and clean `stdout` / `stderr` separation for machine-readable automation output
+- **Bash helper refactor + tests:** The repo-owned Observability Traffic Generator was moved behind `main()` and a Bash execution guard, then covered with CLI and function-level tests so it can be sourced safely without triggering the long-running traffic loop
 - **Python contract guard:** A consumer-side `/catalogue` response schema validator with deterministic local unit tests
 - **Live API smoke checks:** Reuse of the Python contract guard against deployed `dev` and `prod` `/catalogue` endpoints
 - **Browser smoke tests:** A minimal Playwright smoke suite that verifies storefront rendering in Chromium

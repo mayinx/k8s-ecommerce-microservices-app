@@ -13,7 +13,8 @@
 > - **[Phase 07-D — Stable PR Gate, Live CI Validation & Branch Protection](./implementation/PHASE-07-D.md)**
 >
 > For setup-only preparation around Phase 07 tooling and local execution paths, see: **[SETUP.md](./SETUP.md)**.  
-> For recorded technical anomalies discovered during this phase, see: **[DEBUG-LOG.md](../DEBUG-LOG.md)**.
+> For the concise Phase 07 rerun guide, see: **[RUNBOOK.md](./RUNBOOK.md)**.  
+> For recorded "technical anomalies" discovered during this phase, see: **[DEBUG-LOG.md](../DEBUG-LOG.md)**.
 
 ---
 
@@ -71,7 +72,7 @@ The project needed:
 
 ### Validation scope: Focus on repo-owned components before inherited upstream legacy components
 
-Phase 07 starts from the components that are a**ctively owned and maintained** in this repository.
+Phase 07 starts from selected components that are **actively owned and maintained** in this repository.
 
 The strongest initial repo-owned validation targets were:
 
@@ -231,6 +232,14 @@ At this point, the **Phase 07 Test & Security Layer** validates:
 - **(10) Repository-level merge governance on the default branch** through a ruleset and required deterministic checks
 
 This completes the implementation of Phase 07 as a full testing, security, CI-validation, live-smoke, and governance layer.
+
+## Noteworthy helper-refactoring outcome
+
+Existing repo-owned operational helpers were not in a testable shape in the beginning nor fit for CI use. They first had to be refactored into testable and automation-friendly shapes.
+
+The Ruby `healthcheck` helper moved from top-level script execution into an importable `HealthChecker` class with an execution guard, CLI characterization tests, and unit tests. Its output model was also cleaned up so machine-readable JSON goes to `stdout`, while human-readable logs go to `stderr`.
+
+The Bash Observability Traffic Generator moved behind `main()` and a Bash execution guard, which makes the file safe to source from tests without triggering prompt handling or the long-running traffic loop. Its first test layer covers preserved CLI behavior and deterministic helper-function logic.
 
 ---
 

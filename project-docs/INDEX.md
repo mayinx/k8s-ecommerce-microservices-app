@@ -54,20 +54,40 @@ Documentation is iterative and phase-aligned: baseline notes first, then milesto
 - **[P05-C — Environment modeling, ingress routing, and private tailnet access](./05-proxmox-target-delivery/implementation/PHASE-05-C.md)**
 - **[P05-D — Public Cloudflare exposure and CI/CD workflow retargeting](./05-proxmox-target-delivery/implementation/PHASE-05-D.md)**
 
+---
+
 ## Phase 06 Observability & Health (kube-prometheus-stack monitoring baseline on the Proxmox-backed target cluster)
 - **[Phase 06 — Implementation Log](./06-observability/IMPLEMENTATION.md)**
 - **[Phase 06 — Runbook (TL;DR)](./06-observability/RUNBOOK.md)**
 - **[Phase 06 — Decision Log](./06-observability/DECISIONS.md)**
 
+---
+
+## Phase 07 Security Testing (Helper Refactors, Deterministic Tests, Trivy Baseline, Dependabot, PR Gate, Live Smoke Tests Workflow, Branch Protection)
+- **[Phase 07 — Setup Guide](./07-security-testing/SETUP.md)**
+- **[Phase 07 — Main Implementation Log](./07-security-testing/IMPLEMENTATION.md)**
+- **[Phase 07 — Runbook (TL;DR)](./07-security-testing/RUNBOOK.md)**
+- **[Phase 07 — Decision Log](./07-security-testing/DECISIONS.md)**
+
+### Subphase implementation guides
+- **[P07-A — Scope, Assessment & Owned Helper Refactors](./07-security-testing/implementation/PHASE-07-A.md)**
+- **[P07-B — Python Contract Guard, Live API Smoke Tests & Playwright Browser Smoke Tests](./07-security-testing/implementation/PHASE-07-B.md)**
+- **[P07-C — Trivy Security Baseline, Healthcheck Image Remediation & Dependabot](./07-security-testing/implementation/PHASE-07-C.md)**
+- **[P07-D — Stable PR Gate, Live CI Validation & Branch Protection](./07-security-testing/implementation/PHASE-07-D.md)**
+
+---
+
 ## Future phases (placeholders; added when we reach them)
-- Phase 07: Security baseline & testing
 - Phase 08: Infrastructure as Code (Terraform)
 - Phase 09: DR / rollback baseline
 
+---
+
 ## Optional extension track (later / if time allows)
 - Testing track:
-  - pipeline smoke verification
-  - Playwright storefront smoke / E2E coverage
+  - extend the existing deterministic PR gate where useful
+  - expand Playwright storefront smoke checks into deeper E2E coverage if needed
+  - check repo owned openapi 
 - Custom Python microservice:
   - Order Guard / Policy Service
 - GitOps layer:
