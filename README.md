@@ -17,7 +17,7 @@ The project is intentionally implemented in phases so that each new capability b
 
 # 🧦 Sock Shop: Production-Grade DevOps Delivery Path
 
-### Proxmox VE Target Delivery • K3s Multi-Environment (`dev` / `prod`) • GitHub Actions CI/CD • Cloudflare Tunnels • Tailscale Private Access • Prometheus/Grafana Observability
+### Proxmox VE Target Delivery • K3s Multi-Environment (`dev` / `prod`) • GitHub Actions CI/CD • Cloudflare Tunnels • Tailscale Private Access • Prometheus/Grafana Observability • Deterministic Test Gate • Trivy Security Scanning • Playwright Smoke Tests • Protected PR Workflow
 
 Production grade DevOps project based on the upstream WeaveSocks microservices application. This repository demonstrates a complete, **reproducible, phase-based delivery path** from **local Docker Compose baseline** to a **production-like Proxmox target environment**.
 
@@ -26,12 +26,10 @@ Production grade DevOps project based on the upstream WeaveSocks microservices a
 ---
 
 ## 🧱 Tech Stack
-🐳 **Docker** | ☸️ **Kubernetes (K3s)** | 🐙 **GitHub Actions** | 🚜 **Proxmox VE** | 🛡️ **Tailscale** | ☁️ **Cloudflare Tunnels** | 🚦 **Traefik** | 🧩 **Kustomize** | 📈 **Prometheus & Grafana** 
 
-TOOD: Bring into the mix (with icons): Trivy
+🐳 **Docker** | ☸️ **Kubernetes (K3s)** | 🐙 **GitHub Actions** | 🚜 **Proxmox VE** | 🛡️ **Tailscale** | ☁️ **Cloudflare Tunnels** | 🚦 **Traefik** | 🧩 **Kustomize** | 📈 **Prometheus & Grafana** | 🔎 **Trivy** | 🎭 **Playwright** | 🤖 **Dependabot** | 💎 **Ruby/Minitest** | 🐚 **Bash** | 🐍 **Python/pytest** | 🟨 **JavaScript**
 
 ---
-
 
 ## 🚀 Live target environments
 
@@ -107,19 +105,16 @@ The current delivery path follows a **trunk-based CI/CD model with gated promoti
 
 ## 🎯 Target Scope
 
-✅ **Kubernetes deployment** (k3s locally → Proxmox target)\
+✅ **Kubernetes deployment** (K3s locally → Proxmox target)\
 ✅ **CI/CD** (build/test/push/deploy with approval-gated `prod`)\
 ✅ **Observability** (Prometheus/Grafana baseline proven on the real target)\
-⏳ **Testing** (...)\
+✅ **Testing** (Ruby, Bash, Python contract guard, Playwright smoke checks)\
+✅ **DevSecOps controls** (Trivy filesystem/image scanning, Dependabot, protected PR gate)\
+✅ **Documentation:** phase logs + setup notes + decisions + ADRs\
 ⏳ **IaC** (Terraform planned for stable target/bootstrap pieces)\
-⏳ **DevSecOps controls** (>= 3 measures planned)\
-⏳ **DR / rollback approach** (planned)\
-✅ **Documentation:** phase logs + runbooks + decisions + ADRs
-
+⏳ **DR / rollback approach** (planned)
 
 ---
-
-
 
 ## ✅ What this repository already demonstrates
 
@@ -133,13 +128,18 @@ This repository demonstrates an iterative DevOps delivery path built around Sock
 ✅ Evidence-oriented technical documentation\
 ✅ A real Proxmox-backed target-delivery platform\
 ✅ A delivery path spanning local proof, CI/CD proof, and a long-lived target environment\
-✅ Observability with Grafana + Prometheus
+✅ Observability with Grafana + Prometheus\
+✅ Automated tests for repo-owned Ruby, Bash, and Python validation components\
+✅ Browser smoke testing with Playwright\
+✅ Trivy-based security scanning and evidence-based Dockerfile remediation\
+✅ Dependabot dependency update baseline\
+✅ Protected default branch with required deterministic CI checks
 
 ---
 
 ### 🌟 Current proven highlights include: 
 
-TOOD: This should be structured by topics / phases (like traffic generator section below):
+#### Local and CI/CD baselines
 
 - Clean local Kubernetes baseline
 - Host-based local ingress baseline
@@ -148,6 +148,9 @@ TOOD: This should be structured by topics / phases (like traffic generator secti
 - GHCR publishing for the repo-owned `healthcheck` image
 - Automated `dev` smoke deployment
 - Approval-gated `prod` smoke deployment
+
+#### Proxmox target platform and public delivery path
+
 - Reusable Proxmox VM template baseline
 - Verified Proxmox smoke VM with host-side and guest-side proof
 - Workload-ready Proxmox baseline variant for target-side deployment
@@ -161,11 +164,28 @@ TOOD: This should be structured by topics / phases (like traffic generator secti
   - `https://dev-sockshop.cdco.dev/`
   - `https://prod-sockshop.cdco.dev/`
 - Dedicated Phase 05 workflow for automated `dev` and approval-gated `prod` deployment on the real target cluster
+
+#### Observability Baseline
+
 - Dedicated `monitoring` namespace on the real target
 - Maintained Helm-based monitoring baseline through `kube-prometheus-stack`
 - Private Grafana and Prometheus operator access via `kubectl port-forward`
 - Namespace-level workload visibility for `sock-shop-prod`
 - Healthy core monitoring targets through Prometheus
+
+#### Testing, Security, Merge Governance
+
+- Repo-owned Ruby `healthcheck` helper refactored and covered by CLI/unit tests
+- Repo-owned Bash Observability Traffic Generator refactored and covered by CLI/function-level tests
+- Python `/catalogue` contract guard with deterministic local tests and live endpoint validation
+- Playwright browser smoke tests for live storefront rendering
+- Trivy filesystem scan baseline for repo-owned code/config components
+- Trivy image vulnerability scan for the repo-owned `healthcheck` image
+- Hardened `healthcheck` Dockerfile with clean focused Trivy reruns
+- Dependabot baseline for GitHub Actions and Playwright npm dependencies
+- Deterministic GitHub Actions PR gate with required status-check job names
+- Separate live-smoke workflow for deployed environment validation
+- Protected `master` branch with required deterministic Phase 07 checks
 
 #### 🚥 Traffic Generator (Observability Helper)
 
@@ -229,6 +249,23 @@ The repository exposes a few thin Makefile helpers for the most common bservabil
 - `make p06-traffic-prod-preset`
 - `make p06-traffic-prod-live`
 
+#### 🛡️ Phase 07 Testing & Security Helper Targets
+
+Phase 07 adds thin Makefile helpers for deterministic tests, live smoke checks, and focused security scans:
+
+- `make p07-tests`
+- `make p07-tests-live`
+- `make p07-tests-all`
+- `make p07-healthcheck-tests`
+- `make p07-traffic-helper-tests`
+- `make p07-contract-guard-tests`
+- `make p07-contract-guard-live-dev`
+- `make p07-e2e-smoke-dev`
+- `make p07-trivy-healthcheck-repo-scan`
+- `make p07-trivy-healthcheck-image-scan`
+
+These targets keep local reruns aligned with the GitHub Actions validation path.
+
 ---
 
 ## 🏗️ Architecture direction
@@ -274,23 +311,29 @@ Depending on the phase, a folder may contain:
 - `evidence/`
 
 ### Current phase docs
+
+- Phase 07 setup:
+  - [project-docs/07-security-testing/SETUP.md](project-docs/07-security-testing/SETUP.md)
+- Phase 07 runbook:
+  - [project-docs/07-security-testing/RUNBOOK.md](project-docs/07-security-testing/RUNBOOK.md)  
+- Phase 07 implementation overview:
+  - [project-docs/07-security-testing/IMPLEMENTATION.md](project-docs/07-security-testing/IMPLEMENTATION.md)
+- Phase 07 decisions:
+  - [project-docs/07-security-testing/DECISIONS.md](project-docs/07-security-testing/DECISIONS.md)
+- Phase 07 detailed subphase guides:
+  - [Phase 07-A](project-docs/07-security-testing/implementation/PHASE-07-A.md)
+  - [Phase 07-B](project-docs/07-security-testing/implementation/PHASE-07-B.md)
+  - [Phase 07-C](project-docs/07-security-testing/implementation/PHASE-07-C.md)
+  - [Phase 07-D](project-docs/07-security-testing/implementation/PHASE-07-D.md)
+
+### Previous phase docs
+
 - Phase 06 implementation log:
   - [project-docs/06-observability/IMPLEMENTATION.md](project-docs/06-observability/IMPLEMENTATION.md)
 - Phase 06 runbook:
   - [project-docs/06-observability/RUNBOOK.md](project-docs/06-observability/RUNBOOK.md)
 - Phase 06 decisions:
   - [project-docs/06-observability/DECISIONS.md](project-docs/06-observability/DECISIONS.md)
-
-
-### Previous phase docs
-- Phase 05 setup:
-  - [project-docs/05-proxmox-target-delivery/SETUP.md](project-docs/05-proxmox-target-delivery/SETUP.md)
-- Phase 05 implementation log:
-  - [project-docs/05-proxmox-target-delivery/IMPLEMENTATION.md](project-docs/05-proxmox-target-delivery/IMPLEMENTATION.md)
-- Phase 05 runbook:
-  - [project-docs/05-proxmox-target-delivery/RUNBOOK.md](project-docs/05-proxmox-target-delivery/RUNBOOK.md)
-- Phase 05 decisions:
-  - [project-docs/05-proxmox-target-delivery/DECISIONS.md](project-docs/05-proxmox-target-delivery/DECISIONS.md)
 
 ### Cross-phase docs
 
@@ -401,8 +444,28 @@ The repository currently contains proven work across these phases:
     - [Runbook](project-docs/06-observability/RUNBOOK.md)
     - [Decisions](project-docs/06-observability/DECISIONS.md)
 
+- **Phase 07 — Security Testing**
+  - Repo-owned Ruby `healthcheck` helper refactored into a testable structure
+  - Ruby CLI characterization and unit tests added
+  - Repo-owned Bash Observability Traffic Generator refactored behind `main()` and an execution guard
+  - Bash CLI and function-level tests added
+  - Python `/catalogue` contract guard added with deterministic local tests
+  - Live Python contract smoke checks added for deployed catalogue endpoints
+  - Playwright browser smoke tests added for live storefront rendering
+  - Trivy filesystem scan baseline added for repo-owned code/config components
+  - Trivy image scan added for the repo-owned `healthcheck` image
+  - `healthcheck` Dockerfile hardened and verified through focused clean Trivy reruns
+  - Dependabot configured for GitHub Actions and the Playwright npm toolchain
+  - Deterministic GitHub Actions PR gate added
+  - Separate manual/reusable live-smoke workflow added
+  - `master` protected with required deterministic Phase 07 checks
+  - Docs:
+    - [Setup](project-docs/07-security-testing/SETUP.md)
+    - [Implementation](project-docs/07-security-testing/IMPLEMENTATION.md)
+    - [Runbook](project-docs/07-security-testing/RUNBOOK.md)    
+    - [Decisions](project-docs/07-security-testing/DECISIONS.md)
 
-This section is intentionally a moving summary, not the final shape of the project.
+Note: This section is intentionally a moving summary, not the final shape of the project.
 
 ## Tech stack
 
@@ -410,7 +473,7 @@ Current or already chosen technology in this project includes:
 
 - Docker
 - Kubernetes
-- k3s
+- K3s
 - Traefik
 - Kustomize
 - GitHub Actions
@@ -423,11 +486,17 @@ Current or already chosen technology in this project includes:
 - Helm
 - Prometheus
 - Grafana
+- Trivy
+- Playwright
+- Dependabot
+- Python / pytest
+- Ruby / Minitest
+- Bash helper tests
 
 Additional planned layers include:
 
 - Terraform
-- further DevSecOps controls
+- DR / rollback automation and documentation
 
 Helm is also present in the repository and was evaluated, but deferred for the current CI/CD baseline because the chart path still introduces legacy compatibility friction. [TODO: Update Helm-usage for monitoring/observability] ...
  
@@ -465,6 +534,19 @@ The full evidence index for each phase is documented inside the corresponding `I
 - Grafana and Prometheus are accessed privately through `kubectl port-forward` over the already proven Tailnet-based kubeconfig path.
 - The first observability baseline is considered proven only when both dashboard visibility and Prometheus scrape health are shown successfully.
 
+### Phase 07 — Security Testing
+
+- The first testing and security baseline focuses on repo-owned components before inherited upstream legacy components.
+- Deterministic tests and focused security scans are used as required merge checks.
+- Live smoke checks remain separate from the required PR gate because they depend on deployed environment state.
+- Trivy is used as the first security scanner for repo-owned code/config checks and the repo-owned `healthcheck` image.
+- The repo-owned `healthcheck` image is the first explicit remediation target.
+- Dependabot is scoped to owned dependency targets: GitHub Actions and the Playwright npm project.
+- The default branch is protected through required deterministic Phase 07 checks.
+
+
+---
+
 ## Repository structure (high level)
 
 - `.github/workflows/` — workflow definitions
@@ -477,32 +559,40 @@ The full evidence index for each phase is documented inside the corresponding `I
 This README is intentionally kept open for the next implementation phases.
 
 ### Core phases still to complete
-- **Security hardening + testing**  
-- **Disaster recovery / rollback strategy**
-- **Selective IaC codification** (Terraform for stable target/bootstrap pieces)
+
+- **Selective IaC codification**  
+  Terraform for stable target/bootstrap pieces, with the existing validation and branch-protection path kept in place.
+
+- **Disaster recovery / rollback strategy**  
+  Recovery documentation, rollback commands, and evidence-backed recovery thinking.
 
 ### Strong stretch goals before evaluation, if time allows
-- **Testing track:**
-  - pipeline smoke verification
-  - browser-level Playwright smoke / E2E coverage
+
+- **Testing track extension:**
+  - deeper Playwright user-flow checks
+  - automatic post-deployment live-smoke reuse after `dev` or `prod` rollout
 - **Custom Python microservice:**
   - Order Guard / Policy Service
   - FastAPI-based service extension with its own tests and deployment path
 - **Stronger image / supply-chain checks:**
-  - image scanning (Trivy/Gitleaks) / SBOM generation
+  - broader Trivy backlog cleanup
+  - optional SBOM generation
   - optional later signing / verification
 
 ### Later portfolio extensions
+
 - GitOps layer (for example Argo CD)
 - stronger secret-management integration
 - optional AWS target as an additional Terraform-driven deployment track
-- **Portfolio Polish:** Recruiter-facing live dashboard / situation-room style proof layer.
+- **Portfolio polish:** recruiter-facing live dashboard / situation-room style proof layer
 
 For the fuller internal planning view, see:
+
 - [project-docs/ROADMAP.md](project-docs/ROADMAP.md)
 
 ## License / upstream
-This is a fork-based project built for training/capstone purposes. Upstream origins and licenses apply where relevant.
+
+This is a fork-based DevOps project. Upstream origins and licenses apply where relevant.
 
 -----------------
 

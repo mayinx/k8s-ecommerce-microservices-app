@@ -16,7 +16,7 @@
 > ## 🔎 Companion documents
 >
 > - Setup-only preparation: [SETUP.md](./SETUP.md)   
-> - Short operational rerun flow: [RUNBOOK.md](./RUNBOOK.md)  
+> - Short operational rerun guide: [RUNBOOK.md](./RUNBOOK.md)  
 > - Cross-phase incident and anomaly tracking: [DEBUG-LOG.md](../DEBUG-LOG.md)   
 > - Top-level project navigation: [INDEX.md](../INDEX.md)  
 

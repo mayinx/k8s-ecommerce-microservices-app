@@ -1,4 +1,24 @@
-# Implementation — Subphase 01: Scope, assessment, and owned helper refactors (Steps 1–4)
+# 📑 Subphase 07-A — Scope, Assessment & Owned Helper Refactors
+
+---
+> [!TIP] **Navigation**  
+> **[⬅️ 🏠 Phase 07 Home](../IMPLEMENTATION.md)** | **[Next: Phase 07-B ➡️](./PHASE-07-B.md)**
+---
+
+## 🎯 Subphase goal
+
+Define the repo-owned Phase 07 validation surfaces, refactor the Ruby healthcheck and Bash traffic helper into testable shapes, and establish the first deterministic helper-test layer.
+
+## 📌 Index
+
+- [Step 1 — Define the repo-owned test surfaces and create the test scaffold](#step-1--define-the-repo-owned-test-surfaces-and-create-the-test-scaffold)
+- [Step 2 — Assess the repo-owned helper surfaces, proving their current behavior, and identifying the testability flaws](#step-2--assess-the-repo-owned-helper-surfaces-proving-their-current-behavior-and-identifying-the-testability-flaws)
+- [Step 3 — Refactor the Ruby `healthcheck` helper into a unit-testable structure and add automated tests](#step-3--refactor-the-ruby-healthcheck-helper-into-a-unit-testable-structure-and-add-automated-tests)
+- [Step 4 — Refactor the Bash observability helper into a testable structure and add automated tests](#step-4--refactor-the-bash-observability-helper-into-a-testable-structure-and-add-automated-tests)
+- [Sources](#sources)
+
+---
+<br>
 
 ## Step 1 — Define the repo-owned test surfaces and create the test scaffold
 
@@ -1358,3 +1378,108 @@ At this point, the Bash helper has moved from a directly executed operational sc
 At this point, the **Phase 07 test layer** validates: 
 - **(1) Service health/reachability** (Ruby) 
 - **(2) Helper-script behavior (Traffic Generator)** (Bash) 
+Yes — this grouped version is cleaner and less repetitive. Replace the current `## Sources` section with this:
+ 
+---
+
+## Sources
+
+### Step 1 — Test scaffold and repository hygiene
+
+- [Git documentation — `gitignore`](https://git-scm.com/docs/gitignore)  
+  `.gitignore` patterns for generated test dependencies and test artifacts.
+
+---
+
+### Step 2 — Initial helper assessment, Docker checks, and in-cluster Ruby proof
+
+- **Docker documentation** — Image build, container execution, Dockerfile instructions, and entrypoint override:
+  - [Docker Docs — Dockerfile overview](https://docs.docker.com/build/concepts/dockerfile/)
+  - [Docker Docs — Running containers](https://docs.docker.com/engine/containers/run/)
+  - [Docker CLI reference — `docker container run`](https://docs.docker.com/reference/cli/docker/container/run/)
+  - [Docker Docs — Dockerfile reference](https://docs.docker.com/reference/dockerfile/)
+
+- **Kubernetes documentation** In-cluster Service DNS, temporary proof Pod lifecycle, file copy, command execution, readiness wait, and cleanup:
+  - [Kubernetes Docs — DNS for Services and Pods](https://kubernetes.io/docs/concepts/services-networking/dns-pod-service/)
+  - [Kubernetes Docs — `kubectl run`](https://kubernetes.io/docs/reference/kubectl/generated/kubectl_run/)
+  - [Kubernetes Docs — `kubectl wait`](https://kubernetes.io/docs/reference/kubectl/generated/kubectl_wait/)
+  - [Kubernetes Docs — `kubectl cp`](https://kubernetes.io/docs/reference/kubectl/generated/kubectl_cp/)
+  - [Kubernetes Docs — `kubectl exec`](https://kubernetes.io/docs/reference/kubectl/)
+  - [Kubernetes Docs — `kubectl delete`](https://kubernetes.io/docs/reference/kubectl/generated/kubectl_delete/)
+
+---
+
+### Step 3 — Ruby characterization tests, refactor, and chainable healthcheck output
+
+- [Michael Feathers — Characterization Testing](https://michaelfeathers.silvrback.com/characterization-testing)  
+  Characterization-first refactoring approach for preserving current behavior before changing internals.
+
+- [Cloudamite — Characterization testing](https://cloudamite.com/characterization-testing/)  
+  Characterization-first refactoring, deterministic behavior checks, and test-double seams before changing legacy or already-working code.
+
+- [Martin Fowler — Refactoring](https://martinfowler.com/books/refactoring.html)  
+  Small, behavior-preserving refactoring as a disciplined code improvement approach.
+
+- [IBM Think — Unit Testing](https://www.ibm.com/think/topics/unit-testing)  
+  Unit-test concept: isolated verification of small code units without relying on the full surrounding system.
+
+- **Ruby documentation** — Option parsing, interpreter flags, JSON handling, file guards, imports, `stderr` warnings, process-level CLI tests, and Minitest assertions:
+  - [Ruby Docs — `OptionParser`](https://ruby-doc.org/stdlib-2.7.2/libdoc/optparse/rdoc/OptionParser.html)
+  - [Ruby Docs — Ruby command-line options](https://ruby-doc.org/3.4/ruby/options_md.html)
+  - [Ruby Docs — `JSON`](https://ruby-doc.org/stdlib-2.4.0/libdoc/json/rdoc/JSON.html)
+  - [Ruby Docs — `$0` / pre-defined global variables](https://docs.ruby-lang.org/en/3.1/globals_rdoc.html)
+  - [Ruby language quickstart — `__FILE__ == $0`](https://www.ruby-lang.org/en/documentation/quickstart/4/)
+  - [Ruby Docs — `Kernel#require_relative`](https://docs.ruby-lang.org/en/master/Kernel.html)
+  - [Ruby Docs — `Kernel#warn`](https://www.rubydoc.info/stdlib/core/2.1.0/Kernel%3Awarn)
+  - [Ruby Docs — `Open3`](https://docs.ruby-lang.org/en/master/Open3.html)
+  - [Ruby Docs — Minitest](https://docs.ruby-lang.org/en/2.1.0/MiniTest.html)
+  - [Ruby Docs — Minitest assertions](https://ruby-doc.org/3.0.5/gems/minitest/Minitest/Assertions.html)
+
+- [Awesome Print README](https://github.com/awesome-print/awesome_print)  
+  Human-readable Ruby object pretty-printing behavior from the `awesome_print` gem.
+
+- [jq Manual](https://jqlang.org/manual/)  
+  JSON filtering in the chainability proof with `jq`.
+
+---
+
+### Step 4 — Bash helper refactor and hand-written Bash tests
+
+- [Advanced Web Machinery — Unit testing Bash scripts](https://advancedweb.hu/unit-testing-bash-scripts/)  
+  Bash testability pattern using functions, `source`, and a `BASH_SOURCE[0] == $0` execution guard to separate direct execution from test-time loading.
+
+- [LiminalArc / LeadingAgile — Unit Test Shell Scripts: Part One](https://www.liminalarc.co/2018/10/unit-test-shell-scripts-part-one/)  
+  Hand-written shell-script test cases, deterministic automated checks, and the path from simple assertion-style scripts toward dedicated shell test frameworks.
+
+- [Honeytree Labs — Writing Unit-Tests and Mocks for UNIX Shells](https://honeytreelabs.com/posts/writing-unit-tests-and-mocks-for-unix-shells/)  
+  Unit testing shell script components, including stubs, fakes, mocks, and dependency control for shell-based tests.
+
+- [Google Shell Style Guide](https://google.github.io/styleguide/shellguide.html)  
+  Bash usage for small utility scripts and wrapper scripts.
+
+- **GNU Bash manual — execution guards, function-local state, strict mode behavior, and stream redirection**
+  - [GNU Bash manual — Bash variables](https://www.gnu.org/s/bash/manual/html_node/Bash-Variables.html)
+  - [GNU Bash manual — Shell functions](https://www.gnu.org/s/bash/manual/html_node/Shell-Functions.html)
+  - [GNU Bash manual — The `set` builtin](https://www.gnu.org/software/bash/manual/html_node/The-Set-Builtin.html)
+  - [GNU Bash manual — Redirections](https://www.gnu.org/s/bash/manual/html_node/Redirections.html)
+
+---
+
+### Phase 07 rerun entrypoints
+
+- [GNU Make Manual](https://www.gnu.org/software/make/manual/make.html)  
+  Makefile targets as rerun entrypoints (for repeated Phase 07 checks).
+```
+
+---
+
+### Phase 07 rerun entrypoints
+
+- [GNU Make Manual](https://www.gnu.org/software/make/manual/make.html)  
+  Makefile targets as thin rerun entrypoints for repeated Phase 07 checks.
+
+---
+<br>
+
+> [!TIP] **Navigation**  
+> **[⬅️ 🏠 Phase 07 Home](../IMPLEMENTATION.md)** | **[Next: Phase 07-B ➡️](./PHASE-07-B.md)**

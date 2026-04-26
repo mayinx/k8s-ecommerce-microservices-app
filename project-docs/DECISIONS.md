@@ -16,6 +16,7 @@ Decisions in this project are made along an explicit, **phase-based delivery pat
 - [**Phase 04 — Proxmox VM Baseline**](#phase-04-proxmox-vm-baseline-generic-ubuntu-vm-template-smoke-vm-and-workload-ready-vm-template)
 - [**Phase 05 — Proxmox Target Delivery: Real target VM, public edge, and workflow-driven delivery**](#phase-05-proxmox-target-delivery-real-target-vm-public-edge-and-workflow-driven-delivery)
 - [**Phase 06 — Observability & Health**](#phase-06--observability--health)
+- [**Phase 07 — Security Testing: deterministic validation, security scanning, live smoke checks, and branch governance**](#phase-07--security-testing-deterministic-validation-security-scanning-live-smoke-checks-and-branch-governance)
 
 ---
 
@@ -584,11 +585,11 @@ The project is no longer only deployable and reachable on the real target. It is
 
 ### Key decisions
 
-#### P06-D01 — Observability baseline = maintained `kube-prometheus-stack` in dedicated `monitoring` namespace
+#### P06-D01 — Observability baseline = Maintained `kube-prometheus-stack` in dedicated `monitoring` namespace
 
 Use the maintained Helm chart **`kube-prometheus-stack`** as the Phase-06 observability baseline and install it into the dedicated namespace `monitoring`.
 
-#### P06-D02 — First rollout scope = intentionally small and private-only
+#### P06-D02 — First rollout scope = Intentionally small and private-only
 
 Keep the first monitoring rollout intentionally narrow:
 
@@ -599,19 +600,161 @@ Keep the first monitoring rollout intentionally narrow:
 - Conservative resource requests and limits
 - No public monitoring ingress
 
-#### P06-D03 — Grafana credential handling = tracked non-secret values + gitignored local Helm override + chart-managed Kubernetes Secret
+#### P06-D03 — Grafana credential handling = Tracked non-secret values + gitignored local Helm override + chart-managed Kubernetes Secret
 
 Keep non-secret Helm values in the tracked baseline file, inject the Grafana admin password through a gitignored local Helm override, and let the chart create the resulting Kubernetes Secret inside the cluster.
 
-#### P06-D04 — Access model = private `kubectl port-forward` over the existing Tailnet path
+#### P06-D04 — Access model = Private `kubectl port-forward` over the existing Tailnet path
 
 Access Grafana and Prometheus privately through **`kubectl port-forward`** over the already working Tailnet-based kubeconfig path instead of creating a public monitoring ingress route in Phase 06.
 
-#### P06-D05 — Verification model = dashboard proof + scrape-target proof + light recent traffic
+#### P06-D05 — Verification model = Dashboard proof + scrape-target proof + light recent traffic
 
 Count Phase 06 as successful only when the monitoring baseline is proven through successful stack deployment, private Grafana access, dashboard-based workload visibility, Prometheus scrape-target health, and recent storefront traffic that makes current activity visible.
 
 ---
 
+## Phase 07 — Security Testing: Deterministic validation, Security Scanning, Live Smoke Tests, Branch Governance
+
+Phase 07 implemented a dedicated testing and security layer on top of the already deployed and observable Proxmox-based target platform.
+
+### Quick recap (Phase 07)
+
+#### Starting point: The project had live target delivery and observability, but no enforced testing/security gate yet
+
+After Phase 06, the project already had:
+
+- Proxmox-based K3s target delivery
+- Environment-separated `dev` and `prod` namespaces
+- Public HTTPS access through Cloudflare Tunnel
+- GitHub Actions based target delivery
+- Observability through Prometheus and Grafana
+
+What was still missing was a controlled validation and security layer that could support later changes without relying only on manual smoke checks and screenshots.
+
+#### Chosen path: Focus on repo-owned components, then enforce the stable validation path
+
+Phase 07 focused first on components actively owned and maintained in this repository:
+
+- Ruby `healthcheck` helper
+- Bash observability traffic helper
+- Python catalogue contract guard
+- Playwright browser smoke tests
+- Trivy scan targets for repo-owned code/config paths and the `healthcheck` image
+- Dependabot configuration for GitHub Actions and the Playwright npm toolchain
+
+The phase deliberately separated deterministic checks from live environment checks:
+
+- Deterministic checks became the required PR gate.
+- Live checks remained a separate deployed-environment validation workflow.
+
+#### Implementation Detail: Existing helpers first had to be made testable
+
+A major part of Phase 07 was not only adding tests, but first reshaping existing repo-owned helpers so they could be tested safely at all.
+
+The two existing helpers were operationally useful, but not initially suited for automated tests:
+
+- The Ruby `healthcheck` helper executed from top-level code, parsed options immediately, and exited directly from the script.
+- The Bash Observability Traffic Generator entered runtime setup and the long-running traffic loop directly when executed.
+
+Phase 07 therefore first refactored those helpers into controlled test targets:
+
+- The Ruby helper was moved behind an importable `HealthChecker` class plus an execution guard.
+- Ruby CLI characterization tests were added to preserve the external command-line contract.
+- Ruby unit tests were added for the refactored internal behavior.
+- The Ruby helper was changed to emit machine-readable JSON on `stdout` and human-readable logs on `stderr`, making it usable in chained automation and CI-style validation.
+- The Bash traffic helper was moved behind `main()` plus a Bash execution guard so it can be sourced safely by tests.
+- Bash CLI and function-level tests were added without introducing an extra Bash test framework.
+
+This helper-refactoring work is a core Phase 07 outcome because it turns existing operational scripts into controlled, repeatable validation components.
+
+#### Verified result: Testing, security scanning, dependency visibility, CI validation, live smoke checks, and branch protection
+
+By the end of Phase 07, the project had proven:
+
+- Repo-owned Ruby and Bash helpers are covered by automated checks
+- The Python contract guard validates `/catalogue` response compatibility locally and against live endpoints
+- Playwright verifies storefront rendering in a real browser
+- Trivy scans repo-owned code/config components and the repo-owned `healthcheck` image
+- The `healthcheck` Dockerfile was hardened and rescanned successfully
+- Dependabot monitors owned dependency targets
+- A deterministic GitHub Actions PR gate runs on pull requests
+- A separate live-smoke workflow validates deployed environments
+- `master` is protected by required deterministic Phase 07 checks
+
+#### Next step implications
+
+Phase 07 gives later Infrastructure as Code, disaster-recovery, rollback, and hardening work a stronger safety net:
+
+- Deterministic tests
+- Security scan targets
+- Dependency update visibility
+- Live smoke validation
+- Enforced default-branch protection
+
+### Phase 07 validation stack
+
+At this point, the **Phase 07 Test & Security Layer** validates:
+
+- **(1) Service health/reachability** through the Ruby healthcheck helper
+- **(2) Helper-script behavior** through Bash tests for the observability traffic generator
+- **(3) API response-shape compatibility** through the Python catalogue contract guard
+- **(4) Storefront rendering in a real browser** through Playwright / JavaScript browser smoke tests
+- **(5) Security scanning for repo-owned components** through Trivy
+- **(6) Evidence-based security remediation of a repo-owned Docker image** through Trivy and Dockerfile hardening (`healthcheck`)
+- **(7) Dependency scanning for repo-owned dependency components** through Dependabot
+- **(8) Deterministic PR-gate validation in CI** through GitHub Actions
+- **(9) Live deployed-environment smoke validation in GitHub Actions** through the manual / reusable live-smoke workflow
+- **(10) Repository-level merge governance on the default branch** through a ruleset and required deterministic checks
+
+This completes the implementation of Phase 07 as a full testing, security, CI-validation, live-smoke, and governance layer.
+
+### Key decisions
+
+#### P07-D01 — Validation scope = Prioritize repo-owned validation components before inherited legacy components
+
+Build the first testing and security scope around actively maintained repo-owned components before broadening into inherited upstream legacy code.
+
+#### P07-D02 — Helper testability model = Refactor Ruby and Bash helpers without losing their operational role
+
+Refactor the Ruby healthcheck and Bash traffic helper into testable structures while preserving their original command-line behavior.
+
+#### P07-D03 — Output model = Keep machine-readable data separate from human-readable logs
+
+Make the Ruby healthcheck path machine-chainable by emitting JSON to `stdout` and human-readable logs to `stderr`.
+
+#### P07-D04 — Python contract model = Use a consumer-side compatibility guard
+
+Validate the minimum `/catalogue` response shape needed by this project without claiming to define the full upstream provider schema.
+
+#### P07-D05 — Browser smoke model = Keep Playwright small and live-path focused
+
+Add a minimal Chromium-only Playwright smoke suite for live storefront rendering instead of starting with a broad E2E regression suite.
+
+#### P07-D06 — Trivy baseline = Use one containerized scanner for repo-owned security checks
+
+Use Trivy for filesystem misconfiguration scanning, secret scanning, and image vulnerability scanning through repeatable Make targets.
+
+#### P07-D07 — Remediation model = Harden the owned `healthcheck` image and prove the result
+
+Use the repo-owned `healthcheck` Dockerfile as the first explicit security remediation target and verify the result through focused Trivy reruns.
+
+#### P07-D08 — Dependency baseline = Use Dependabot for owned dependency targets
+
+Configure Dependabot for GitHub Actions and the Playwright npm project, while excluding inherited legacy dependency trees from the first dependency-update baseline.
+
+#### P07-D09 — PR gate model = Require only deterministic owned checks as merge blockers
+
+Use stable local Make targets in GitHub Actions and keep live/browser checks outside the required PR gate.
+
+#### P07-D10 — Live smoke model = Validate deployed environments separately
+
+Add a separate manual/reusable live-smoke workflow for deployed `dev` and `prod` validation.
+
+#### P07-D11 — Default-branch protection = Enforce the deterministic PR gate through a protected `master` ruleset
+
+Protect `master` with required deterministic Phase 07 checks, pull-request-based changes, up-to-date branch state, and blocked force pushes.
+
+---
 
 ## (Further entries will be added to record technical choices)

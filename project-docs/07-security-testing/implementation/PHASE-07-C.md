@@ -1,6 +1,25 @@
-# Implementation — Subphase 03: Trivy security baseline, Healthcheck-image remediation, and CI gate preparation (Steps 8–10)
+# 📑 Subphase 07-C — Trivy Security Baseline, Healthcheck Image Remediation & Dependabot
 
-## Step 8 — Establish a Trivy security-scanning baseline for repo-owned surfaces
+---
+> [!TIP] **Navigation**  
+> **[⬅️ Phase 07-B](./PHASE-07-B.md)** | **[🏠 Phase 07 Home](../IMPLEMENTATION.md)** | **[Next: Phase 07-D ➡️](./PHASE-07-D.md)**
+---
+
+## 🎯 Subphase goal
+
+Establish a repo-owned Trivy security baseline, harden the `healthcheck` image with evidence-backed remediation, and add Dependabot for owned dependency targets.
+
+## 📌 Index
+
+- [Step 8 — Establish a Trivy security-scanning baseline for repo-owned paths](#step-8--establish-a-trivy-security-scanning-baseline-for-repo-owned-paths)
+- [Step 9 — Harden the repo-owned `healthcheck` Dockerfile and rerun Trivy](#step-9--harden-the-repo-owned-healthcheck-dockerfile-and-rerun-trivy)
+- [Step 10 — Establish an automated dependency-scanning baseline with Dependabot for repo-owned dependencies](#step-10--establish-an-automated-dependency-scanning-baseline-with-dependabot-for-repo-owned-dependencies)
+- [Sources](#sources)
+
+---
+<br>
+
+## Step 8 — Establish a Trivy security-scanning baseline for repo-owned paths
 
 ### Rationale
 
@@ -13,7 +32,7 @@ Phase 07 already covers four important validation layers:
 
 What is still missing is a first **security-scanning baseline**.
 
-The next useful addition is therefore a **Trivy-based local security baseline** focused on **repo-owned surfaces** rather than the full inherited upstream application stack.
+The next useful addition is therefore a **Trivy-based local security baseline** focused on **repo-owned paths and components** rather than the full inherited upstream application stack.
 
 This choice is deliberate:
 
@@ -37,19 +56,19 @@ The scope of this step remains intentionally narrow and practical:
 
 > [!NOTE] **🛡️ Trivy**
 >
-> **Trivy** is a security scanner that can analyze several different surfaces with one tool. In this phase it is used for three concrete security tasks:
+> **Trivy** is a security scanner that can analyze several different target types and project paths with one tool.
 >
 > - **filesystem misconfiguration scanning** for owned config/code paths
 > - **filesystem secret scanning** for accidentally committed credentials or tokens
 > - **container image vulnerability scanning** for the repo-owned `healthcheck` image
 >
-> This makes Trivy a strong fit for the first security baseline here: one scanner covers the most relevant repo-owned security surfaces without introducing a separate tool for each category.
+> This makes Trivy a strong choice for the first security baseline here: One scanner covers the most relevant repo-owned security checks without introducing a separate tool for each category.
 
 > [!NOTE] **🧭 Why the first Trivy scope stays repo-owned**
 >
-> This first security baseline focuses on repo-owned helper/config surfaces and the repo-owned `healthcheck` image.
+> This first security baseline focuses on repo-owned helper/config paths and the repo-owned `healthcheck` image.
 >
-> That keeps the findings explainable and avoids getting buried immediately in inherited legacy findings from the full upstream microservice stack. Broader scanning can still be added later from a working baseline.
+> This keeps the findings managable and avoids getting buried immediately in inherited legacy findings from the full upstream microservice stack. Broader scanning can still be added later from a working baseline.
 
 ### Action
 
@@ -70,7 +89,7 @@ The first security baseline is split into **two complementary scan paths**:
 
 This split is intentional:
 
-- The **filesystem scan** focuses on owned source/config surfaces such as:
+- The **filesystem scan** focuses on owned source/config paths such as:
   - `healthcheck/`
   - `scripts/`
   - `deploy/kubernetes/`
@@ -491,7 +510,7 @@ At the same time, the Trivy targets are intentionally **not** folded into the de
 
 ### Result
 
-Step 8 successfully established the first **Trivy security-scanning baseline** for repo-owned source/config surfaces and a repo-owned image artifact.
+Step 8 successfully established the first **Trivy security-scanning baseline** for repo-owned source/config paths and the built `healthcheck` image.
 
 The successful end state is shown by these signals / verification points:
 
@@ -835,7 +854,7 @@ Step 9 successfully completed the first **evidence-based security remediation cy
 - The image vulnerability baseline improved from:
   - **Alpine 3.12.0** with **36 HIGH / CRITICAL vulnerabilities**
   - To **Alpine 3.21.7** with **0 vulnerabilities**
-- The **broader `make p07-trivy-repo-scan` baseline** surfaced **additional findings outside `healthcheck/` in older repo-owned surfaces** (Kubernetes + Terraform). 
+- The **broader `make p07-trivy-repo-scan` baseline** surfaced **additional findings outside `healthcheck/` in older repo-owned Kubernetes and Terraform areas**.
   - While this does not change the successful completion of this focused Dockerfile remediation task, these additional findings act as a **legacy repo-hardening backlog** that stays open to be addressed in later phases. 
   - Those findings are outside the scope of this focused Dockerfile remediation step. Step 9 therefore closes the repo-owned `healthcheck` image remediation path completely, while leaving the broader repo-hardening backlog for later folloe-up
 
@@ -845,11 +864,11 @@ At this point, the **Phase 07 Test & Security layer** validates:
 - **(3) API Response-shape compatibility** (Python) 
 - **(4) Storefront rendering in a real browser** (Playwright / JavaScript)
 - **(5) Security-scanning for repo-owned surfaces** (Trivy)
-- **(6) Evidence-based security remediation on a repo-owned Docker image path** (Trivy + hardened `healthcheck` image)
+- **(6) Evidence-based security remediation of a repo-owned Docker image** (Trivy + `healthcheck` Dockerfile hardening) 
 
 ---
 
-## Step 10 — Establish an automated dependency-scanning baseline with Dependabot for repo-owned dependency surfaces
+## Step 10 — Establish an automated dependency-scanning baseline with Dependabot for repo-owned dependencies
 
 ### Rationale
 
@@ -863,22 +882,22 @@ Phase 07 already covers:
 
 What is still missing is an explicit and automated **code dependency-scanning measure** to close the remaining DevSecOps requirement cleanly and with minimal friction.
 
-The next useful addition is therefore a **GitHub-native Dependabot baseline** focused only on dependency surfaces that are clearly owned and maintained in this repository.
+The next useful addition is therefore a **GitHub-native Dependabot baseline** focused only on dependency targets that are clearly owned and maintained in this repository.
 
 **Scope**
 
 The scope of this step stays intentionally narrow and actionable:
 
-- **GitHub Actions Workflow dependencies** under `/.github/workflows`
-- **Playwright-related npm dependencies Node.js / npm dependencies** under `tests/e2e`
+- **GitHub Actions workflow dependencies** under `/.github/workflows`
+- **Playwright-related Node.js / npm dependencies** under `tests/e2e`
 
-This puts the focus on actively maintained repo-code so that the resulting alerts should be manageable. This avoids getting buried in dependency noise from inherited legacy application code outside the immediate ownership scope of this phase. 
+This puts the focus on actively maintained repository code and tooling so that the resulting alerts should be manageable. This avoids getting buried in dependency noise from inherited legacy application code outside the ownership scope of this phase. 
 
 > [!NOTE] **🛡️ Dependabot**
 >
 > **Dependabot** is GitHub’s built-in **automated dependency update service**. It **monitors** package ecosystems, **detects** available updates, and **opens pull requests** when dependency versions should be bumped.
 >
-> In this phase it is used to establish a first **dependency-scanning and update baseline** for repo-owned dependency surfaces:
+> In this phase it is used to establish a first **dependency-scanning and update baseline** for repo-owned dependency targets:
 >
 > - **GitHub Actions** used by CI/CD workflows
 > - **npm packages** used by the Playwright smoke-test setup
@@ -894,7 +913,7 @@ The goal of this step is to establish a first **repo-owned dependency-scanning b
 
 #### Defining the Dependabot scan scope
 
-The first Dependabot baseline is split into **two owned dependency surfaces**:
+The first Dependabot baseline is split into **two owned dependency targets**:
 
 - **(1) GitHub Actions**
   - GitHub Actions are part of the project’s CI/CD control plane
@@ -939,6 +958,8 @@ updates:
     directory: "/"                          # Instructs Dependabot to scan the repo root for .github/workflows
     schedule:
       interval: "weekly"                    # Check once per week for available updates (to prevent CI/CD pipeline noise)
+    exclude-paths:                          
+      - ".github/workflows/main.yaml"       # Edit: Excludes the archived legacy upstream workflow to prevent irrelevant updates/PRs      
     labels:                                 # Automatically tags generated PRs for easy filtering                                 
       - "dependencies"
       - "security"
@@ -978,15 +999,53 @@ $ git push
 
 #### Verifying that Dependabot is active
 
-After the configuration is pushed, verify the result in the GitHub repository UI.
+After the configuration is pushed, we can verify the result in the GitHub repository UI:
 
-Expected verification path:
+---
 
-- **Security**
-- **Dependabot**
-- or the repository’s dependency-security area where Dependabot alerts / updates are shown
+**Dependabot version updates enabled in repository settings**
 
-The exact number of immediate alerts or pull requests may vary. The important point in this step is that the repository now contains a valid Dependabot configuration and GitHub can start monitoring the configured dependency surfaces.
+![Dependabot version updates enabled in Advanced Security settings](../evidence/22-DB-GitHub-Settings_advanced-security_dependabot-version-updates-enabled.png)
+
+*Figure 22: The repository’s Advanced Security settings show that **Dependabot version updates** are enabled and that the committed `.github/dependabot.yml` configuration file is recognized by GitHub.*
+
+---
+
+**Dependabot tab showing monitored update targets**
+
+![Dependabot tab showing monitored update targets](../evidence/23-DB-GitHub-Insights_dependency-graph_dependabot-tab_monitored-update-targets.png)
+
+*Figure 23: The **Dependabot** tab of the dependency graph shows the monitored update targets for the configured ecosystems, including the GitHub Actions workflow surface and the Playwright npm manifest under `tests/e2e/package.json`. This confirms that Dependabot is active and has recognized the configured update sources.*
+
+---
+
+**Dependency graph populated with detected repository dependency surfaces**
+
+![Dependency graph showing detected dependency surfaces](../evidence/24-DB-GitHub-Insights_dependency-graph_dependencies-tab_detected-package-surfaces.png)
+
+*Figure 24: The **Dependencies** tab shows that GitHub has parsed and populated the repository dependency graph, including Python dependencies from `tests/python/requirements-p07.txt` and npm dependencies from `tests/e2e/package-lock.json` and `openapi/package.json`.*
+
+---
+
+##### Automatically created version-update PRs
+
+We can also see, that Dependabot already created a set of version update PRs:
+
+---
+
+**Overview of open Dependabot pull requests**
+
+![Overview of open Dependabot pull requests](../evidence/26-DB-GitHub-Pull-Requests_Dependabot-prs-overview.png)
+
+*Figure 25: The pull-request overview shows the first batch of open Dependabot version-update PRs created for GitHub Actions dependencies. This also explains the temporary “cannot open any more pull requests” state: by default, Dependabot opens up to five version-update PRs at a time until some are merged or closed.*
+
+---
+
+**Example Dependabot pull request for a GitHub Actions dependency update**
+
+![Example Dependabot pull request for a GitHub Actions dependency update](../evidence/25-DB-GitHub-Pull-Request_dependabot-github-actions-update-pr.png)
+
+*Figure 26: An example Dependabot pull request is shown for a GitHub Actions dependency update (`actions/upload-artifact`). This demonstrates the expected Dependabot review flow: GitHub opens a normal pull request, the change can be inspected under “Files changed,” and the update can then be reviewed and merged like any other controlled dependency update.*
 
 #### Local dev + dependency-security cycle
 
@@ -1001,12 +1060,12 @@ This means the dependency-scanning baseline is now in place before the CI gate i
 
 ### Result
 
-Step 10 establishes the first **dependency-scanning baseline** for repo-owned dependency surfaces through GitHub Dependabot.
+Step 10 establishes the first **dependency-scanning baseline** for repo-owned dependency targets through GitHub Dependabot.
 
 The successful end state is shown by these signals / verification points:
 
 - The repository now contains a valid `.github/dependabot.yml` configuration
-- Dependabot is scoped to **two clearly owned dependency surfaces**:
+- Dependabot is scoped to **two clearly owned dependency targets**:
   - **GitHub Actions** under repository root workflow context
   - **npm** under `tests/e2e`
 - No additional host-side installation or local scanner setup is required
@@ -1019,7 +1078,119 @@ At this point, the **Phase 07 Test & Security Layer** validates:
 - **(3) API response-shape compatibility** (Python)
 - **(4) Storefront rendering in a real browser** (Playwright / JavaScript)
 - **(5) Security-scanning for repo-owned surfaces** (Trivy)
-- **(6) Evidence-based security remediation on a repo-owned Docker image path** (Trivy + hardened `healthcheck` image)
-- **(7) Dependency-scanning for repo-owned dependency surfaces** (Dependabot)
+- **(6) Evidence-based security remediation of a repo-owned Docker image** (Trivy + `healthcheck` Dockerfile hardening)
+- **(7) Dependency scanning for repo-owned dependency targets** (Dependabot)
 
 The next step is now clear: **wire the deterministic local validation targets into a GitHub Actions PR-gate workflow.**
+
+## Sources
+
+### Step 8 — Trivy security baseline for repo-owned paths and the healthcheck image
+
+- [Chainguard Academy — Using Trivy to Scan Software Artifacts](https://edu.chainguard.dev/chainguard/chainguard-images/staying-secure/working-with-scanners/trivy-tutorial/)  
+  Practical Trivy scanning workflow across images and filesystems, including scanner selection for vulnerabilities, misconfigurations, and secrets.
+
+- [Semaphore — Trivy Vulnerability Scanning](https://docs.semaphore.io/using-semaphore/recipes/trivy)  
+  Trivy usage in an automation/CI context, including filesystem scanning, vulnerability scanning, misconfiguration scanning, and failing builds with `--exit-code`.
+
+- [OneUptime — How to Use Trivy for Filesystem Scanning](https://oneuptime.com/blog/post/2026-01-28-trivy-filesystem-scanning/view)  
+  Practical filesystem scanning workflow for project directories, dependencies, misconfigurations, and code-security checks.
+
+- [OneUptime — How to Scan Container Images with Trivy](https://oneuptime.com/blog/post/2026-02-02-trivy-container-scanning/view)  
+  Practical container image vulnerability scanning workflow with Trivy and interpretation of scan output.
+
+- **Trivy documentation** — Scanner capabilities, filesystem scans, image scans, secret scanning, misconfiguration scanning, scanner selection, file skipping, filtering, ignore handling, cache/config options, and image tar input:
+  - [Trivy — Official overview](https://trivy.dev/)
+  - [Trivy GitHub README](https://github.com/aquasecurity/trivy)
+  - [Trivy Docs — Misconfiguration Scanning](https://trivy.dev/docs/latest/scanner/misconfiguration/)
+  - [Trivy Docs — Secret Scanning](https://trivy.dev/docs/latest/scanner/secret/)
+  - [Trivy CLI reference — Filesystem](https://trivy.dev/docs/latest/references/configuration/cli/trivy_filesystem/)
+  - [Trivy CLI reference — Image](https://trivy.dev/docs/latest/references/configuration/cli/trivy_image/)
+  - [Trivy Docs — Selecting / skipping files](https://trivy.dev/docs/latest/configuration/skipping/)
+  - [Trivy Docs — Filtering findings](https://trivy.dev/docs/latest/configuration/filtering/)
+  - [Trivy Docs — Config file and cache settings](https://trivy.dev/docs/latest/references/configuration/config-file/)
+  - [Trivy Docker image — `aquasec/trivy`](https://hub.docker.com/r/aquasec/trivy/)
+
+- **Docker documentation** — Containerized scanner execution, bind mounts, named cache volumes, read-only repository mounts, image build, and image export to tar:
+  - [Docker Docs — Running containers](https://docs.docker.com/engine/containers/run/)
+  - [Docker Docs — Sharing local files with containers](https://docs.docker.com/get-started/docker-concepts/running-containers/sharing-local-files/)
+  - [Docker Docs — Bind mounts](https://docs.docker.com/engine/storage/bind-mounts/)
+  - [Docker Docs — Volumes](https://docs.docker.com/engine/storage/volumes/)
+  - [Docker Docs — Dockerfile overview](https://docs.docker.com/build/concepts/dockerfile/)
+  - [Docker CLI reference — `docker image save`](https://docs.docker.com/reference/cli/docker/image/save/)
+
+- **GNU Make documentation** — Make targets:
+  - [GNU Make Manual](https://www.gnu.org/software/make/manual/make.html)
+
+---
+
+### Step 9 — Healthcheck Dockerfile hardening and Trivy reruns
+
+- [Snyk — 10 Docker Image Security Best Practices](https://snyk.io/blog/10-docker-image-security-best-practices/)  
+  Minimal image scope, reduced package footprint, updated dependencies, and image scanning as container-security practice.
+
+- [Sysdig — Top 21 Dockerfile Best Practices for Container Security](https://www.sysdig.com/learn-cloud-native/dockerfile-best-practices)  
+  Dockerfile hardening practices including non-root users, `COPY --chown`, and least-privilege runtime patterns.
+
+- [OWASP Cheat Sheet Series — Docker Security](https://cheatsheetseries.owasp.org/cheatsheets/Docker_Security_Cheat_Sheet.html)  
+  Docker security baseline guidance, least-privilege container runtime, and reduced container attack impact.
+
+- [Docker Blog — Understanding the Docker USER Instruction](https://www.docker.com/blog/understanding-the-docker-user-instruction/)  
+  Docker `USER` instruction behavior and the security value of running containers as a non-root user.
+
+- [Quarkslab — Why is Exposing the Docker Socket a Really Bad Idea?](https://blog.quarkslab.com/why-is-exposing-the-docker-socket-a-really-bad-idea.html)  
+  Docker socket exposure risk and the rationale for avoiding scanner patterns that require direct Docker socket access where a tar-based scan is sufficient.
+
+- **Docker documentation** — Dockerfile hardening instructions used in the remediated healthcheck image:
+  - [Docker Docs — Building best practices](https://docs.docker.com/build/building/best-practices/)
+  - [Docker Docs — Dockerfile reference](https://docs.docker.com/reference/dockerfile/)
+  - [Docker CLI reference — `docker image save`](https://docs.docker.com/reference/cli/docker/image/save/)
+
+- **Alpine Linux documentation** — Alpine release lifecycle and APK package installation behavior:
+  - [Alpine Linux — Release Branches](https://alpinelinux.org/releases/)
+  - [Alpine Linux — Alpine 3.21.0 Released](https://alpinelinux.org/posts/Alpine-3.21.0-released.html)
+  - [Alpine Linux Handbook — Working with `apk`](https://docs.alpinelinux.org/user-handbook/0.1a/Working/apk.html)
+  - [Glider Labs Alpine Docker image usage — `apk --no-cache`](https://github.com/gliderlabs/docker-alpine/blob/master/docs/usage.md)
+
+- **Trivy documentation** — Dockerfile misconfiguration checks, image vulnerability scans, scanner selection, filtering, and clean rerun interpretation:
+  - [Trivy Docs — Misconfiguration Scanning](https://trivy.dev/docs/latest/scanner/misconfiguration/)
+  - [Trivy CLI reference — Filesystem](https://trivy.dev/docs/latest/references/configuration/cli/trivy_filesystem/)
+  - [Trivy CLI reference — Image](https://trivy.dev/docs/latest/references/configuration/cli/trivy_image/)
+  - [Trivy Docs — Filtering findings](https://trivy.dev/docs/latest/configuration/filtering/)
+
+---
+
+### Step 10 — Dependabot baseline for owned dependency surfaces
+
+- [GitHub Docs — Configuring Dependabot version updates](https://docs.github.com/en/code-security/how-tos/secure-your-supply-chain/secure-your-dependencies/configuring-dependabot-version-updates)  
+  End-to-end Dependabot version-update setup with `.github/dependabot.yml`, package ecosystems, schedules, and pull-request generation.
+
+- [GitHub Docs — Optimizing the creation of pull requests for Dependabot version updates](https://docs.github.com/en/code-security/tutorials/secure-your-dependencies/optimizing-pr-creation-version-updates)  
+  Dependabot pull-request cadence, update scheduling, and keeping dependency-update PRs manageable.
+
+- [GitHub Docs — Listing dependencies configured for version updates](https://docs.github.com/en/code-security/how-tos/secure-your-supply-chain/manage-your-dependency-security/listing-dependencies-configured-for-version-updates)  
+  GitHub UI verification path for Dependabot-monitored files under the dependency graph.
+
+- [GitHub Docs — About Dependabot pull requests](https://docs.github.com/en/code-security/concepts/supply-chain-security/about-dependabot-pull-requests)  
+  Dependabot pull-request behavior and the default limit of five open version-update pull requests.
+
+- [dev.to — Dependabot and GitHub Actions](https://dev.to/davorg/dependabot-and-github-actions-3lai)  
+  Practical explanation of Dependabot-created pull requests for GitHub Actions dependency updates.
+
+- **GitHub Dependabot documentation** — Dependabot configuration options, supported ecosystems, GitHub Actions and npm update scope, labels, schedules, `exclude-paths`, dependency graph behavior, and PR limits:
+  - [GitHub Docs — About the `dependabot.yml` file](https://docs.github.com/en/code-security/concepts/supply-chain-security/about-the-dependabot-yml-file)
+  - [GitHub Docs — Dependabot options reference](https://docs.github.com/en/code-security/reference/supply-chain-security/dependabot-options-reference)
+  - [GitHub Docs — Dependabot supported ecosystems and repositories](https://docs.github.com/en/code-security/reference/supply-chain-security/supported-ecosystems-and-repositories)
+  - [GitHub Docs — About the dependency graph](https://docs.github.com/en/enterprise-cloud@latest/code-security/concepts/supply-chain-security/about-the-dependency-graph)
+  - [GitHub Docs — Enabling the dependency graph](https://docs.github.com/en/code-security/how-tos/secure-your-supply-chain/secure-your-dependencies/enabling-the-dependency-graph)
+  - [GitHub Docs — Troubleshooting Dependabot errors](https://docs.github.com/en/code-security/how-tos/secure-your-supply-chain/troubleshoot-dependency-security/troubleshooting-dependabot-errors)
+
+- **npm documentation** — npm dependency manifest and package-lock based dependency update target:
+  - [npm Docs — `package.json`](https://docs.npmjs.com/cli/v11/configuring-npm/package-json/)
+  - [npm Docs — `package-lock.json`](https://docs.npmjs.com/cli/v11/configuring-npm/package-lock-json/)
+
+---
+<br>
+
+> [!TIP] **Navigation**  
+> **[⬅️ Phase 07-B](./PHASE-07-B.md)** | **[🏠 Phase 07 Home](../IMPLEMENTATION.md)** | **[Next: Phase 07-D ➡️](./PHASE-07-D.md)**
