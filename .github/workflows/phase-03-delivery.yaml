@@ -1,4 +1,4 @@
-# Phase 03 delivery smoke workflow
+# Phase 03 - Delivery Smoke Workflow
 #
 # Purpose:
 # - (1) Validate the dev/prod Kustomize overlays
@@ -23,7 +23,7 @@
 # - GitHub-hosted runners
 # - See project-docs/03-ci-cd-baseline/IMPLEMENTATION.md for rationale and source links
 
-name: phase-03-delivery
+name: Phase 03 - Delivery Smoke
 
 on:
   # Optional manual workflow trigger only 

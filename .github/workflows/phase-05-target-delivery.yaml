@@ -1,4 +1,4 @@
-# Phase 05 - Target Delivery Workflow
+# Phase 05 - Proxmox Target Delivery Workflow
 #
 # Purpose:
 # Establish a trunk-based CI/CD delivery workflow with gated promotion on the
@@ -49,7 +49,7 @@
 # - GitHub-hosted runners
 # - see project-docs/05-proxmox-target-delivery/IMPLEMENTATION.md for rationale and sources
 
-name: phase-05-proxmox-target-delivery
+name: Phase 05 - Proxmox Target Delivery
 
 on:
   # Branch-driven automatic execution   

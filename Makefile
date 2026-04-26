@@ -54,6 +54,9 @@ P07_TRIVY_TMP_DIR := /tmp/p07-trivy
 P07_HEALTHCHECK_IMAGE := sockshop-healthcheck
 P07_HEALTHCHECK_IMAGE_TAR := $(P07_TRIVY_TMP_DIR)/sockshop-healthcheck.tar
 
+# Directory that contains the Phase 08 Terraform Smoke-VM configuration.
+P08_TF_DIR := infra/terraform/proxmox-smoke-vm
+
 # -----------------------------------------------------------------------------
 # Make recipe syntax notes
 # -----------------------------------------------------------------------------
@@ -184,7 +187,12 @@ P07_HEALTHCHECK_IMAGE_TAR := $(P07_TRIVY_TMP_DIR)/sockshop-healthcheck.tar
 	p07-trivy-repo-scan \
 	p07-trivy-healthcheck-repo-scan \
 	p07-trivy-healthcheck-image-scan \
-	p07-trivy-scans
+	p07-trivy-scans \
+	p08-tf-init \
+	p08-tf-validate \
+	p08-tf-plan \
+	p08-tf-apply \
+	p08-tf-destroy
 
 # -----------------------------------------------------------------------------
 # Help
@@ -243,6 +251,11 @@ help:
 	@echo "  p07-trivy-healthcheck-repo-scan - Run the focused Phase 07 Trivy filesystem scan on healthcheck"
 	@echo "  p07-trivy-healthcheck-image-scan - Run the Phase 07 Trivy image scan on the repo-owned healthcheck image"
 	@echo "  p07-trivy-scans            - Run the full Phase 07 Trivy security baseline"
+	@echo "  p08-tf-init                - Initialize the Phase 08 Terraform Proxmox smoke-VM workspace"
+	@echo "  p08-tf-validate            - Validate Terraform syntax and provider schema usage"
+	@echo "  p08-tf-plan                - Create a saved Terraform plan for disposable VM 9300"
+	@echo "  p08-tf-apply               - Apply the saved Terraform plan for disposable VM 9300"
+	@echo "  p08-tf-destroy             - Destroy disposable Terraform smoke VM 9300"
 
 # -----------------------------------------------------------------------------
 # Upstream generation / verification helpers
@@ -578,7 +591,7 @@ p07-tests-all:
 # can be found in the Docs for Phase 07/Step08  
 
 # Run the broad repo-owned Trivy filesystem baseline.
-# (targets healthcheck/, scripts/, deploy/kubernetes/, .github/, tests/)
+# (targets healthcheck/, scripts/, deploy/kubernetes/, .github/, tests/, infra/terraform/)
 #
 # - Iterate over the selected repo-owned paths one by one (`trivy fs` accepts only one path per run)
 # - Scan each path for misconfigurations and leaked secrets
@@ -587,7 +600,7 @@ p07-tests-all:
 p07-trivy-repo-scan:
 	@# Run the broad Trivy filesystem baseline across repo-owned paths for misconfigurations and secrets.
 	@set -e; \
-	for target in healthcheck scripts deploy/kubernetes .github tests; do \
+	for target in healthcheck scripts deploy/kubernetes .github tests infra/terraform; do \
 		echo "RUN: Phase 07 Trivy repo scan -> $$target" >&2; \
 		docker run --rm \
 			-v "$(CURDIR)":/repo:ro \
@@ -657,3 +670,34 @@ p07-trivy-scans:
 	@# Run the full local Phase 07 Trivy security baseline.
 	@$(MAKE_CMD) --no-print-directory p07-trivy-repo-scan
 	@$(MAKE_CMD) --no-print-directory p07-trivy-healthcheck-image-scan
+
+# -----------------------------------------------------------------------------
+# Phase 08 — Proxmox Infrastructure as Code helpers
+# Thin convenience targets only.
+# Source of truth remains:
+# - project-docs/08-proxmox-iac/IMPLEMENTATION.md
+# -----------------------------------------------------------------------------
+
+p08-tf-init:
+	@# Initialize the Phase 08 Terraform working directory.
+	@# This downloads the configured Proxmox provider and prepares `.terraform/`.
+	cd $(P08_TF_DIR) && terraform init
+
+p08-tf-validate:
+	@# Validate the Terraform configuration syntax and provider schema usage.
+	cd $(P08_TF_DIR) && terraform validate
+
+p08-tf-plan:
+	@# Create a Terraform plan for the disposable Proxmox smoke VM.
+	@# `-out=tfplan` writes the reviewed plan to a local file for apply.
+	cd $(P08_TF_DIR) && terraform plan -out=tfplan
+
+p08-tf-apply:
+	@# Apply the previously reviewed Terraform plan.
+	@# This creates the disposable smoke VM from the workload-ready template.
+	cd $(P08_TF_DIR) && terraform apply tfplan
+
+p08-tf-destroy:
+	@# Destroy the disposable Terraform smoke VM.
+	@# This is expected at the end of the Phase 08 proof so the live target stays clean.
+	cd $(P08_TF_DIR) && terraform destroy
