@@ -115,7 +115,7 @@ jobs:
       # FYI: In a microservices architecture, we build what we actively maintain. So we skip building 
       # the other 13 services from source because we will pull their official, pre-built images during deployment.
       - name: Build and push image
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           context: ./${{ matrix.repo }}
           push: true
