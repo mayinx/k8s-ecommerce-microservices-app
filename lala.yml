@@ -1,0 +1,17 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  annotations:
+    kubectl.kubernetes.io/last-applied-configuration: |
+      {"apiVersion":"v1","kind":"Namespace","metadata":{"annotations":{},"name":"sock-shop-dev"}}
+  creationTimestamp: "2026-03-24T11:30:39Z"
+  labels:
+    kubernetes.io/metadata.name: sock-shop-dev
+  name: sock-shop-dev
+  resourceVersion: "687900"
+  uid: 156c5266-0ed2-4b4b-93e6-3d1d0b8422cb
+spec:
+  finalizers:
+  - kubernetes
+status:
+  phase: Active

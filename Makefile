@@ -57,6 +57,9 @@ P07_HEALTHCHECK_IMAGE_TAR := $(P07_TRIVY_TMP_DIR)/sockshop-healthcheck.tar
 # Directory that contains the Phase 08 Terraform Smoke-VM configuration.
 P08_TF_DIR := infra/terraform/proxmox-smoke-vm
 
+# Phase 09 DR backup helper script.
+P09_DR_BACKUP_SCRIPT := scripts/dr/backup-k8s-namespace.sh
+
 # -----------------------------------------------------------------------------
 # Make recipe syntax notes
 # -----------------------------------------------------------------------------
@@ -192,7 +195,10 @@ P08_TF_DIR := infra/terraform/proxmox-smoke-vm
 	p08-tf-validate \
 	p08-tf-plan \
 	p08-tf-apply \
-	p08-tf-destroy
+	p08-tf-destroy \
+	p09-dr-script-syntax \
+	p09-dr-backup-dev \
+	p09-dr-backup-prod
 
 # -----------------------------------------------------------------------------
 # Help
@@ -256,7 +262,9 @@ help:
 	@echo "  p08-tf-plan                - Create a saved Terraform plan for disposable VM 9300"
 	@echo "  p08-tf-apply               - Apply the saved Terraform plan for disposable VM 9300"
 	@echo "  p08-tf-destroy             - Destroy disposable Terraform smoke VM 9300"
-
+	@echo "  p09-dr-script-syntax      - Validate Bash syntax of the Phase 09 DR backup script"
+	@echo "  p09-dr-backup-dev         - Run the Phase 09 DR backup script against sock-shop-dev"
+	@echo "  p09-dr-backup-prod        - Run the Phase 09 DR backup script against sock-shop-prod"
 # -----------------------------------------------------------------------------
 # Upstream generation / verification helpers
 # -----------------------------------------------------------------------------
@@ -673,8 +681,8 @@ p07-trivy-scans:
 
 # -----------------------------------------------------------------------------
 # Phase 08 — Proxmox Infrastructure as Code helpers
-# Thin convenience targets only.
-# Source of truth remains:
+#
+# Details:
 # - project-docs/08-proxmox-iac/IMPLEMENTATION.md
 # -----------------------------------------------------------------------------
 
@@ -701,3 +709,29 @@ p08-tf-destroy:
 	@# Destroy the disposable Terraform smoke VM.
 	@# This is expected at the end of the Phase 08 proof so the live target stays clean.
 	cd $(P08_TF_DIR) && terraform destroy
+
+# -----------------------------------------------------------------------------
+# Phase 09 — Disaster Recovery & Rollback helpers
+#
+# Details:
+# - project-docs/09-dr-rollback/IMPLEMENTATION.md
+# - project-docs/09-dr-rollback/RUNBOOK.md
+# -----------------------------------------------------------------------------
+
+p09-dr-script-syntax:
+	@# Validate Bash syntax of the Phase 09 DR backup script.
+	@if bash -n $(P09_DR_BACKUP_SCRIPT); then \
+		echo "OK: Bash syntax valid -> $(P09_DR_BACKUP_SCRIPT)" >&2; \
+	else \
+		echo "FAIL: Bash syntax invalid -> $(P09_DR_BACKUP_SCRIPT)" >&2; \
+		exit 1; \
+	fi
+
+p09-dr-backup-dev:
+	@# Run the Phase 09 DR backup script against the dev namespace.
+	@$(P09_DR_BACKUP_SCRIPT) sock-shop-dev
+
+p09-dr-backup-prod:
+	@# Run the Phase 09 DR backup script against the prod namespace.
+	@$(P09_DR_BACKUP_SCRIPT) sock-shop-prod	
+ 
