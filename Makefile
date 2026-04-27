@@ -285,8 +285,8 @@ help:
 	@echo "  p09-dr-script-syntax      - Validate Bash syntax of the Phase 09 DR backup script"
 	@echo "  p09-dr-backup-dev         - Run the Phase 09 DR backup script against sock-shop-dev"
 	@echo "  p09-dr-backup-prod        - Run the Phase 09 DR backup script against sock-shop-prod"
-	@echo "  p09-dr-print-report-dev  - Print the database backup report from the latest dev backup"
-	@echo "  p09-dr-print-report-prod - Print the database backup report from the latest prod backup"
+	@echo "  p09-dr-print-report-dev  - Print the latest dev backup report, artifact list, and archive details"
+	@echo "  p09-dr-print-report-prod - Print the latest prod backup report, artifact list, and archive details"
 
 # -----------------------------------------------------------------------------
 # Upstream generation / verification helpers
@@ -759,23 +759,35 @@ p09-dr-backup-prod:
 	@KUBECONFIG=$(REMOTE_KUBECONFIG) $(P09_DR_BACKUP_SCRIPT) sock-shop-prod	
  
 p09-dr-print-report-dev:
-	@# Print the database backup report from the latest dev backup.
+	@# Print the database backup report, k8s artifact list, and archive details from the latest dev backup.
 	@latest_backup="$$(find backups -maxdepth 1 -type d -name 'sock-shop-dev_*' | sort | tail -n 1)"; \
 	if [ -z "$$latest_backup" ]; then \
 		echo "FAIL: No dev backup folder found under backups/" >&2; \
 		echo "INFO: To create a dev backup, run 'make p09-dr-backup-dev'" >&2; \
 		exit 1; \
- 	fi; \
-	echo "RUN: Print database backup report -> $$latest_backup/db/backup-report.txt" >&2; \
-	cat "$$latest_backup/db/backup-report.txt"
+	fi; \
+	echo "RUN: Print database backup report for dev -> $$latest_backup/db/backup-report.txt" >&2; \
+	cat "$$latest_backup/db/backup-report.txt"; \
+	echo; \
+	echo "RUN: Show generated backup k8s artifact list for dev -> $$latest_backup" >&2; \
+	find "$$latest_backup" -maxdepth 3 -type f | sort; \
+	echo; \
+	echo "RUN: Show MongoDB archive dump details for dev -> $$latest_backup/db" >&2; \
+	find "$$latest_backup/db" -maxdepth 1 -type f -name '*.archive.gz' -ls
 
 p09-dr-print-report-prod:
-	@# Print the database backup report from the latest prod backup.
+	@# Print the database backup report, k8s artifact list, and archive details from the latest prod backup.
 	@latest_backup="$$(find backups -maxdepth 1 -type d -name 'sock-shop-prod_*' | sort | tail -n 1)"; \
 	if [ -z "$$latest_backup" ]; then \
 		echo "FAIL: No prod backup folder found under backups/" >&2; \
 		echo "INFO: To create a prod backup, run 'make p09-dr-backup-prod'" >&2; \
 		exit 1; \
- 	fi; \
-	echo "RUN: Print database backup report -> $$latest_backup/db/backup-report.txt" >&2; \
-	cat "$$latest_backup/db/backup-report.txt"
+	fi; \
+	echo "RUN: Print database backup report for prod -> $$latest_backup/db/backup-report.txt" >&2; \
+	cat "$$latest_backup/db/backup-report.txt"; \
+	echo; \
+	echo "RUN: Show generated backup k8s artifact list for prod -> $$latest_backup" >&2; \
+	find "$$latest_backup" -maxdepth 3 -type f | sort; \
+	echo; \
+	echo "RUN: Show MongoDB archive dump details for prod -> $$latest_backup/db" >&2; \
+	find "$$latest_backup/db" -maxdepth 1 -type f -name '*.archive.gz' -ls
