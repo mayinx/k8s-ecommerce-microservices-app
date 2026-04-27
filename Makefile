@@ -14,6 +14,8 @@ RUBY            := ruby
 
 E2E_DIR := tests/e2e
 
+REMOTE_KUBECONFIG ?= $(HOME)/.kube/config-proxmox-dev.yaml
+
 P02_INGRESS_FILE := deploy/kubernetes/manifests-local/phase-02-front-end-ingress.yaml
 
 P03_DEV_OVERLAY  := deploy/kubernetes/kustomize/overlays/dev
@@ -56,6 +58,9 @@ P07_HEALTHCHECK_IMAGE_TAR := $(P07_TRIVY_TMP_DIR)/sockshop-healthcheck.tar
 
 # Directory that contains the Phase 08 Terraform Smoke-VM configuration.
 P08_TF_DIR := infra/terraform/proxmox-smoke-vm
+
+# Phase 09 DR backup helper script.
+P09_DR_BACKUP_SCRIPT := scripts/dr/backup-k8s-namespace.sh
 
 # -----------------------------------------------------------------------------
 # Make recipe syntax notes
@@ -119,6 +124,22 @@ P08_TF_DIR := infra/terraform/proxmox-smoke-vm
 #   Assign a default value only if the variable is not already set from the
 #   environment or command line. Useful for overridable defaults where caller
 #   overrides should remain possible.
+#
+# - :=
+#   Assign a simply-expanded Make variable.
+#   The right-hand side is evaluated once when Make reads the file, not every
+#   time the variable is used.
+#   Example:
+#     P09_DR_BACKUP_SCRIPT := scripts/dr/backup-k8s-namespace.sh
+#   This is useful for stable helper paths and fixed command defaults.
+#
+# - =
+#   Assign a recursively-expanded Make variable.
+#   The right-hand side is expanded each time the variable is used.
+#   Example:
+#     REPORT_PATH = $(LATEST_BACKUP)/db/backup-report.txt
+#   This can be useful for dynamic values, but it can also make simple helper
+#   paths harder to reason about.
 #
 # These patterns are used repeatedly in the Phase 07 targets to keep the output
 # compact, readable, and CI-friendly: 
@@ -192,7 +213,12 @@ P08_TF_DIR := infra/terraform/proxmox-smoke-vm
 	p08-tf-validate \
 	p08-tf-plan \
 	p08-tf-apply \
-	p08-tf-destroy
+	p08-tf-destroy \
+	p09-dr-script-syntax \
+	p09-dr-backup-dev \
+	p09-dr-backup-prod \
+	p09-dr-print-report-dev \
+	p09-dr-print-report-prod	
 
 # -----------------------------------------------------------------------------
 # Help
@@ -256,6 +282,11 @@ help:
 	@echo "  p08-tf-plan                - Create a saved Terraform plan for disposable VM 9300"
 	@echo "  p08-tf-apply               - Apply the saved Terraform plan for disposable VM 9300"
 	@echo "  p08-tf-destroy             - Destroy disposable Terraform smoke VM 9300"
+	@echo "  p09-dr-script-syntax      - Validate Bash syntax of the Phase 09 DR backup script"
+	@echo "  p09-dr-backup-dev         - Run the Phase 09 DR backup script against sock-shop-dev"
+	@echo "  p09-dr-backup-prod        - Run the Phase 09 DR backup script against sock-shop-prod"
+	@echo "  p09-dr-print-report-dev  - Print the latest dev backup report, artifact list, and archive details"
+	@echo "  p09-dr-print-report-prod - Print the latest prod backup report, artifact list, and archive details"
 
 # -----------------------------------------------------------------------------
 # Upstream generation / verification helpers
@@ -673,8 +704,8 @@ p07-trivy-scans:
 
 # -----------------------------------------------------------------------------
 # Phase 08 — Proxmox Infrastructure as Code helpers
-# Thin convenience targets only.
-# Source of truth remains:
+#
+# Details:
 # - project-docs/08-proxmox-iac/IMPLEMENTATION.md
 # -----------------------------------------------------------------------------
 
@@ -701,3 +732,62 @@ p08-tf-destroy:
 	@# Destroy the disposable Terraform smoke VM.
 	@# This is expected at the end of the Phase 08 proof so the live target stays clean.
 	cd $(P08_TF_DIR) && terraform destroy
+
+# -----------------------------------------------------------------------------
+# Phase 09 — Disaster Recovery & Rollback helpers
+#
+# Details:
+# - project-docs/09-dr-rollback/IMPLEMENTATION.md
+# - project-docs/09-dr-rollback/RUNBOOK.md
+# -----------------------------------------------------------------------------
+
+p09-dr-script-syntax:
+	@# Validate Bash syntax of the Phase 09 DR backup script.
+	@if bash -n $(P09_DR_BACKUP_SCRIPT); then \
+		echo "OK: Bash syntax valid -> $(P09_DR_BACKUP_SCRIPT)" >&2; \
+	else \
+		echo "FAIL: Bash syntax invalid -> $(P09_DR_BACKUP_SCRIPT)" >&2; \
+		exit 1; \
+	fi
+
+p09-dr-backup-dev:
+	@# Run the Phase 09 DR backup script against the dev namespace.
+	@KUBECONFIG=$(REMOTE_KUBECONFIG) $(P09_DR_BACKUP_SCRIPT) sock-shop-dev
+
+p09-dr-backup-prod:
+	@# Run the Phase 09 DR backup script against the prod namespace.
+	@KUBECONFIG=$(REMOTE_KUBECONFIG) $(P09_DR_BACKUP_SCRIPT) sock-shop-prod	
+ 
+p09-dr-print-report-dev:
+	@# Print the database backup report, k8s artifact list, and archive details from the latest dev backup.
+	@latest_backup="$$(find backups -maxdepth 1 -type d -name 'sock-shop-dev_*' | sort | tail -n 1)"; \
+	if [ -z "$$latest_backup" ]; then \
+		echo "FAIL: No dev backup folder found under backups/" >&2; \
+		echo "INFO: To create a dev backup, run 'make p09-dr-backup-dev'" >&2; \
+		exit 1; \
+	fi; \
+	echo "RUN: Print database backup report for dev -> $$latest_backup/db/backup-report.txt" >&2; \
+	cat "$$latest_backup/db/backup-report.txt"; \
+	echo; \
+	echo "RUN: Show generated backup k8s artifact list for dev -> $$latest_backup" >&2; \
+	find "$$latest_backup" -maxdepth 3 -type f | sort; \
+	echo; \
+	echo "RUN: Show MongoDB archive dump details for dev -> $$latest_backup/db" >&2; \
+	find "$$latest_backup/db" -maxdepth 1 -type f -name '*.archive.gz' -ls
+
+p09-dr-print-report-prod:
+	@# Print the database backup report, k8s artifact list, and archive details from the latest prod backup.
+	@latest_backup="$$(find backups -maxdepth 1 -type d -name 'sock-shop-prod_*' | sort | tail -n 1)"; \
+	if [ -z "$$latest_backup" ]; then \
+		echo "FAIL: No prod backup folder found under backups/" >&2; \
+		echo "INFO: To create a prod backup, run 'make p09-dr-backup-prod'" >&2; \
+		exit 1; \
+	fi; \
+	echo "RUN: Print database backup report for prod -> $$latest_backup/db/backup-report.txt" >&2; \
+	cat "$$latest_backup/db/backup-report.txt"; \
+	echo; \
+	echo "RUN: Show generated backup k8s artifact list for prod -> $$latest_backup" >&2; \
+	find "$$latest_backup" -maxdepth 3 -type f | sort; \
+	echo; \
+	echo "RUN: Show MongoDB archive dump details for prod -> $$latest_backup/db" >&2; \
+	find "$$latest_backup/db" -maxdepth 1 -type f -name '*.archive.gz' -ls
