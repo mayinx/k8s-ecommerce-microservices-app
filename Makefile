@@ -14,6 +14,8 @@ RUBY            := ruby
 
 E2E_DIR := tests/e2e
 
+REMOTE_KUBECONFIG ?= $(HOME)/.kube/config-proxmox-dev.yaml
+
 P02_INGRESS_FILE := deploy/kubernetes/manifests-local/phase-02-front-end-ingress.yaml
 
 P03_DEV_OVERLAY  := deploy/kubernetes/kustomize/overlays/dev
@@ -123,6 +125,22 @@ P09_DR_BACKUP_SCRIPT := scripts/dr/backup-k8s-namespace.sh
 #   environment or command line. Useful for overridable defaults where caller
 #   overrides should remain possible.
 #
+# - :=
+#   Assign a simply-expanded Make variable.
+#   The right-hand side is evaluated once when Make reads the file, not every
+#   time the variable is used.
+#   Example:
+#     P09_DR_BACKUP_SCRIPT := scripts/dr/backup-k8s-namespace.sh
+#   This is useful for stable helper paths and fixed command defaults.
+#
+# - =
+#   Assign a recursively-expanded Make variable.
+#   The right-hand side is expanded each time the variable is used.
+#   Example:
+#     REPORT_PATH = $(LATEST_BACKUP)/db/backup-report.txt
+#   This can be useful for dynamic values, but it can also make simple helper
+#   paths harder to reason about.
+#
 # These patterns are used repeatedly in the Phase 07 targets to keep the output
 # compact, readable, and CI-friendly: 
 # - Aggregate targets stay mostly noiseless,
@@ -198,7 +216,9 @@ P09_DR_BACKUP_SCRIPT := scripts/dr/backup-k8s-namespace.sh
 	p08-tf-destroy \
 	p09-dr-script-syntax \
 	p09-dr-backup-dev \
-	p09-dr-backup-prod
+	p09-dr-backup-prod \
+	p09-dr-print-report-dev \
+	p09-dr-print-report-prod	
 
 # -----------------------------------------------------------------------------
 # Help
@@ -265,6 +285,9 @@ help:
 	@echo "  p09-dr-script-syntax      - Validate Bash syntax of the Phase 09 DR backup script"
 	@echo "  p09-dr-backup-dev         - Run the Phase 09 DR backup script against sock-shop-dev"
 	@echo "  p09-dr-backup-prod        - Run the Phase 09 DR backup script against sock-shop-prod"
+	@echo "  p09-dr-print-report-dev  - Print the database backup report from the latest dev backup"
+	@echo "  p09-dr-print-report-prod - Print the database backup report from the latest prod backup"
+
 # -----------------------------------------------------------------------------
 # Upstream generation / verification helpers
 # -----------------------------------------------------------------------------
@@ -729,9 +752,30 @@ p09-dr-script-syntax:
 
 p09-dr-backup-dev:
 	@# Run the Phase 09 DR backup script against the dev namespace.
-	@$(P09_DR_BACKUP_SCRIPT) sock-shop-dev
+	@KUBECONFIG=$(REMOTE_KUBECONFIG) $(P09_DR_BACKUP_SCRIPT) sock-shop-dev
 
 p09-dr-backup-prod:
 	@# Run the Phase 09 DR backup script against the prod namespace.
-	@$(P09_DR_BACKUP_SCRIPT) sock-shop-prod	
+	@KUBECONFIG=$(REMOTE_KUBECONFIG) $(P09_DR_BACKUP_SCRIPT) sock-shop-prod	
  
+p09-dr-print-report-dev:
+	@# Print the database backup report from the latest dev backup.
+	@latest_backup="$$(find backups -maxdepth 1 -type d -name 'sock-shop-dev_*' | sort | tail -n 1)"; \
+	if [ -z "$$latest_backup" ]; then \
+		echo "FAIL: No dev backup folder found under backups/" >&2; \
+		echo "INFO: To create a dev backup, run 'make p09-dr-backup-dev'" >&2; \
+		exit 1; \
+ 	fi; \
+	echo "RUN: Print database backup report -> $$latest_backup/db/backup-report.txt" >&2; \
+	cat "$$latest_backup/db/backup-report.txt"
+
+p09-dr-print-report-prod:
+	@# Print the database backup report from the latest prod backup.
+	@latest_backup="$$(find backups -maxdepth 1 -type d -name 'sock-shop-prod_*' | sort | tail -n 1)"; \
+	if [ -z "$$latest_backup" ]; then \
+		echo "FAIL: No prod backup folder found under backups/" >&2; \
+		echo "INFO: To create a prod backup, run 'make p09-dr-backup-prod'" >&2; \
+		exit 1; \
+ 	fi; \
+	echo "RUN: Print database backup report -> $$latest_backup/db/backup-report.txt" >&2; \
+	cat "$$latest_backup/db/backup-report.txt"

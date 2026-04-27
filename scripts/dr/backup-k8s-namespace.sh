@@ -18,9 +18,23 @@
 # USAGE:
 #   ./scripts/dr/backup-k8s-namespace.sh sock-shop-dev
 #   ./scripts/dr/backup-k8s-namespace.sh sock-shop-prod
+#
+# MAKE TARGETS:
+#   make p09-dr-backup-dev
+#   make p09-dr-backup-prod
+#  
+
+# -----------------------------------------------------------------------------
+# Shell safety
+# -----------------------------------------------------------------------------
 
 # Fail fast on errors, unset variables, and failed pipeline commands.
 set -euo pipefail
+
+# -----------------------------------------------------------------------------
+# Input validation and kubeconfig selection
+# -----------------------------------------------------------------------------
+
 
 NAMESPACE="${1:-}"
 
@@ -34,6 +48,22 @@ case "$NAMESPACE" in
     exit 1
     ;;
 esac
+
+# Default to the Proxmox target kubeconfig unless the caller provides another one.
+KUBECONFIG_PATH="${KUBECONFIG_PATH:-$HOME/.kube/config-proxmox-dev.yaml}" 
+export KUBECONFIG
+
+# Fail early if the selected kubeconfig file is missing.
+if [ ! -f "$KUBECONFIG" ]; then
+  echo "ERROR: Kubeconfig not found: ${KUBECONFIG}" >&2
+  echo "INFO: Set KUBECONFIG=/path/to/kubeconfig to use another cluster." >&2
+  exit 1
+fi
+
+# -----------------------------------------------------------------------------
+# Backup configuration
+# -----------------------------------------------------------------------------
+
 
 # Use a UTC timestamp so backup folders sort naturally and remain timezone-independent.
 TIMESTAMP="$(date -u +"%Y%m%dT%H%M%SZ")"
@@ -60,8 +90,13 @@ RESOURCE_TYPES=(
   "pods"
 )
 
+# -----------------------------------------------------------------------------
+# Script startup banner and local backup folders
+# -----------------------------------------------------------------------------
+
 echo "============================================================"
 echo "Starting DR backup for namespace: ${NAMESPACE}"
+echo "Kubeconfig: ${KUBECONFIG}"
 echo "Destination: ${BACKUP_DIR}"
 echo "============================================================"
 
@@ -70,6 +105,9 @@ if ! command -v kubectl >/dev/null 2>&1; then
   echo "ERROR: kubectl is required but was not found in PATH." >&2
   exit 1
 fi
+
+# Display the active Kubernetes context 
+echo "Kubernetes context: $(kubectl config current-context)"
 
 # Verify that the namespace exists and is reachable.
 if ! kubectl get namespace "$NAMESPACE" >/dev/null 2>&1; then
@@ -92,6 +130,10 @@ Contents:
 - k8s/: Kubernetes resource snapshots and metadata
 - db/: MongoDB dump archives, if mongodump was available in the target DB pods
 EOF
+
+# -----------------------------------------------------------------------------
+# Kubernetes namespace state export
+# -----------------------------------------------------------------------------
 
 echo
 echo "[1/2] Exporting Kubernetes resource state..."
@@ -122,6 +164,10 @@ kubectl get pv -o wide > "${BACKUP_DIR}/k8s/persistent-volumes-wide.txt" 2>/dev/
 kubectl get secrets -n "$NAMESPACE" \
   -o custom-columns=NAME:.metadata.name,TYPE:.type,CREATED:.metadata.creationTimestamp \
   > "${BACKUP_DIR}/k8s/secrets-metadata.txt" 2>/dev/null || true
+
+# -----------------------------------------------------------------------------
+# Logical database dump attempts
+# -----------------------------------------------------------------------------
 
 echo
 echo "[2/2] Attempting MongoDB dumps for database pods..."
@@ -167,7 +213,7 @@ for db_target in "${DB_TARGETS[@]}"; do
   #  - '--': Separates kubectl arguments from the command being run inside the container.
   #  - 'sh -c': Invokes a shell inside the container to run the 'command -v' check.
   #  - 'command -v mongodump': Returns success (0) if the binary is found in the PATH.
-  if ! kubectl exec -n "$NAMESPACE" "$pod_name" -- sh -c 'command -v mongodump >/dev/null 2>&1'; then
+  if ! kubectl exec -n "$NAMESPACE" "$pod_name" -- sh -c 'command -v mongodump >/dev/null 2>&1' 2>/dev/null; then
     echo "     SKIP: mongodump not available in ${pod_name}"
     echo "${db_target}: SKIPPED - mongodump not available in ${pod_name}" >> "$DB_REPORT"
     continue
@@ -207,6 +253,10 @@ for db_target in "${DB_TARGETS[@]}"; do
     rm -f "$dump_file"
   fi
 done
+
+# -----------------------------------------------------------------------------
+# Completion summary
+# -----------------------------------------------------------------------------
 
 echo
 echo "============================================================"
