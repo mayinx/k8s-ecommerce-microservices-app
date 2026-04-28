@@ -14,6 +14,9 @@ RUBY            := ruby
 
 E2E_DIR := tests/e2e
 
+# Remote Proxmox target kubeconfig.
+# Historical filename contains "dev", but this kubeconfig points to the remote target K3s cluster
+# and is used for both (!) sock-shop-dev and sock-shop-prod namespaces.
 REMOTE_KUBECONFIG ?= $(HOME)/.kube/config-proxmox-dev.yaml
 
 P02_INGRESS_FILE := deploy/kubernetes/manifests-local/phase-02-front-end-ingress.yaml
@@ -218,7 +221,9 @@ P09_DR_BACKUP_SCRIPT := scripts/dr/backup-k8s-namespace.sh
 	p09-dr-backup-dev \
 	p09-dr-backup-prod \
 	p09-dr-print-report-dev \
-	p09-dr-print-report-prod	
+	p09-dr-print-report-prod \
+	k8s-live-dev-show-pod \
+	k8s-delete-live-dev-pod	
 
 # -----------------------------------------------------------------------------
 # Help
@@ -287,6 +292,8 @@ help:
 	@echo "  p09-dr-backup-prod        - Run the Phase 09 DR backup script against sock-shop-prod"
 	@echo "  p09-dr-print-report-dev  - Print the latest dev backup report, artifact list, and archive details"
 	@echo "  p09-dr-print-report-prod - Print the latest prod backup report, artifact list, and archive details"
+	@echo "  k8s-live-dev-show-pod 		- Show one live dev pod selected by COMPONENT=<name> using label name=<name>"
+	@echo "  k8s-delete-live-dev-pod   - Delete one live dev pod selected by COMPONENT=<name> using label name=<name>"
 
 # -----------------------------------------------------------------------------
 # Upstream generation / verification helpers
@@ -791,3 +798,33 @@ p09-dr-print-report-prod:
 	echo; \
 	echo "RUN: Show MongoDB archive dump details for prod -> $$latest_backup/db" >&2; \
 	find "$$latest_backup/db" -maxdepth 1 -type f -name '*.archive.gz' -ls
+
+k8s-show-live-dev-pod:
+	@# Show the given live dev pod selected by the stable Kubernetes name label.
+	@if [ -z "$(COMPONENT)" ]; then \
+		echo "FAIL: COMPONENT is required" >&2; \
+		echo "INFO: Example: make k8s-show-live-dev-pod-by-label COMPONENT=front-end" >&2; \
+		exit 1; \
+	fi
+	@pod_name="$$(KUBECONFIG=$(REMOTE_KUBECONFIG) kubectl get pods -n sock-shop-dev -l name=$(COMPONENT) -o jsonpath='{.items[0].metadata.name}' 2>/dev/null)"; \
+	if [ -z "$$pod_name" ]; then \
+		echo "FAIL: No pod found in sock-shop-dev with label name=$(COMPONENT)" >&2; \
+		exit 1; \
+	fi; \
+	echo "RUN: Show live dev pod -> name=$(COMPONENT), pod=$$pod_name" >&2; \
+	KUBECONFIG=$(REMOTE_KUBECONFIG) kubectl get pod -n sock-shop-dev "$$pod_name" -o wide	
+
+k8s-delete-live-dev-pod:
+	@# Delete the given live dev pod selected by the stable Kubernetes name label.
+	@if [ -z "$(COMPONENT)" ]; then \
+		echo "FAIL: COMPONENT is required" >&2; \
+		echo "INFO: Example: make k8s-delete-live-dev-pod COMPONENT=front-end" >&2; \
+		exit 1; \
+	fi
+	@pod_name="$$(KUBECONFIG=$(REMOTE_KUBECONFIG) kubectl get pods -n sock-shop-dev -l name=$(COMPONENT) -o jsonpath='{.items[0].metadata.name}' 2>/dev/null)"; \
+	if [ -z "$$pod_name" ]; then \
+		echo "FAIL: No pod found in sock-shop-dev with label name=$(COMPONENT)" >&2; \
+		exit 1; \
+	fi; \
+	echo "RUN: Delete live dev pod -> name=$(COMPONENT), pod=$$pod_name" >&2; \
+	KUBECONFIG=$(REMOTE_KUBECONFIG) kubectl delete pod -n sock-shop-dev "$$pod_name"		
