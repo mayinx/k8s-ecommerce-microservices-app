@@ -2,6 +2,11 @@
 
 Documentation is iterative and phase-aligned: baseline notes first, then milestone implementation notes, setup guides when needed, runbooks, and decision logs.
 
+## Current hand-in status
+
+- The functional project scope meets now completely the Capstone requirements and covers deployment, CI/CD, observability, security/testing, Terraform IaC baseline, and disaster recovery / rollback readiness. 
+- Phase 08 and Phase 09 detailed docs are still being polished for the final defense.
+
 ## Cross-phase docs
 - **[Project roadmap / planning](./ROADMAP.md)**
 - **[Project-wide decision summary](./DECISIONS.md)**
@@ -77,9 +82,37 @@ Documentation is iterative and phase-aligned: baseline notes first, then milesto
 
 ---
 
-## Future phases (placeholders; added when we reach them)
-- Phase 08: Infrastructure as Code (Terraform)
-- Phase 09: DR / rollback baseline
+## Phase 08 — Proxmox IaC Baseline (Terraform smoke-VM provisioning proof)
+
+- **Status:** Functionally implemented; detailed documentation polish in progress.
+- **Purpose:** Prove a first Infrastructure as Code baseline for reproducible Proxmox VM provisioning.
+- **Scope:** Terraform workspace for a disposable Proxmox smoke VM `9300`, cloned from workload-ready template `9010`.
+- **Key proof:** Terraform `init`, `validate`, `plan`, `apply`, Proxmox host-side verification, and `destroy` completed successfully.
+- **Docs:**
+  - **[Phase 08 — Implementation Log *(in work)*](./08-proxmox-iac/IMPLEMENTATION.md)**
+
+---
+
+## Phase 09 — Disaster Recovery & Rollback Readiness
+
+- **Status:** Functionally implemented; detailed documentation polish in progress.
+- **Purpose:** Add the first recovery baseline for Kubernetes state, Mongo-compatible data-store dumps, pod recovery, and rollback readiness.
+- **Scope:** DR backup helper for `sock-shop-dev` and `sock-shop-prod`, local backup artifacts, MongoDB dump validation, pod recovery proof, and rollback path documentation.
+- **Key proof:** Kubernetes namespace state exported, representative `user-db` dump restored into a temporary MongoDB container, live dev pod deleted and recreated by Kubernetes, and live smoke checks passed afterward.
+- **Docs:**
+  - **[Phase 09 — Implementation Log *(in work)*](./09-dr-rollback/IMPLEMENTATION.md)**
+
+---
+
+## Later hardening / optional future phases
+- Broader Terraform coverage for target VM recreation and bootstrap steps
+- Full restore drill in a disposable namespace or throwaway cluster
+- GitOps layer:
+  - Argo CD or similar
+- Secret-management extension:
+  - external secrets integration
+- Optional AWS target:
+  - Terraform-driven secondary deployment track
 
 ---
 
