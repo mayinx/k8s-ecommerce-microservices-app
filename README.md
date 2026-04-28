@@ -1,44 +1,79 @@
-# Sock Shop — Production-like DevOps Delivery Path
-
-
-The goal is not just to run the application once, but to build a **reproducible, phase-based delivery path** with evidence-grade documentation that gradually proves the core capabilities expected from a modern DevOps project:
-
-- containerized application delivery
-- Kubernetes deployment
-- CI/CD
-- environment separation
-- observability
-- security measures
-- disaster-recovery thinking
-- and infrastructure-oriented deployment evolution toward a long-lived target environment
-
-The project is intentionally implemented in phases so that each new capability builds on an already proven baseline.
-
-
 # 🧦 Sock Shop: Production-Grade DevOps Delivery Path
 
-### Proxmox VE Target Delivery • K3s Multi-Environment (`dev` / `prod`) • GitHub Actions CI/CD • Cloudflare Tunnels • Tailscale Private Access • Prometheus/Grafana Observability • Deterministic Test Gate • Trivy Security Scanning • Playwright Smoke Tests • Protected PR Workflow
+### Proxmox VM Templates & K3s Target Delivery • Multi-Environment (`dev` / `prod`) • GitHub Actions CI/CD & GHCR • Cloudflare Tunnels • Tailscale Private Access • Prometheus/Grafana Observability • Ruby/Bash/Python Test Gate • Playwright Smoek Tests • Trivy Security Scanning & Dependabot • Terraform IaC Baseline • DR Backup & Restore Validation • Protected PR Workflow
 
-Production grade DevOps project based on the upstream WeaveSocks microservices application. This repository demonstrates a complete, **reproducible, phase-based delivery path** from **local Docker Compose baseline** to a **production-like Proxmox target environment**.
+Production-grade DevOps project based on the upstream WeaveSocks microservices application. This repository demonstrates a **reproducible, phase-based delivery path** from a **local Docker Compose baseline** to a **long-lived Proxmox-based K3s target environment** with public `dev` and `prod` entrypoints.
 
-> **Project focus:** The goal is not just to run the application once, but to build a **reproducible, phase-based delivery path** with **evidence-grade documentation** that gradually proves the **core capabilities expected from a modern DevOps project**: containerized delivery, environment separation, observability, security measures, and infrastructure-oriented deployment evolution.
+> **Project focus:** The goal is not just to run the application once, but to build a **reproducible, phase-based delivery path** with **evidence-grade documentation**.
+>
+> The project gradually proves the core capabilities expected from a modern DevOps delivery project: **containerized microservices delivery and operation**, **Kubernetes deployment**, **CI/CD**, **repo-owned container image build and publishing**, **environment separation**, **Proxmox VM templating**, **observability**, **security measures**, **repo-owned validation tooling**, **Infrastructure as Code (IaC)**, **Kubernetes state backup**, **Mongo-compatible data-store dump validation**, **rollback readiness**, and infrastructure-oriented deployment evolution.
+
+The project is intentionally implemented in phases so that each new capability builds on an already proven baseline.
 
 ---
 
 ## 🧱 Tech Stack
 
-🐳 **Docker** | ☸️ **Kubernetes (K3s)** | 🐙 **GitHub Actions** | 🚜 **Proxmox VE** | 🛡️ **Tailscale** | ☁️ **Cloudflare Tunnels** | 🚦 **Traefik** | 🧩 **Kustomize** | 📈 **Prometheus & Grafana** | 🔎 **Trivy** | 🎭 **Playwright** | 🤖 **Dependabot** | 💎 **Ruby/Minitest** | 🐚 **Bash** | 🐍 **Python/pytest** | 🟨 **JavaScript**
+*Infrastructure, delivery & operations:*\
+🐳 **Docker** | ☸️ **Kubernetes (K3s)** | 🐙 **GitHub Actions** | 📦 **GHCR** | 🚜 **Proxmox VE** | 🧱 **Terraform** | 🛡️ **Tailscale** | ☁️ **Cloudflare Tunnels** | 🚦 **Traefik** | 🧩 **Kustomize** | 📈 **Prometheus & Grafana** | ⚓ **Helm** | 🔎 **Trivy** | 🤖 **Dependabot** | 🗄️ **MongoDB**
+
+*Repo-owned code, tooling & tests:*\
+💎 **Ruby** | 🐍 **Python** | 🐚 **Bash** | 🟨 **JavaScript** | **Minitest** | **pytest** | 🎭 **Playwright**
 
 ---
 
 ## 🚀 Live target environments
 
-The project now exposes both long-lived target environments (`dev-sockshop` + `prod-sockshop`) publicly through a Proxmox-based delivery path:
+The project exposes two long-lived public target environments through the Proxmox-based K3s delivery path:
 
-- **Development:** https://dev-sockshop.cdco.dev/ 
-- **Production:** https://prod-sockshop.cdco.dev/ 
+| Environment | Public entrypoint | Role |
+| :--- | :--- | :--- |
+| 🧪 **Development** | [dev-sockshop.cdco.dev](https://dev-sockshop.cdco.dev/) | Post-merge automated deployment target for validated changes; gated by required PR-checks; used for live smoke tests before production promotion |
+| 🚀 **Production** | [prod-sockshop.cdco.dev](https://prod-sockshop.cdco.dev/) | Approval-gated target environment for the promoted release |
 
-These URLs represent the current live public entrypoints of the target platform proven in Phase 05 of the implementation path.
+Both entrypoints are routed through **Cloudflare Tunnel** to the **Proxmox-based K3s target platform**, where **Traefik** routes traffic by hostname into the correct namespace.
+
+## 🔄 CI/CD Promotion Model
+
+The current delivery path follows a **trunk-based CI/CD model with gated promotion**. Feature branches are reviewed through pull requests and can enter `master` only after the required deterministic checks pass. The merged commit triggers the Delivery Pipeline and is deployed automatically to `dev`. The same merge commit is finally promoted to `prod` after approval. 
+
+### Delivery flow 
+
+The delivery path is organized as a controlled promotion chain: protected merge, automated `dev` deployment, optional live validation, and approval-gated `prod` promotion.
+
+1. **🛡️ Before merge:**\
+The deterministic PR gate (**Ruby, Bash, Python tests + focused Trivy scans**) must pass before changes can enter `master` 
+
+2. **⚡ After merge:**\
+The merge commit accepted by the PR gate triggers the target delivery workflow and deploys automatically to `dev`
+
+3. **🔍 Before production:**\
+Live validation can be run against `dev` via **Python API contract smoke checks and Playwright browser smoke tests**
+
+4. **🚀 Production promotion:**\
+The same accepted commit promotes to `prod` only after reviewer approval (**GitHub Environment approval gate**)
+
+### Workflow trigger model
+
+The following workflows and automations implement this delivery flow:
+
+| Workflow / automation | Trigger | What runs | Role |
+| :--- | :--- | :--- | :--- |
+| **🛡️&nbsp;Deterministic&nbsp;PR&nbsp;Gate** | (1) Pull requests targeting `master` when opened, reopened, or updated with new commits<br/>(2) Manual reruns via `workflow_dispatch` | (1) Ruby HealthCheck helper tests<br/>(2) Bash helper tests<br/>(3) Python API contract-guard tests<br/>(4) Focused Trivy repo scan and image scan | Required merge gate before changes can enter `master` |
+| **🏗️&nbsp;Target&nbsp;Delivery&nbsp;Workflow** | (1) Push to `master` after merge<br/>(2) Manual runs via `workflow_dispatch` | (1) Kustomize overlay validation<br/>(2) Repo-owned `healthcheck` image build and GHCR push<br/>(3) Automated `dev` deployment<br/>(4) Approval-gated `prod` deployment | Main delivery workflow for the Proxmox target cluster |
+| **🧪&nbsp;Live Smoke Workflow** | (1) Manual run via `workflow_dispatch`<br/>(2) Reusable workflow call via `workflow_call` | (1) Python live contract smoke tests<br/>(2) Playwright browser smoke tests against `dev` or `prod` | Environment-dependent validation, intentionally separate from the deterministic PR gate |
+| **🤖&nbsp;Dependabot** | (1) Weekly scheduled dependency checks<br/>(2) Manual runs via GitHub UI or PR comments | (1) GitHub Actions<br/>(2) Playwright npm dependencies<br/>(3) Terraform provider dependencies | Dependency visibility for repo-owned tooling and infrastructure paths; generated PRs still go through the normal PR gate |
+
+### Promotion model summary
+
+The project does not use separate long-lived Git branches for `dev` and `prod`. Instead, `master` remains the source of truth, and the same accepted merge commit moves through:
+
+- deterministic PR validation
+- automated `dev` delivery
+- optional live smoke validation
+- approval-gated `prod` promotion
+
+**Result:** This project uses a professional **single-branch promotion workflow** with protected merge checks, automated `dev` delivery, controlled `prod` promotion, separate live validation for deployed environments, and scheduled dependency visibility through Dependabot.
 
 ## 🌍 Environment model on the current target
 
@@ -46,7 +81,7 @@ The current `dev` and `prod` environments do not run on separate machines.
 
 Both run on the **same Proxmox-based target VM** inside the **same single-node K3s cluster**.
 
-The **Environment separation is logical** and implemented through:
+The **logical Environment separation** is implemented through:
 
 - Separate Kubernetes namespaces (`sock-shop-dev`, `sock-shop-prod`)
 - Separate Kustomize overlays (`deploy/kubernetes/kustomize/overlays/dev|prod`)
@@ -92,16 +127,6 @@ Public Internet
 These namespaces are logical partitions inside one Kubernetes cluster, not separate clusters. When the `dev` overlay is applied, Kubernetes updates the desired state of the resources in `sock-shop-dev` only. The `prod` namespace remains unchanged until the `prod` overlay is applied and approved.
 
 The delivery workflow does not copy the repository onto the VM or run the application from a Git checkout on the target machine. Instead, GitHub Actions applies Kubernetes manifests to the cluster API. Kubernetes stores that desired state and reconciles the affected namespace resources. 
-
-## 🔄 Delivery workflow model
-
-The current delivery path follows a **trunk-based CI/CD model with gated promotion**:
-
-- Feature branches are merged into `master`
-- The merged commit triggers teh Pipeline and is deployed automatically to `dev`
-- The same commit is promoted to `prod` only after approval 
-
-**Result:** This project uses a professional **single-branch promotion workflow** rather than separate long-lived Git branches per environment.
 
 ## 🎯 Target Scope
 
