@@ -114,6 +114,8 @@ By the end of this phase, the project proves:
 
 ---
 
+---
+
 ## Step 1 — Add the DR project structure and implement the backup script
 
 ### Rationale
@@ -134,6 +136,22 @@ The **backup script** needs to focus on capturing the recovery-relevant state la
 
 The backup script must provide a **repeatable and auditable DR baseline** that can be executed safely against `sock-shop-dev` first and later against `sock-shop-prod` when needed.
 
+> [!NOTE] **Disaster recovery baseline**
+>
+> A **disaster recovery baseline** defines how the project can recover after something breaks. In this phase, the baseline **focuses on practical recovery readiness**: 
+> - Creating backup artifacts 
+> - Proving pod recovery 
+> - Documenting backup, insepction and rollback commands 
+> - Describing how the single-node target can be rebuilt and redeployed if needed
+
+> [!NOTE] **Common failure modes covered in this phase**
+>
+> Phase 09 focuses on the failure modes that fit the current project architecture:
+>
+> - **Application pod/container failure:** Kubernetes can recreate failed pods through Deployments.
+> - **Bad rollout or broken Deployment revision:** Kubernetes rollback commands provide an emergency revert path.
+> - **Database/data-store state risk:** Backup artifacts preserve Kubernetes state and MongoDB-compatible data-store dumps where available.
+> - **Single-node VM loss:** The current K3s target does not provide automatic node failover, so recovery is documented as rebuild, redeploy, and restore from available artifacts.
 
 > [!NOTE] **Logical database dump**
 >
@@ -466,7 +484,7 @@ $ bash -n scripts/dr/backup-k8s-namespace.sh
 
 #### Make Targets
 
-For easy reruns and consitency with the other implementation phases, Makefile helpers for the DR path are added as well:
+For easy reruns and consitency with the other implementation phases, Makefile helpers for the DR path are added as well. DR backup targets use the remote Proxmox target kubeconfig by default, while the small Kubernetes helper target provides a reusable way to inspect one live dev pod by its stable `name=<component>` label.
 
 ~~~make
 # -----------------------------------------------------------------------------
@@ -491,44 +509,96 @@ p09-dr-backup-prod:
   @KUBECONFIG=$(REMOTE_KUBECONFIG) $(P09_DR_BACKUP_SCRIPT) sock-shop-prod	
  
 p09-dr-print-report-dev:
-  @# Print the database backup report from the latest dev backup.
+  @# Print the database backup report, k8s artifact list, and archive details from the latest dev backup.
   @latest_backup="$$(find backups -maxdepth 1 -type d -name 'sock-shop-dev_*' | sort | tail -n 1)"; \
   if [ -z "$$latest_backup" ]; then \
     echo "FAIL: No dev backup folder found under backups/" >&2; \
     echo "INFO: To create a dev backup, run 'make p09-dr-backup-dev'" >&2; \
     exit 1; \
   fi; \
-  echo "RUN: Print database backup report -> $$latest_backup/db/backup-report.txt" >&2; \
-  cat "$$latest_backup/db/backup-report.txt"
+  echo "RUN: Print database backup report for dev -> $$latest_backup/db/backup-report.txt" >&2; \
+  cat "$$latest_backup/db/backup-report.txt"; \
+  echo; \
+  echo "RUN: Show generated backup k8s artifact list for dev -> $$latest_backup" >&2; \
+  find "$$latest_backup" -maxdepth 3 -type f | sort; \
+  echo; \
+  echo "RUN: Show MongoDB archive dump details for dev -> $$latest_backup/db" >&2; \
+  find "$$latest_backup/db" -maxdepth 1 -type f -name '*.archive.gz' -ls
 
 p09-dr-print-report-prod:
-  @# Print the database backup report from the latest prod backup.
+  @# Print the database backup report, k8s artifact list, and archive details from the latest prod backup.
   @latest_backup="$$(find backups -maxdepth 1 -type d -name 'sock-shop-prod_*' | sort | tail -n 1)"; \
   if [ -z "$$latest_backup" ]; then \
     echo "FAIL: No prod backup folder found under backups/" >&2; \
     echo "INFO: To create a prod backup, run 'make p09-dr-backup-prod'" >&2; \
     exit 1; \
   fi; \
-  echo "RUN: Print database backup report -> $$latest_backup/db/backup-report.txt" >&2; \
-  cat "$$latest_backup/db/backup-report.txt"
+  echo "RUN: Print database backup report for prod -> $$latest_backup/db/backup-report.txt" >&2; \
+  cat "$$latest_backup/db/backup-report.txt"; \
+  echo; \
+  echo "RUN: Show generated backup k8s artifact list for prod -> $$latest_backup" >&2; \
+  find "$$latest_backup" -maxdepth 3 -type f | sort; \
+  echo; \
+  echo "RUN: Show MongoDB archive dump details for prod -> $$latest_backup/db" >&2; \
+  find "$$latest_backup/db" -maxdepth 1 -type f -name '*.archive.gz' -ls
+
+k8s-show-live-dev-pod:
+  @# Show one live dev pod selected by the stable Kubernetes name label.
+  @if [ -z "$(COMPONENT)" ]; then \
+    echo "FAIL: COMPONENT is required" >&2; \
+    echo "INFO: Example: make k8s-show-live-dev-pod-by-label COMPONENT=front-end" >&2; \
+    exit 1; \
+  fi
+  @pod_name="$$(KUBECONFIG=$(REMOTE_KUBECONFIG) kubectl get pods -n sock-shop-dev -l name=$(COMPONENT) -o jsonpath='{.items[0].metadata.name}' 2>/dev/null)"; \
+  if [ -z "$$pod_name" ]; then \
+    echo "FAIL: No pod found in sock-shop-dev with label name=$(COMPONENT)" >&2; \
+    exit 1; \
+  fi; \
+  echo "RUN: Show live dev pod -> name=$(COMPONENT), pod=$$pod_name" >&2; \
+  KUBECONFIG=$(REMOTE_KUBECONFIG) kubectl get pod -n sock-shop-dev "$$pod_name" -o wide	
+
 ~~~
 
-The Makefile targets above wrap the following raw commands: 
+**The Makefile targets above wrap the following raw commands:**
+The Makefile targets above wrap the following raw commands:
 
 ~~~bash
-# Validate the DR backup helper syntax without executing the script.
-# -n = read the script and check Bash syntax only.
+# -----------------------------------------------------------------------------
+# p09-dr-script-syntax
+# DR backup helper syntax check
+# -----------------------------------------------------------------------------
+
+# Validate the DR backup helper syntax without executing it.
+# -n = read commands and check Bash syntax only.
 bash -n scripts/dr/backup-k8s-namespace.sh
+
+
+# -----------------------------------------------------------------------------
+# p09-dr-backup-dev
+# Remote dev backup
+# -----------------------------------------------------------------------------
 
 # Run the DR backup helper against the dev namespace on the Proxmox target cluster.
 # KUBECONFIG points kubectl to the remote target cluster instead of the local laptop cluster.
 KUBECONFIG="$HOME/.kube/config-proxmox-dev.yaml" \
   scripts/dr/backup-k8s-namespace.sh sock-shop-dev
 
+
+# -----------------------------------------------------------------------------
+# p09-dr-backup-prod
+# Remote prod backup
+# -----------------------------------------------------------------------------
+
 # Run the DR backup helper against the prod namespace on the Proxmox target cluster.
 # This uses the same remote kubeconfig but switches the namespace argument.
 KUBECONFIG="$HOME/.kube/config-proxmox-dev.yaml" \
   scripts/dr/backup-k8s-namespace.sh sock-shop-prod
+
+
+# -----------------------------------------------------------------------------
+# p09-dr-print-report-dev
+# Latest dev backup report and artifacts
+# -----------------------------------------------------------------------------
 
 # Find the latest dev backup folder.
 # $(...) runs the find/sort/tail pipeline and stores the resulting folder path.
@@ -537,12 +607,48 @@ latest_backup="$(find backups -maxdepth 1 -type d -name 'sock-shop-dev_*' | sort
 # Print the database backup report from the latest dev backup.
 cat "$latest_backup/db/backup-report.txt"
 
+# Show all generated backup artifacts from the latest dev backup.
+find "$latest_backup" -maxdepth 3 -type f | sort
+
+# Show MongoDB archive dump details from the latest dev backup.
+find "$latest_backup/db" -maxdepth 1 -type f -name '*.archive.gz' -ls
+
+
+# -----------------------------------------------------------------------------
+# p09-dr-print-report-prod
+# Latest prod backup report and artifacts
+# -----------------------------------------------------------------------------
+
 # Find the latest prod backup folder.
 latest_backup="$(find backups -maxdepth 1 -type d -name 'sock-shop-prod_*' | sort | tail -n 1)"
 
 # Print the database backup report from the latest prod backup.
 cat "$latest_backup/db/backup-report.txt"
+
+# Show all generated backup artifacts from the latest prod backup.
+find "$latest_backup" -maxdepth 3 -type f | sort
+
+# Show MongoDB archive dump details from the latest prod backup.
+find "$latest_backup/db" -maxdepth 1 -type f -name '*.archive.gz' -ls
+
+
+# -----------------------------------------------------------------------------
+# k8s-show-live-dev-pod COMPONENT=front-end
+# Live dev pod inspection by component label
+# -----------------------------------------------------------------------------
+
+# Select the current pod for one component in the dev namespace.
+# The project uses the stable Kubernetes label shape name=<component>.
+COMPONENT="front-end"
+POD_NAME="$(KUBECONFIG="$HOME/.kube/config-proxmox-dev.yaml" \
+  kubectl get pods -n sock-shop-dev -l name="$COMPONENT" \
+  -o jsonpath='{.items[0].metadata.name}')"
+
+# Show the selected live dev pod on the Proxmox target cluster.
+KUBECONFIG="$HOME/.kube/config-proxmox-dev.yaml" \
+  kubectl get pod -n sock-shop-dev "$POD_NAME" -o wide
 ~~~
+
 
 ### Result
 
@@ -594,6 +700,8 @@ The `dev` namespace is used first because it is the safest environment for proof
 ### Action 
 
 The fopllowing make targets run from the repo root perform a **syntax check** followed by the actual **`dev` backup** against the corresponding live target cluster environment: 
+
+#### Live Dev Backup
 
 ~~~bash
 $ make p09-dr-script-syntax
@@ -653,6 +761,8 @@ Database report: backups/sock-shop-dev_20260427T203209Z/db/backup-report.txt
 ============================================================
 ~~~
 
+#### Live Prod Backup
+
 A live prod backup can be created as easily using the corresponding make target:
 
 ~~~bash
@@ -709,6 +819,8 @@ Backup folder: backups/sock-shop-prod_20260427T204004Z
 Database report: backups/sock-shop-prod_20260427T204004Z/db/backup-report.txt
 ============================================================
 ~~~
+
+#### Proof
 
 ---
 
@@ -859,6 +971,173 @@ RUN: Show MongoDB archive dump details for prod -> backups/sock-shop-prod_202604
 
 *Figure 5: The expanded timestamped backup folder for the prod-environment.*
 
+---
+
+
+#### DB dump validation
+TODO: Wrap that baby with a bash script!
+
+As a **final validation step**, one representative **MongoDB dump artifact is restored** into a **temporary local MongoDB container** and queried there. 
+
+This does **not** restore data into `sock-shop-dev` or `sock-shop-prod`; it only proves that the selected dump archive is readable, restoreable, and contains concrete database records.
+
+##### Validation flow
+
+- (1) Inspect the live `user-db` state in the Proxmox target `dev` namespace and perform soem simple collection checks as validation baseline for a later comparison with the `user-db` restored from teh dump archive 
+- (2) Select the latest local `user-db` dump archive from the backup folder and it into a disposable local MongoDB container.
+- (3) Query the restored database with the same collection-checks used against the live database and compare the restored output with the live output.
+
+##### Inspect the live `user-db` state first
+
+Before validating the restored dump, the live `user-db` state is queried directly from the running Proxmox target dev pod:
+
+~~~bash
+# Find the live user-db pod in the Proxmox target dev namespace.
+$ USER_DB_POD="$(KUBECONFIG="$HOME/.kube/config-proxmox-dev.yaml" \
+  kubectl get pods -n sock-shop-dev -l name=user-db \
+  -o jsonpath='{.items[0].metadata.name}')"
+user-db-7bd86cdcd-xwm7b  
+
+# Query live collection names, document counts, and document keys from the users database.
+# - mongo users = open the MongoDB shell against the "users" database.
+# --quiet       = keep output focused.
+# --eval        = execute the MongoDB shell JavaScript expression and exit.
+$ KUBECONFIG="$HOME/.kube/config-proxmox-dev.yaml" \
+  kubectl exec -n sock-shop-dev "$USER_DB_POD" -- \
+  mongo users --quiet --eval '
+    db.getCollectionNames().sort().forEach(function(c) {
+      print("----- " + c + " -----");
+      var doc = db.getCollection(c).findOne();
+      print(c + ".count=" + db.getCollection(c).count());
+      print(c + ".keys=" + (doc ? Object.keys(doc).sort().join(",") : "<empty>"));
+    })
+  '
+----- addresses -----
+addresses.count=4
+addresses.keys=_id,city,country,number,postcode,street
+----- cards -----
+cards.count=4
+cards.keys=_id,ccv,expires,longNum
+----- customers -----
+customers.count=3
+customers.keys=_id,addresses,cards,firstName,lastName,password,salt,username  
+~~~  
+ 
+##### Restore the dump into a temporary MongoDB container
+
+The following restore check verifies the selected backup artifact in two ways:
+
+- The archived `user-db` dump can be restored into a queryable MongoDB instance.
+- The restored `user-db` exposes the same collections, document counts, and document shape as the previously inspected live `user-db`.
+
+For this verification a **disposable temporary local MongoDB container** is used, so the live `dev` and `prod` databases remain untouched. 
+
+~~~bash
+# Pick the latest local dev backup folder.
+# - find backups            = search inside the local backups/ directory.
+# - -maxdepth 1             = only inspect direct children of backups/, not nested files.
+# - -type d                 = return directories only.
+# - -name 'sock-shop-dev_*' = match timestamped dev backup folders.
+# - sort                    = order matching folders 
+# - tail -n 1               = keep the newest matching backup folder.
+$ latest_backup="$(find backups -maxdepth 1 -type d -name 'sock-shop-dev_*' | sort | tail -n 1)"
+
+$ echo "$latest_backup"
+backups/sock-shop-dev_20260427T203209Z
+
+# Find from inside the dev backup folder the user-db archive dump 
+$ USER_DUMP="$(find "$latest_backup/db" -maxdepth 1 -type f -name 'user-db_*.archive.gz' | sort | tail -n 1)"
+
+# Show the selected archive before the restore check.
+$ echo "$USER_DUMP"
+backups/sock-shop-dev_20260427T203209Z/db/user-db_user-db-7bd86cdcd-xwm7b.archive.gz
+
+# Create and start a temporary local MongoDB container for the restore check 
+# Uses the Docker image mongo:3.4 for compatibility with the legacy Sock Shop MongoDB dumps.
+# --rm removes the container automatically after it is stopped.
+# -d runs it in the background.
+$ RESTORE_CHECK_CONTAINER="p09-mongo-restore-check"
+$ docker run --rm -d --name "$RESTORE_CHECK_CONTAINER" mongo:3.4
+39fa9be8bf0133289fde98848e5717f6b07debf3cb340691940093747456a583
+
+# Wait until MongoDB is ready inside the temporary restore-check container.
+# - docker exec                  = run a command inside the running container.
+# - sh -c                        = run the quoted shell loop inside the container.
+# - until ...; do sleep 1; done  = shell loop: retry once per second until the ping succeeds.
+# - mongo --quiet --eval         = run a quiet MongoDB shell readiness check and exit.
+# - >/dev/null 2>&1              = silence normal output and errors during the retry loop.
+$ docker exec "$RESTORE_CHECK_CONTAINER" sh -c 'until mongo --quiet --eval "db.adminCommand({ ping: 1 })" >/dev/null 2>&1; do sleep 1; done'
+
+# Copy the selected local dump archive from the workstation into the temporary container.
+$ docker cp "$USER_DUMP" "$RESTORE_CHECK_CONTAINER:/tmp/user-db.archive.gz"
+Successfully copied 1.04kB (transferred 3.07kB) to p09-mongo-restore-check:/tmp/user-db.archive.gz
+
+# Restore the archive into the temporary MongoDB container.
+# --archive = reads the specified archive file.
+# --gzip    = decompress the gzip-compressed archive stream while restoring.
+$ docker exec "$RESTORE_CHECK_CONTAINER" mongorestore --archive=/tmp/user-db.archive.gz --gzip
+2026-04-28T08:36:03.706+0000    preparing collections to restore from
+2026-04-28T08:36:03.720+0000    reading metadata for users.cards from archive '/tmp/user-db.archive.gz'
+2026-04-28T08:36:03.731+0000    restoring users.cards from archive '/tmp/user-db.archive.gz'
+2026-04-28T08:36:03.739+0000    no indexes to restore
+2026-04-28T08:36:03.739+0000    finished restoring users.cards (4 documents)
+2026-04-28T08:36:03.740+0000    reading metadata for users.customers from archive '/tmp/user-db.archive.gz'
+2026-04-28T08:36:03.744+0000    restoring users.customers from archive '/tmp/user-db.archive.gz'
+2026-04-28T08:36:03.745+0000    reading metadata for users.addresses from archive '/tmp/user-db.archive.gz'
+2026-04-28T08:36:03.745+0000    restoring indexes for collection users.customers from metadata
+2026-04-28T08:36:03.749+0000    restoring users.addresses from archive '/tmp/user-db.archive.gz'
+2026-04-28T08:36:03.751+0000    finished restoring users.customers (3 documents)
+2026-04-28T08:36:03.751+0000    no indexes to restore
+2026-04-28T08:36:03.751+0000    finished restoring users.addresses (4 documents)
+2026-04-28T08:36:03.751+0000    done
+
+# Query restored collection counts from the temporary MongoDB container.
+# - mongo users = open the MongoDB shell against the restored "users" database.
+# - --quiet     = keep output focused on the printed counts.
+# - --eval      = execute the JavaScript expression and exit.
+$ docker exec "$RESTORE_CHECK_CONTAINER" mongo users --quiet --eval 'print("customers=" + db.customers.count()); print("cards=" + db.cards.count()); print("addresses=" + db.addresses.count())'
+customers=3
+cards=4
+addresses=4
+
+# Query restored collection names, document counts, and document keys from the temporary MongoDB container.
+# This uses the same query shape as the live check above, so the restored dump can be compared directly.
+docker exec "$RESTORE_CHECK_CONTAINER" mongo users --quiet --eval '
+  db.getCollectionNames().sort().forEach(function(c) {
+    print("----- " + c + " -----");
+    var doc = db.getCollection(c).findOne();
+    print(c + ".count=" + db.getCollection(c).count());
+    print(c + ".keys=" + (doc ? Object.keys(doc).sort().join(",") : "<empty>"));
+  })
+'
+addresses.count=4
+addresses.keys=_id,city,country,number,postcode,street
+cards.count=4
+cards.keys=_id,ccv,expires,longNum
+customers.count=3
+customers.keys=_id,addresses,cards,firstName,lastName,password,salt,username
+
+# Remove the temporary restore-check container.
+# -f = force removal; if the container is still running, Docker stops it first and then removes it.
+$ docker rm -f "$RESTORE_CHECK_CONTAINER"
+~~~
+
+##### Validation result
+
+- The selected `user-db` backup is present as an archive dump file. 
+- The archive can be restored into a compatible MongoDB instance and queried successfully.
+- The restored dump matches the previously inspected live `user-db` state from the target cluster's `dev`-namespace:
+  - `addresses.count=4`
+  - `cards.count=4`
+  - `customers.count=3`
+- The restored collection keys also match the live collection keys.:
+  - `addresses.keys=_id,city,country,number,postcode,street`
+  - `cards.keys=_id,ccv,expires,longNum`
+  - `customers.keys=_id,addresses,cards,firstName,lastName,password,salt,username` 
+
+This confirms that the backup contains concrete, restoreable database data without restoring anything into the live `dev` or `prod` environments.  
+
+---
 
 ### Result
 
@@ -876,8 +1155,9 @@ The backup proof completed successfully:
   - `carts-db`
   - `orders-db`
   - `user-db`
-  - The generated `.archive.gz` files are real MongoDB dump artifacts. 
-- `catalogue-db` and `session-db` were skipped:
+- The generated `.archive.gz` files are real MongoDB dump artifacts and were verified 
+  - The live `user-db` collections, document counts, and document keys were queried as baseline for a restore check - and matched against the restored dump in a temporary MongoDB container 
+- `catalogue-db` and `session-db` were skipped fcrom teh archive procedure:
   - `catalogue-db` uses the custom upstream `weaveworksdemos/catalogue-db:0.3.0` image and is not dumpable through `mongodump`
   - `session-db` uses `redis:alpine`, so MongoDB dump tooling is not applicable
 - The script continued with the remaining data-store targets instead of failing early
