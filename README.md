@@ -1,118 +1,234 @@
-# Sock Shop — Production-like DevOps Delivery Path
-
-
-The goal is not just to run the application once, but to build a **reproducible, phase-based delivery path** with evidence-grade documentation that gradually proves the core capabilities expected from a modern DevOps project:
-
-- containerized application delivery
-- Kubernetes deployment
-- CI/CD
-- environment separation
-- observability
-- security measures
-- disaster-recovery thinking
-- and infrastructure-oriented deployment evolution toward a long-lived target environment
-
-The project is intentionally implemented in phases so that each new capability builds on an already proven baseline.
-
-
 # 🧦 Sock Shop: Production-Grade DevOps Delivery Path
 
-### Proxmox VE Target Delivery • K3s Multi-Environment (`dev` / `prod`) • GitHub Actions CI/CD • Cloudflare Tunnels • Tailscale Private Access • Prometheus/Grafana Observability • Deterministic Test Gate • Trivy Security Scanning • Playwright Smoke Tests • Protected PR Workflow
+<!-- ### Proxmox VM Templates & K3s Target Delivery • Multi-Environment (`dev` / `prod`) • GitHub Actions CI/CD & GHCR • Cloudflare Tunnels • Tailscale Private Access • Prometheus/Grafana Observability • Ruby/Bash/Python Test Gate • Playwright Smoke Tests • Trivy Security Scanning & Dependabot • Terraform IaC Baseline • DR Backup & Restore Validation • Protected PR Workflow -->
 
-Production grade DevOps project based on the upstream WeaveSocks microservices application. This repository demonstrates a complete, **reproducible, phase-based delivery path** from **local Docker Compose baseline** to a **production-like Proxmox target environment**.
+![Proxmox](https://img.shields.io/badge/Proxmox-333333?style=for-the-badge&logo=proxmox&logoColor=white)
+![Kubernetes](https://img.shields.io/badge/K3s-333333?style=for-the-badge&logo=kubernetes&logoColor=white)
+![Terraform](https://img.shields.io/badge/Terraform-333333?style=for-the-badge&logo=terraform&logoColor=white)
+![GitHub Actions](https://img.shields.io/badge/GitHub_Actions-333333?style=for-the-badge&logo=githubactions&logoColor=white)
+![GHCR](https://img.shields.io/badge/GHCR-333333?style=for-the-badge&logo=github&logoColor=white)
+![Cloudflare](https://img.shields.io/badge/Cloudflare-333333?style=for-the-badge&logo=cloudflare&logoColor=white)
+![Tailscale](https://img.shields.io/badge/Tailscale-333333?style=for-the-badge&logo=tailscale&logoColor=white)
+![Prometheus](https://img.shields.io/badge/Prometheus-333333?style=for-the-badge&logo=prometheus&logoColor=white)
+![Grafana](https://img.shields.io/badge/Grafana-333333?style=for-the-badge&logo=grafana&logoColor=white)
+![Ruby](https://img.shields.io/badge/Ruby-333333?style=for-the-badge&logo=ruby&logoColor=white)
+![Bash](https://img.shields.io/badge/Bash-333333?style=for-the-badge&logo=gnubash&logoColor=white)
+![Python](https://img.shields.io/badge/Python-333333?style=for-the-badge&logo=python&logoColor=white)
+![Playwright](https://img.shields.io/badge/Playwright-333333?style=for-the-badge&logo=playwright&logoColor=white)
+![Trivy](https://img.shields.io/badge/Trivy-333333?style=for-the-badge&logo=aquasecurity&logoColor=white)
+![Dependabot](https://img.shields.io/badge/Dependabot-333333?style=for-the-badge&logo=dependabot&logoColor=white)
 
-> **Project focus:** The goal is not just to run the application once, but to build a **reproducible, phase-based delivery path** with **evidence-grade documentation** that gradually proves the **core capabilities expected from a modern DevOps project**: containerized delivery, environment separation, observability, security measures, and infrastructure-oriented deployment evolution.
+<!-- ![Proxmox](https://img.shields.io/badge/Proxmox-E57000?style=for-the-badge&logo=proxmox&logoColor=white) 
+![Kubernetes](https://img.shields.io/badge/K3s-FFC61C?style=for-the-badge&logo=kubernetes&logoColor=white)
+![Terraform](https://img.shields.io/badge/Terraform-7B42BC?style=for-the-badge&logo=terraform&logoColor=white)
+![GitHub Actions](https://img.shields.io/badge/GitHub_Actions-2088FF?style=for-the-badge&logo=githubactions&logoColor=white)
+![GHCR](https://img.shields.io/badge/GHCR-181717?style=for-the-badge&logo=github&logoColor=white)
+![Cloudflare](https://img.shields.io/badge/Cloudflare-F38020?style=for-the-badge&logo=cloudflare&logoColor=white)
+![Tailscale](https://img.shields.io/badge/Tailscale-000000?style=for-the-badge&logo=tailscale&logoColor=white)
+![Prometheus](https://img.shields.io/badge/Prometheus-E6522C?style=for-the-badge&logo=prometheus&logoColor=white)
+![Grafana](https://img.shields.io/badge/Grafana-F46800?style=for-the-badge&logo=grafana&logoColor=white)
+![Ruby](https://img.shields.io/badge/Ruby-CC342D?style=for-the-badge&logo=ruby&logoColor=white)
+![Bash](https://img.shields.io/badge/Bash-4EAA25?style=for-the-badge&logo=gnubash&logoColor=white)
+![Python](https://img.shields.io/badge/Python-3776AB?style=for-the-badge&logo=python&logoColor=white)
+![Playwright](https://img.shields.io/badge/Playwright-2EAD33?style=for-the-badge&logo=playwright&logoColor=white)
+![Trivy](https://img.shields.io/badge/Trivy-1E5B99?style=for-the-badge&logo=aquasecurity&logoColor=white)
+![Dependabot](https://img.shields.io/badge/Dependabot-025E8C?style=for-the-badge&logo=dependabot&logoColor=white) -->
+
+Production-grade DevOps project based on the upstream WeaveSocks microservices application. This repository demonstrates a **reproducible, phase-based delivery path** from a **local Docker Compose baseline** to a **long-lived Proxmox-based K3s target environment** with public `dev` and `prod` entrypoints.
+
+> **Project focus:** The goal is not just to run the application once, but to build a reproducible, phase-based DevOps delivery path with evidence-grade documentation. The project is intentionally implemented in phases so that each new capability builds on an already proven baseline, gradually covering the core capabilities expected from a modern DevOps delivery project:
+>
+> - **🏗️ Infrastructure & Platform:** Infrastructure as Code (IaC), Proxmox VM templating, Kubernetes deployment, and long-lived target-environment evolution.
+> - **🚢 Delivery & Operations:** Containerized microservices delivery and operation, CI/CD, repo-owned container image build and publishing, and `dev` / `prod` environment separation.
+> - **🛡️ Quality & Security:** Repo-owned validation tooling, deterministic test gates, security measures, Trivy scanning, and Dependabot dependency visibility.
+> - **📊 Resilience & Observability:** Prometheus/Grafana observability, Kubernetes state backup, Mongo-compatible data-store dump validation, pod recovery proof, and rollback readiness.
+> - **📚 Documentation & Evidence:** Phase-based implementation logs, runbooks, decisions, architecture notes, and evidence folders.. Start with [Documentation Index](project-docs/INDEX.md) for the full phase-based documentation structure: implementation logs, runbooks, decisions, ADRs, architecture notes, and evidence folders. Quick links: [Roadmap](project-docs/ROADMAP.md) · [Global decisions](project-docs/DECISIONS.md) · [Debug log](project-docs/DEBUG-LOG.md)
 
 ---
 
 ## 🧱 Tech Stack
 
-🐳 **Docker** | ☸️ **Kubernetes (K3s)** | 🐙 **GitHub Actions** | 🚜 **Proxmox VE** | 🛡️ **Tailscale** | ☁️ **Cloudflare Tunnels** | 🚦 **Traefik** | 🧩 **Kustomize** | 📈 **Prometheus & Grafana** | 🔎 **Trivy** | 🎭 **Playwright** | 🤖 **Dependabot** | 💎 **Ruby/Minitest** | 🐚 **Bash** | 🐍 **Python/pytest** | 🟨 **JavaScript**
+*Infrastructure, delivery & operations:*\
+🐳 **Docker** | ☸️ **Kubernetes (K3s)** | 🧪 **kind** | 🐙 **GitHub Actions** | 📦 **GHCR** | 🚜 **Proxmox VE** | ☁️ **Cloud-Init** | 🧱 **Terraform** | 🛡️ **Tailscale** | ☁️ **Cloudflare Tunnels** | 🚦 **Traefik** | 🧩 **Kustomize** | 📈 **Prometheus & Grafana** | ⚓ **Helm** | 🔎 **Trivy** | 🤖 **Dependabot** | 🗄️ **MongoDB**
+
+*Repo-owned code, tooling & tests:*\
+💎 **Ruby** | 🐍 **Python** | 🐚 **Bash** | 🟨 **JavaScript** | **Minitest** | **pytest** | 🎭 **Playwright**
 
 ---
 
-## 🚀 Live target environments
+## 🚀 Live Target Environments
 
-The project now exposes both long-lived target environments (`dev-sockshop` + `prod-sockshop`) publicly through a Proxmox-based delivery path:
+The project exposes two long-lived public target environments through the Proxmox-based K3s delivery path:
 
-- **Development:** https://dev-sockshop.cdco.dev/ 
-- **Production:** https://prod-sockshop.cdco.dev/ 
+| Environment | Public&nbsp;Entrypoint&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; | Role |
+| :--- | :--- | :--- |
+| 🧪&nbsp;**Development** | [dev-sockshop.cdco.dev](https://dev-sockshop.cdco.dev/) | Post-merge automated deployment target for validated changes; gated by required PR-checks; used for live smoke tests before production promotion |
+| 🚀&nbsp;**Production** | [prod-sockshop.cdco.dev](https://prod-sockshop.cdco.dev/) | Approval-gated target environment for the promoted release |
 
-These URLs represent the current live public entrypoints of the target platform proven in Phase 05 of the implementation path.
+Both entrypoints are routed through **Cloudflare Tunnel** to the **Proxmox-based K3s target platform**, where **Traefik** routes traffic by hostname into the correct namespace.
+
+## 🔄 CI/CD Promotion Model
+
+The current delivery path follows a **trunk-based CI/CD model with gated promotion**. Feature branches are reviewed through pull requests and can enter `master` only after the required deterministic checks pass. The merged commit triggers the Delivery Pipeline and is deployed automatically to `dev`. The same merge commit is finally promoted to `prod` after approval. 
+
+### Delivery Flow 
+
+The delivery path is organized as a controlled promotion chain: protected merge, automated `dev` deployment, optional live validation, and approval-gated `prod` promotion.
+
+1. **🛡️&nbsp;Before merge:**\
+The deterministic PR gate (**Ruby, Bash, Python tests + focused Trivy scans**) must pass before changes can enter `master` 
+
+2. **⚡ After merge:**\
+The merge commit accepted by the PR gate triggers the target delivery workflow and deploys automatically to `dev`
+
+3. **🔍 Before production:**\
+Live validation can be run against `dev` via **Python API contract smoke checks and Playwright browser smoke tests**
+
+4. **🚀 Production promotion:**\
+The same accepted commit promotes to `prod` only after reviewer approval (**GitHub Environment approval gate**)
+
+### Workflow Trigger Model
+
+The following workflows and automations implement this delivery flow:
+
+| Workflow / automation | Trigger&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; | Executed&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; | Role |
+| :--- | :--- | :--- | :--- |
+| **🛡️&nbsp;Deterministic&nbsp;PR&nbsp;Gate** | (1) Pull requests targeting `master` when opened, reopened, or updated with new commits<br/>(2) Manual reruns via `workflow_dispatch` | (1) Ruby HealthCheck helper tests<br/>(2) Bash helper tests<br/>(3) Python API contract-guard tests<br/>(4) Focused Trivy repo scan and image scan | Required merge gate before changes can enter `master` |
+| **🏗️&nbsp;Target&nbsp;Delivery&nbsp;Workflow** | (1) Push to `master` after merge<br/>(2) Manual runs via `workflow_dispatch` | (1) Kustomize overlay validation<br/>(2) Repo-owned `healthcheck` image build and GHCR push<br/>(3) Automated `dev` deployment<br/>(4) Approval-gated `prod` deployment | Main delivery workflow for the Proxmox target cluster |
+| **🧪&nbsp;Live Smoke Workflow** | (1) Manual run via `workflow_dispatch`<br/>(2) Reusable workflow call via `workflow_call` | (1) Python live contract smoke tests<br/>(2) Playwright browser smoke tests against `dev` or `prod` | Environment-dependent validation, intentionally separate from the deterministic PR gate |
+| **🤖&nbsp;Dependabot** | (1) Weekly scheduled dependency checks<br/>(2) Manual runs via GitHub UI or PR comments | (1) GitHub Actions<br/>(2) Playwright npm dependencies<br/>(3) Terraform provider dependencies | Dependency visibility for repo-owned tooling and infrastructure paths; generated PRs still go through the normal PR gate |
+
+### Promotion model summary
+
+The project does not use separate long-lived Git branches for `dev` and `prod`. Instead, `master` remains the source of truth, and the same accepted merge commit moves through:
+
+- Deterministic PR validation
+- Automated `dev` delivery
+- Optional live smoke validation
+- Approval-gated `prod` promotion
+
+**Result:** This project uses a professional **single-branch promotion workflow** with protected merge checks, automated `dev` delivery, controlled `prod` promotion, separate live validation for deployed environments, and scheduled dependency visibility through Dependabot.
 
 ## 🌍 Environment model on the current target
+
+### Target shape
 
 The current `dev` and `prod` environments do not run on separate machines.
 
 Both run on the **same Proxmox-based target VM** inside the **same single-node K3s cluster**.
 
-The **Environment separation is logical** and implemented through:
+**Result: `1 VM -> 1 cluster -> 2 namespaces -> 2 app environments`**
 
-- Separate Kubernetes namespaces (`sock-shop-dev`, `sock-shop-prod`)
-- Separate Kustomize overlays (`deploy/kubernetes/kustomize/overlays/dev|prod`)
-- Host-based ingress routing through Traefik for both environments 
-- Separate public hostnames:
+### Logical environment separation
+
+The logical environment separation is implemented through:
+
+- (1) Separate Kubernetes namespaces (`sock-shop-dev`, `sock-shop-prod`)
+- (2) Separate Kustomize overlays (`deploy/kubernetes/kustomize/overlays/dev|prod`)
+- (3) Host-based ingress routing through Traefik for both environments 
+- (4) Separate public hostnames:
   - https://dev-sockshop.cdco.dev/
   - https://prod-sockshop.cdco.dev/
-- Separate workflow behavior (automated `dev` deployment, approval-gated `prod` deployment)
+- (5) Separate workflow behavior (automated `dev` deployment, approval-gated `prod` deployment)
+
+### Operational support around the target model
+
+Additional operational support around this target model now includes:
+
+- **Terraform IaC baseline:** Phase 08 proves reproducible Proxmox VM provisioning through an isolated disposable smoke VM path.
+- **DR backup baseline:** Phase 09 exports Kubernetes namespace state for `sock-shop-dev` and `sock-shop-prod` and validates Mongo-compatible dump artifacts through a temporary restore check.
+
+### Public routing path
 
 Public traffic reaches the same target platform through Cloudflare Tunnel and is then routed by **hostname** through **Traefik** to the correct namespace-based application environment.
 
-**Result: `1 VM -> 1 cluster -> 2 namespaces -> 2 app environments`**
+**Result:\
+\
+`1 VM -> 1 cluster -> 2 namespaces -> 2 app environments`**
+
+Note: The Terraform baseline currently supports this architecture as a reproducible Proxmox provisioning proof, while the live `dev` / `prod` target remains the already established VM `9200` from the Phase 05 target-delivery path. 
 
 ~~~text
-Public Internet
-       |
-       v
-+-------------------------------------------------------------+
-| Cloudflare Tunnel (Edge Security)                           |
-+-------------------------------------------------------------+
-       |
-       | (HTTPS routed by hostname)
-       v
-+-------------------------------------------------------------+
-| Target VM (Proxmox / K3s Single-Node)                       |
-|                                                             |
-|   +-----------------------------------------------------+   |
-|   | Traefik Ingress Controller                          |   |
-|   +-----------------------------------------------------+   |
-|          |                                     |            |
-|   dev-sockshop.cdco.dev              prod-sockshop.cdco.dev |
-|          |                                     |            |
-|          v                                     v            |
-|   +-----------------------+         +-----------------------+
-|   | Namespace:            |         | Namespace:            |
-|   | sock-shop-dev         |         | sock-shop-prod        |
-|   |                       |         |                       |
-|   | (Automated via CI)    |         | (Approval-gated CI)   |
-|   +-----------------------+         +-----------------------+
-+-------------------------------------------------------------+
+                          Public Internet
+                                |
+                                | (R1) HTTPS :443
+                                |
+                                v
++-------------------------------------------------------------------+
+|                        CLOUDFLARE TUNNEL                          |
+|                   (Public Edge + Security)                        |
++-------------------------------------------------------------------+
+                                |
+                                | (R2) Hostname-based HTTPS routing
+                                | 
+                                v
++-------------------------------------------------------------------+
+|     --- TARGET VM 9200 (PROXMOX / K3S SINGLE-NODE) ---            |
+|                                                                   |
+|   +----------------------------------------------------------+    |
+|   |               TRAEFIK INGRESS CONTROLLER                 |    |
+|   +----------------------------------------------------------+    |
+|             |                                   |                 |
+|   (R3a) dev-sockshop.cdco.dev       (R3b) prod-sockshop.cdco.dev  |
+|             |                                   |                 |
+|             v                                   v                 |
+|   +-----------------------+         +-----------------------+     |
+|   | Namespace:            |         | Namespace:            |     |
+|   | sock-shop-dev         |         | sock-shop-prod        |     |
+|   |                       |         |                       |     |
+|   | (Automated via CI)    |         | (Approval-gated CI)   |     |
+|   +-----------------------+         +-----------------------+     |
+|             ^                                  ^                  |
+|             |                                  |                  |
+|             |  (D3) Controllers Reconcile      |                  |       
+|             |       namespace resources        |                  |
+|             +-----------------+----------------+                  |
+|                               |                                   |
+|   +----------------------------------------------------------+    |
+|   |          (D2) KUBERNETES API / CONTROL PLANE             |    |
+|   | API stores desired state; controllers reconcile resources|    |
+|   +----------------------------------------------------------+    |
++-------------------------------------------------------------------+
+                                ^
+                                |
+            (D1) Private Kubernetes API access via Tailscale
+                                |
++-------------------------------------------------------------------+
+|        --- GITHUB ACTIONS RUNNER / OPERATOR WORKSTATION ---       |
+|          renders selected env-specific Kustomize overlay          |
+|           overlay into final Kubernetes manifests and             |
+|        uses private kubectl access to the target cluster          |
++-------------------------------------------------------------------+
+
+     
 ~~~
+
+The **numbered flow** above separates the public request path from the deployment control path: 
+- **Public Request Path (R1-R3):**\
+User traffic enters through HTTPS, reaches the Cloudflare Tunnel, and is routed by Traefik based on the requested hostname to either `sock-shop-dev` or `sock-shop-prod`.
+- **Deployment Control Path (D1-D3):**\
+**GitHub Actions CI** renders the selected environment-specific Kustomize overlay into final Kubernetes manifests and applies those manifests to the Kubernetes API through the private **Tailscale** access path - as the desired target cluster state for the selected namespace. The same private access model is also used for operator `kubectl` access and private port-forwarding tasks.\
+**Kubernetes** then performs **reconciliation**: the API receives the manifests and stores them as desired state, and Kubernetes controllers create, update, or replace resources until the affected namespace matches the applied manifests.
+
+### Deployment and Reconciliation Model
 
 These namespaces are logical partitions inside one Kubernetes cluster, not separate clusters. When the `dev` overlay is applied, Kubernetes updates the desired state of the resources in `sock-shop-dev` only. The `prod` namespace remains unchanged until the `prod` overlay is applied and approved.
 
-The delivery workflow does not copy the repository onto the VM or run the application from a Git checkout on the target machine. Instead, GitHub Actions applies Kubernetes manifests to the cluster API. Kubernetes stores that desired state and reconciles the affected namespace resources. 
+The delivery workflow does not copy the repository onto the VM or run the application from a Git checkout on the target machine. 
 
-## 🔄 Delivery workflow model
-
-The current delivery path follows a **trunk-based CI/CD model with gated promotion**:
-
-- Feature branches are merged into `master`
-- The merged commit triggers teh Pipeline and is deployed automatically to `dev`
-- The same commit is promoted to `prod` only after approval 
-
-**Result:** This project uses a professional **single-branch promotion workflow** rather than separate long-lived Git branches per environment.
+Instead, GitHub Actions applies Kubernetes manifests to the cluster API. Kubernetes stores that desired state and recreates/updates the affected resources until the namespace matches it (reconciliation).
 
 ## 🎯 Target Scope
 
-✅ **Kubernetes deployment** (K3s locally → Proxmox target)\
-✅ **CI/CD** (build/test/push/deploy with approval-gated `prod`)\
-✅ **Observability** (Prometheus/Grafana baseline proven on the real target)\
-✅ **Testing** (Ruby, Bash, Python contract guard, Playwright smoke checks)\
-✅ **DevSecOps controls** (Trivy filesystem/image scanning, Dependabot, protected PR gate)\
-✅ **Documentation:** phase logs + setup notes + decisions + ADRs\
-⏳ **IaC** (Terraform planned for stable target/bootstrap pieces)\
-⏳ **DR / rollback approach** (planned)
+✅ **Kubernetes Deployment** (local K3s baseline → Proxmox target K3s cluster)\
+✅ **CI/CD** (test/build/push/deploy with automated `dev` and approval-gated `prod`)\
+✅ **Environment Separation** (`sock-shop-dev` / `sock-shop-prod` namespaces and Kustomize overlays)\
+✅ **Observability** (Prometheus/Grafana baseline proven on the Proxmox target)\
+✅ **Testing** (Ruby, Bash, Python contract guard, Playwright live smoke checks)\
+✅ **DevSecOps Controls** (Trivy filesystem/image scanning, Dependabot, protected PR gate)\
+✅ **Infrastructure as Code Baseline** (Terraform Proxmox Smoke-VM provisioning proof)\
+✅ **Disaster Recovery / Rollback Readiness** (Kubernetes state backup, Mongo-compatible dump validation, pod recovery proof, rollback path documentation)\
+✅ **Documentation:** Phase logs + setup notes + decisions + ADRs + evidence folders
 
 ---
 
@@ -133,7 +249,12 @@ This repository demonstrates an iterative DevOps delivery path built around Sock
 ✅ Browser smoke testing with Playwright\
 ✅ Trivy-based security scanning and evidence-based Dockerfile remediation\
 ✅ Dependabot dependency update baseline\
-✅ Protected default branch with required deterministic CI checks
+✅ Protected default branch with required deterministic CI checks\
+✅ Terraform-based Proxmox IaC baseline with disposable smoke-VM provisioning\
+✅ DR backup helper for Kubernetes namespace state and Mongo-compatible data-store dumps\
+✅ Temporary restore validation for a representative MongoDB dump artifact\
+✅ Pod-level recovery proof through Kubernetes Deployment reconciliation\
+✅ Rollback readiness documentation for Kubernetes Deployment revisions
 
 ---
 
@@ -182,10 +303,29 @@ This repository demonstrates an iterative DevOps delivery path built around Sock
 - Trivy filesystem scan baseline for repo-owned code/config components
 - Trivy image vulnerability scan for the repo-owned `healthcheck` image
 - Hardened `healthcheck` Dockerfile with clean focused Trivy reruns
-- Dependabot baseline for GitHub Actions and Playwright npm dependencies
+- Dependabot baseline for GitHub Actions, Playwright npm dependencies, and Terraform provider dependencies
 - Deterministic GitHub Actions PR gate with required status-check job names
 - Separate live-smoke workflow for deployed environment validation
 - Protected `master` branch with required deterministic Phase 07 checks
+
+#### Infrastructure as Code Baseline
+
+- Terraform workspace for a focused Proxmox smoke-VM proof
+- Proxmox API access validated through the configured Terraform provider path
+- Disposable VM `9300` provisioned from the workload-ready template `9010`
+- Terraform plan/apply/destroy lifecycle proven successfully
+- Terraform provider dependencies added to the Dependabot scope
+- Terraform-related Makefile helpers added for repeatable local execution
+
+#### Disaster Recovery & Rollback Readiness
+
+- DR backup helper added for `sock-shop-dev` and `sock-shop-prod`
+- Backup artifacts include Kubernetes namespace state, resource snapshots, Secret metadata only, and database backup reports
+- Mongo-compatible data-store dumps created where `mongodump` is available
+- Representative `user-db` dump restored into a temporary local MongoDB container and queried successfully
+- Pod-level recovery proven by deleting a live `front-end` dev pod and validating Kubernetes recreation
+- Live smoke checks passed after recovery
+- Kubernetes rollback path documented without forcing an artificial bad release
 
 #### 🚥 Traffic Generator (Observability Helper)
 
@@ -219,11 +359,11 @@ On execution, it generates **repeatable storefront traffic** so the monitoring s
 |---------------------------+------------+------------------------------------------+--------+----------|
 | Host                      | Endpoint   | Param                                    | Status | Latency  |
 |---------------------------+------------+------------------------------------------+--------+----------|
-| dev-sockshop.cdco.dev    | basket     | -                                        | 200    | 0.060022 |
-| dev-sockshop.cdco.dev    | categories | -                                        | 200    | 0.054873 |
-| dev-sockshop.cdco.dev    | home       | -                                        | 200    | 0.052675 |
-| dev-sockshop.cdco.dev    | detail     | id=d3588630-ad8e-49df-bbd7-3167f7efb246  | 200    | 0.053624 |
-| dev-sockshop.cdco.dev    | category   | tags=action                              | 200    | 0.055025 |
+| dev-sockshop.cdco.dev     | basket     | -                                        | 200    | 0.060022 |
+| dev-sockshop.cdco.dev     | categories | -                                        | 200    | 0.054873 |
+| dev-sockshop.cdco.dev     | home       | -                                        | 200    | 0.052675 |
+| dev-sockshop.cdco.dev     | detail     | id=d3588630-ad8e-49df-bbd7-3167f7efb246  | 200    | 0.053624 |
+| dev-sockshop.cdco.dev     | category   | tags=action                              | 200    | 0.055025 |
 |---------------------------+------------+------------------------------------------+--------+----------|
 |                                           --- 00:07:54 ---                                            |
 |---------------------------+------------+------------------------------------------+--------+----------|
@@ -290,7 +430,11 @@ The current architecture direction is:
     - Dedicated `monitoring` namespace
     - `kube-prometheus-stack` monitoring baseline
     - Private Grafana and Prometheus access via `kubectl port-forward`
-- **Later planned layers:** security hardening, DR, and selective IaC-driven codification of stable target/bootstrap pieces
+- **Current support layers:**
+  - Terraform IaC baseline for reproducible Proxmox provisioning proof
+  - Phase 09 DR backup path for Kubernetes state and Mongo-compatible data-store dumps
+  - Pod recovery and rollback-readiness documentation
+- **Later planned / hardening layers:** broader IaC coverage, full restore drills in disposable environments, stronger secret-management integration, and optional GitOps
 
 This means the project is no longer only proving delivery mechanics in isolation; it is now also proving those mechanics against a real long-lived target environment.
 
@@ -312,6 +456,12 @@ Depending on the phase, a folder may contain:
 
 ### Current phase docs
 
+- Phase 09 disaster recovery / rollback readiness:
+  - [project-docs/09-dr-rollback/IMPLEMENTATION.md](project-docs/09-dr-rollback/IMPLEMENTATION.md)
+  - Phase 09 documentation is in progress; the functional backup, restore-validation, and recovery proof are already implemented.
+- Phase 08 Proxmox IaC baseline:
+  - [project-docs/08-proxmox-iac/IMPLEMENTATION.md](project-docs/08-proxmox-iac/IMPLEMENTATION.md)
+  - Phase 08 documentation is in progress; the Terraform smoke-VM proof is already implemented.
 - Phase 07 setup:
   - [project-docs/07-security-testing/SETUP.md](project-docs/07-security-testing/SETUP.md)
 - Phase 07 runbook:
@@ -465,41 +615,35 @@ The repository currently contains proven work across these phases:
     - [Runbook](project-docs/07-security-testing/RUNBOOK.md)    
     - [Decisions](project-docs/07-security-testing/DECISIONS.md)
 
+- **Phase 08 — Proxmox IaC baseline**
+  - Terraform workspace added for a focused Proxmox smoke-VM proof
+  - Proxmox API endpoint and token-based access validated
+  - Terraform plan created for disposable VM `9300`
+  - Terraform apply successfully created the smoke VM from template `9010`
+  - Proxmox host-side verification confirmed the created VM
+  - Terraform destroy successfully removed the disposable VM again
+  - Makefile helpers added for Terraform init, validate, plan, apply, and destroy
+  - Dependabot scope extended to Terraform provider dependencies
+  - Docs:
+    - [Implementation](project-docs/08-proxmox-iac/IMPLEMENTATION.md)
+
+- **Phase 09 — Disaster recovery / rollback readiness**
+  - DR backup helper added for `sock-shop-dev` and `sock-shop-prod`
+  - Remote Proxmox target kubeconfig used by default for backup execution
+  - Kubernetes namespace state exported into timestamped local backup artifacts
+  - Secret values intentionally excluded; only Secret metadata is recorded
+  - Mongo-compatible data-store dumps created where `mongodump` is available
+  - Representative `user-db` dump restored into a temporary MongoDB container and queried successfully
+  - Dev pod recovery proven through intentional `front-end` pod deletion and Kubernetes recreation
+  - Live smoke checks passed after recovery
+  - Kubernetes rollback path documented for future bad-revision scenarios
+  - Docs:
+    - [Implementation](project-docs/09-dr-rollback/IMPLEMENTATION.md)
+
 Note: This section is intentionally a moving summary, not the final shape of the project.
 
-## Tech stack
+---
 
-Current or already chosen technology in this project includes:
-
-- Docker
-- Kubernetes
-- K3s
-- Traefik
-- Kustomize
-- GitHub Actions
-- GHCR
-- `kind`
-- Proxmox VE
-- Cloud-Init
-- Tailscale
-- Cloudflare Tunnel
-- Helm
-- Prometheus
-- Grafana
-- Trivy
-- Playwright
-- Dependabot
-- Python / pytest
-- Ruby / Minitest
-- Bash helper tests
-
-Additional planned layers include:
-
-- Terraform
-- DR / rollback automation and documentation
-
-Helm is also present in the repository and was evaluated, but deferred for the current CI/CD baseline because the chart path still introduces legacy compatibility friction. [TODO: Update Helm-usage for monitoring/observability] ...
- 
 ## 📸 Evidence
 
 Evidence is captured phase-by-phase under:\
@@ -544,6 +688,19 @@ The full evidence index for each phase is documented inside the corresponding `I
 - Dependabot is scoped to owned dependency targets: GitHub Actions and the Playwright npm project.
 - The default branch is protected through required deterministic Phase 07 checks.
 
+### Phase 08 — Proxmox IaC baseline
+
+- The first IaC proof is intentionally scoped to a disposable Proxmox smoke VM instead of replacing the already working target VM `9200`.
+- Terraform is used to prove reproducible Proxmox VM provisioning without destabilizing the live `dev` / `prod` target.
+- The Terraform-managed smoke VM is destroyed after verification so the target host remains clean.
+
+### Phase 09 — Disaster Recovery & Rollback Readiness
+
+- The first DR baseline focuses on safe, executable proof: Kubernetes state export, Mongo-compatible dump validation, pod recovery, and rollback path documentation.
+- Backup artifacts are generated locally and excluded from Git.
+- Secret values are not exported; only Secret metadata is recorded.
+- Full database restore into live `dev` or `prod` is intentionally avoided; restore validation is performed in a disposable temporary MongoDB container.
+- The current single-node K3s target is documented honestly: pod recovery is automatic, while full node/VM recovery follows rebuild, redeploy, and restore procedures.
 
 ---
 
@@ -558,16 +715,28 @@ The full evidence index for each phase is documented inside the corresponding `I
 
 This README is intentionally kept open for the next implementation phases.
 
-### Core phases still to complete
 
-- **Selective IaC codification**  
-  Terraform for stable target/bootstrap pieces, with the existing validation and branch-protection path kept in place.
+## 🔮 What comes next
 
-- **Disaster recovery / rollback strategy**  
-  Recovery documentation, rollback commands, and evidence-backed recovery thinking.
+The functional project scope now covers the core delivery, target-platform, observability, security, IaC, and DR requirements. Remaining work is mainly documentation polish and optional hardening.
 
-### Strong stretch goals before evaluation, if time allows
+### Immediate polish before final defense
 
+- Finish Phase 08 implementation documentation
+- Finish Phase 09 implementation documentation and runbook
+- Add the final architecture diagram as an exported image
+- Tighten cross-links in `project-docs/INDEX.md`, `ROADMAP.md`, and `DECISIONS.md`
+- Review evidence captions and screenshots for Phase 08/09
+
+### Later hardening / portfolio extensions
+
+- Broader Terraform coverage for target VM recreation and bootstrap steps
+- Full restore drill in a disposable namespace or throwaway cluster
+- GitOps layer, for example Argo CD
+- Stronger secret-management integration
+- Optional SBOM generation and later image signing / verification
+- Deeper Playwright user-flow checks
+- Portfolio polish: recruiter-facing live dashboard / situation-room style proof layer
 - **Testing track extension:**
   - deeper Playwright user-flow checks
   - automatic post-deployment live-smoke reuse after `dev` or `prod` rollout
@@ -578,9 +747,6 @@ This README is intentionally kept open for the next implementation phases.
   - broader Trivy backlog cleanup
   - optional SBOM generation
   - optional later signing / verification
-
-### Later portfolio extensions
-
 - GitOps layer (for example Argo CD)
 - stronger secret-management integration
 - optional AWS target as an additional Terraform-driven deployment track

@@ -156,3 +156,6 @@ infra/terraform/**/*.tfstate.*
 infra/terraform/**/*.tfvars
 infra/terraform/**/*.tfplan
 infra/terraform/**/.terraform.lock.hcl
+
+# Phase 09 DR local backup artifacts
+backups/

@@ -15,7 +15,7 @@
 #      syntactically valid, but also functionally correct in the
 #      runtime shape it was designed for. 
 #   2. Target validation:
-#      Runs the proof against the actual long-lived target cluster instead 
+#      Runs the proof against the actual target cluster instead 
 #      of relying only on local and insufficient workstation checks.
 #      In-cluster execution is required here because the healtcheck sscript 
 #      relies on Kubernetes internal DNS (CoreDNS) to resolve naked service 
@@ -74,7 +74,8 @@
 # 1) GLOBAL SETTINGS & TEARDOWN HOOKS
 # -----------------------------------------------------------------------------
 
-# Enable stricter Bash error handling for this proof helper (every command is required for success)
+# Enable stricter Bash error handling for this proof helper 
+# (every command is required for success)
 #
 # -e          = exit immediately if a command fails
 # -u          = treat use of an unset variable as an error
@@ -188,10 +189,10 @@ kubectl exec -n "$NAMESPACE" "$POD_NAME" -- ruby -c /tmp/healthcheck.rb >&2
 # Execute the current helper against real in-cluster service names.
 #
 # INTEROPERABILITY NOTE: 
-# This command is not redirected to stderr (>&2). Because the Ruby script internally 
-# separates its streams (JSON to stdout, logs to stderr), 'kubectl exec' acts as a 
-# transparent tunnel. This allows the JSON payload to be captured by downstream tools 
-# (like jq) while informational logs remain visible to the user via stderr.
+#   This command is not redirected to stderr (>&2). Because the Ruby script internally 
+#   separates its streams (JSON to stdout, logs to stderr), 'kubectl exec' acts as a 
+#   transparent tunnel. This allows the JSON payload to be captured by downstream tools 
+#   (like jq) while informational logs remain visible to the user via stderr.
 #
 # -q              = Quiet mode; suppresses kubectl setup warnings.
 # --services ...  = check these three application services
