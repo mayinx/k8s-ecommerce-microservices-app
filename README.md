@@ -42,7 +42,8 @@ Production-grade DevOps project based on the upstream WeaveSocks microservices a
 > - **🚢 Delivery & Operations:** Containerized microservices delivery and operation, CI/CD, repo-owned container image build and publishing, and `dev` / `prod` environment separation.
 > - **🛡️ Quality & Security:** Repo-owned validation tooling, deterministic test gates, security measures, Trivy scanning, and Dependabot dependency visibility.
 > - **📊 Resilience & Observability:** Prometheus/Grafana observability, Kubernetes state backup, Mongo-compatible data-store dump validation, pod recovery proof, and rollback readiness.
-> - **📚 Documentation & Evidence:** Phase-based implementation logs, runbooks, decisions, architecture notes, and evidence folders.. Start with [Documentation Index](project-docs/INDEX.md) for the full phase-based documentation structure: implementation logs, runbooks, decisions, ADRs, architecture notes, and evidence folders. Quick links: [Roadmap](project-docs/ROADMAP.md) · [Global decisions](project-docs/DECISIONS.md) · [Debug log](project-docs/DEBUG-LOG.md)
+> - **📚 Documentation & Evidence:** Phase-based implementation logs, runbooks, decisions, architecture notes, and evidence folders.. Start with the **[Documentation Index](project-docs/INDEX.md)** for the full phase-based documentation structure: implementation logs, runbooks, decisions, ADRs, architecture notes, and evidence folders. \
+*Quick links:* **[Index](project-docs/INDEX.md) • [Global decisions](project-docs/DECISIONS.md) • [Debug log](project-docs/DEBUG-LOG.md) • [Roadmap](project-docs/ROADMAP.md)**
 
 ---
 
@@ -67,6 +68,8 @@ The project exposes two long-lived public target environments through the Proxmo
 
 Both entrypoints are routed through **Cloudflare Tunnel** to the **Proxmox-based K3s target platform**, where **Traefik** routes traffic by hostname into the correct namespace.
 
+---
+
 ## 🔄 CI/CD Promotion Model
 
 The current delivery path follows a **trunk-based CI/CD model with gated promotion**. Feature branches are reviewed through pull requests and can enter `master` only after the required deterministic checks pass. The merged commit triggers the Delivery Pipeline and is deployed automatically to `dev`. The same merge commit is finally promoted to `prod` after approval. 
@@ -87,16 +90,20 @@ Live validation can be run against `dev` via **Python API contract smoke checks 
 4. **🚀 Production promotion:**\
 The same accepted commit promotes to `prod` only after reviewer approval (**GitHub Environment approval gate**)
 
+---
+
 ### Workflow Trigger Model
 
 The following workflows and automations implement this delivery flow:
 
-| Workflow / automation | Trigger&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; | Executed&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; | Role |
+| Workflow / automation | Trigger&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; | Executed&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; | Role&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |
 | :--- | :--- | :--- | :--- |
 | **🛡️&nbsp;Deterministic&nbsp;PR&nbsp;Gate** | (1) Pull requests targeting `master` when opened, reopened, or updated with new commits<br/>(2) Manual reruns via `workflow_dispatch` | (1) Ruby HealthCheck helper tests<br/>(2) Bash helper tests<br/>(3) Python API contract-guard tests<br/>(4) Focused Trivy repo scan and image scan | Required merge gate before changes can enter `master` |
 | **🏗️&nbsp;Target&nbsp;Delivery&nbsp;Workflow** | (1) Push to `master` after merge<br/>(2) Manual runs via `workflow_dispatch` | (1) Kustomize overlay validation<br/>(2) Repo-owned `healthcheck` image build and GHCR push<br/>(3) Automated `dev` deployment<br/>(4) Approval-gated `prod` deployment | Main delivery workflow for the Proxmox target cluster |
 | **🧪&nbsp;Live Smoke Workflow** | (1) Manual run via `workflow_dispatch`<br/>(2) Reusable workflow call via `workflow_call` | (1) Python live contract smoke tests<br/>(2) Playwright browser smoke tests against `dev` or `prod` | Environment-dependent validation, intentionally separate from the deterministic PR gate |
 | **🤖&nbsp;Dependabot** | (1) Weekly scheduled dependency checks<br/>(2) Manual runs via GitHub UI or PR comments | (1) GitHub Actions<br/>(2) Playwright npm dependencies<br/>(3) Terraform provider dependencies | Dependency visibility for repo-owned tooling and infrastructure paths; generated PRs still go through the normal PR gate |
+
+---
 
 ### Promotion model summary
 
@@ -109,9 +116,11 @@ The project does not use separate long-lived Git branches for `dev` and `prod`. 
 
 **Result:** This project uses a professional **single-branch promotion workflow** with protected merge checks, automated `dev` delivery, controlled `prod` promotion, separate live validation for deployed environments, and scheduled dependency visibility through Dependabot.
 
-## 🌍 Environment model on the current target
+---
 
-### Target shape
+## 🌍 Target Environment Model 
+
+### Target Shape
 
 The current `dev` and `prod` environments do not run on separate machines.
 
@@ -119,19 +128,21 @@ Both run on the **same Proxmox-based target VM** inside the **same single-node K
 
 **Result: `1 VM -> 1 cluster -> 2 namespaces -> 2 app environments`**
 
+> **Architecture Flow:**
+>
+> 🖥️ **1 Proxmox VM** ➔ ☸️ **1 K3s Cluster** ➔ 🗂️ **2 Namespaces** ➔ 🚀 **2 App Environments**
+
 ### Logical environment separation
 
 The logical environment separation is implemented through:
 
-- (1) Separate Kubernetes namespaces (`sock-shop-dev`, `sock-shop-prod`)
-- (2) Separate Kustomize overlays (`deploy/kubernetes/kustomize/overlays/dev|prod`)
-- (3) Host-based ingress routing through Traefik for both environments 
-- (4) Separate public hostnames:
-  - https://dev-sockshop.cdco.dev/
-  - https://prod-sockshop.cdco.dev/
-- (5) Separate workflow behavior (automated `dev` deployment, approval-gated `prod` deployment)
+1. **Separate Kubernetes namespaces:** `sock-shop-dev` and `sock-shop-prod`.
+2. **Separate Kustomize overlays:** `deploy/kubernetes/kustomize/overlays/dev|prod`.
+3. **Host-based ingress routing:** Handled through Traefik for both environments.
+4. **Separate public entrypoints:** Traffic is routed via [`dev-sockshop.cdco.dev`](https://dev-sockshop.cdco.dev/) and [`prod-sockshop.cdco.dev`](https://prod-sockshop.cdco.dev/).
+5. **Distinct workflow behaviors:** Automated `dev` deployment vs. approval-gated `prod` deployment.
 
-### Operational support around the target model
+### Operational Aupport Around the Target Model
 
 Additional operational support around this target model now includes:
 
@@ -199,7 +210,6 @@ Note: The Terraform baseline currently supports this architecture as a reproduci
 |           overlay into final Kubernetes manifests and             |
 |        uses private kubectl access to the target cluster          |
 +-------------------------------------------------------------------+
-
      
 ~~~
 
@@ -258,9 +268,9 @@ This repository demonstrates an iterative DevOps delivery path built around Sock
 
 ---
 
-### 🌟 Current proven highlights include: 
+## 🌟 Current proven highlights include: 
 
-#### Local and CI/CD baselines
+### Local and CI/CD baselines
 
 - Clean local Kubernetes baseline
 - Host-based local ingress baseline
@@ -270,7 +280,7 @@ This repository demonstrates an iterative DevOps delivery path built around Sock
 - Automated `dev` smoke deployment
 - Approval-gated `prod` smoke deployment
 
-#### Proxmox target platform and public delivery path
+### Proxmox target platform and public delivery path
 
 - Reusable Proxmox VM template baseline
 - Verified Proxmox smoke VM with host-side and guest-side proof
@@ -286,7 +296,7 @@ This repository demonstrates an iterative DevOps delivery path built around Sock
   - `https://prod-sockshop.cdco.dev/`
 - Dedicated Phase 05 workflow for automated `dev` and approval-gated `prod` deployment on the real target cluster
 
-#### Observability Baseline
+### Observability Baseline
 
 - Dedicated `monitoring` namespace on the real target
 - Maintained Helm-based monitoring baseline through `kube-prometheus-stack`
@@ -294,7 +304,7 @@ This repository demonstrates an iterative DevOps delivery path built around Sock
 - Namespace-level workload visibility for `sock-shop-prod`
 - Healthy core monitoring targets through Prometheus
 
-#### Testing, Security, Merge Governance
+### Testing, Security, Merge Governance
 
 - Repo-owned Ruby `healthcheck` helper refactored and covered by CLI/unit tests
 - Repo-owned Bash Observability Traffic Generator refactored and covered by CLI/function-level tests
@@ -308,16 +318,125 @@ This repository demonstrates an iterative DevOps delivery path built around Sock
 - Separate live-smoke workflow for deployed environment validation
 - Protected `master` branch with required deterministic Phase 07 checks
 
-#### Infrastructure as Code Baseline
+### Infrastructure as Code Baseline
 
-- Terraform workspace for a focused Proxmox smoke-VM proof
-- Proxmox API access validated through the configured Terraform provider path
 - Disposable VM `9300` provisioned from the workload-ready template `9010`
-- Terraform plan/apply/destroy lifecycle proven successfully
-- Terraform provider dependencies added to the Dependabot scope
+- Isolated Terraform workspace created for a focused Proxmox Smoke-VM proof under `infra/terraform/proxmox-smoke-vm/`
+- Proxmox automation through a Terraform Proxmox Provider (`bpg/proxmox`) 
+- Disposable Smoke VM `9300` cloned and provcisioned from the workload-ready VM Template `9010` (created in Phase 04 - Proxmox VM Baseline) 
+- Proxmox node `sd-178532`, storage `vmdata`, and private VM network model reused from the proven Proxmox baseline
+- Cloud-Init used for guest initialization and static smoke-VM networking (to inject guest initialization values such as the `ubuntu` user, DNS, gateway, and static smoke-VM IP `10.10.10.30/24`)
+- Terraform plan/apply/destroy lifecycle completed successfully (`init`, `validate`, `plan`, `apply`, Proxmox host-side verification, guest reachability check, and `destroy`)
+- Live K3s target VM `9200` remained unmanaged and untouched to protect Live Environmenst `dev` + `prod`
+- Terraform provider dependencies included in Dependabot scope
 - Terraform-related Makefile helpers added for repeatable local execution
 
-#### Disaster Recovery & Rollback Readiness
+#### Terraform communication model
+
+~~~text
+          Terraform configuration 
+    (provider.tf, variables.tf, main.tf)
+                    |
+                    | Declares desired infrastructure state:
+                    | Proxmox Smoke VM 9300
+                    v
+               Terraform CLI
+                    |
+                    | bpg/proxmox (Terraform Proxmox Provider)
+                    | HTTPS API request to Proxmox :8006
+                    | Token-based Proxmox API authentication
+                    v
+              Proxmox VE API
+                    |
+                    | Clone / configure / start / destroy VM
+                    v
+          Disposable Smoke VM 9300
+                    |
+                    | Cloud-Init guest initialization
+                    v
+              Ubuntu guest OS
+~~~
+
+The infrastructure provisioning flow relies on **declarative API communication**:
+
+* **Provider Communication:** Terraform communicates with the Proxmox hypervisor through the Terraform Proxmox Provider `bpg/proxmox`, sending HTTPS API requests to the Proxmox VE API to provision the desired infrastructure state declared in the configuration.
+* **Proxmox Execution:** Proxmox translates that desired state into physical VM lifecycle actions to fulfill the request:
+  * Clone VM `9300` from the workload-ready template `9010`.
+  * Apply the VM hardware and network configuration defined in Terraform.
+  * Attach Cloud-Init initialization data for the first boot of the new guest VM.
+  * Start the VM.
+  * Later: Destroy the VM again.
+
+### Target Resource Definition
+
+The Terraform resource created in this baseline is a single VM object:
+
+| Attribute | Configuration Value |
+| :--- | :--- |
+| **Terraform Resource** | `proxmox_virtual_environment_vm.smoke_vm` |
+| **Target VM ID** | `9300` |
+| **VM Name** | `ubuntu-2404-terraform-smoke-01` |
+| **Clone Source** | Workload-ready VM template `9010` |
+| **Storage Pool** | `vmdata` |
+| **Network Bridge** | `vmbr1` |
+| **IP Address** | `10.10.10.30/24` |
+| **Gateway** | `10.10.10.1` |
+| **DNS Server** | `1.1.1.1` |
+| **Preserved Live Target** | VM `9200` *(Intentionally bypassed and unaffected)* |
+
+---
+
+#### Proxmox authentication model
+
+In this baseline implementation, Terraform authenticates against the Proxmox VE API using a temporary **Proxmox API token**.
+
+The credential model is:
+
+- **Token Generation:** A temporary Proxmox API token is created directly on the Proxmox host to grant automation access.
+- **Environment Variable Injection:** Terraform receives the API credentials and the temporary Cloud-Init password locally through `TF_VAR_...` environment variables. They are neither saved locally nor committed to Git.
+- **API Authentication:** The Terraform provider uses the injected token to securely authenticate its HTTPS requests against the Proxmox API.
+- **Post-Proof Revocation:** After the proof cycle is complete, the API access token is destroyed again on the Proxmox host.
+
+### Secret Management Strategy
+
+The repository stores the reusable Terraform configuration, but not the actual Proxmox API secret. Local Terraform state, plans, .tfvars, provider cache, and secret input files are explicitly excluded through .gitignore. This keeps the IaC proof reproducible without leaking credentials.
+
+After the proof cycle completed, the Proxmox API access was destroyed again on Proxmox.
+
+> **Security Note (Future Scope):**
+>
+> For this initial IaC proof cycle, local credential handling via environment variables is sufficient: : the reusable Terraform configuration is committed, while the real Proxmox API token and temporary Cloud-Init password stay outside Git. 
+>
+> If Terraform is later expanded to manage long-lived target infrastructure, this should be replaced by a stronger secret-management approach (GitHub Actions secrets, SOPS, Vault, or another dedicated secret store).
+
+#### Provisioning lifecycle
+
+The Phase 08 IaC proof performs the following provisioning lifecycle. It starts from the already proven workload-ready Proxmox VM Template `9010` with the goal to provision a new VM `9300` via Terraform: 
+
+1. **Confirm Initial State:** Audit the existing Proxmox baseline and confirm:
+   - VM Template `9010` exists as the workload-ready source template.
+   - VM `9200` is the healthy live target for `dev` and `prod`.
+   - VM ID `9300` is available for the Terraform Smoke VM.
+2. **Define Terraform Workspace:** Create an isolated local Terraform workspace and define the configuration for a disposable Smoke VM `9300`:
+   - `provider.tf` configures the `bpg/proxmox` provider.
+   - `variables.tf` defines the Proxmox endpoint, token input, VM IDs, node/storage/network values, and Cloud-Init inputs.
+   - `main.tf` defines the disposable VM resource `proxmox_virtual_environment_vm.smoke_vm`.
+3. **Configure API Access:** Create a temporary Proxmox API access token and export the Proxmox endpoint, API token, and temporary Cloud-Init password through local `TF_VAR_...` environment variables. 
+4. **Execute Terraform Workflow:** Run the core Terraform commands to apply the plan and create VM `9300`:
+   - `terraform init`
+   - `terraform validate`
+   - `terraform plan -out=tfplan`
+   - `terraform apply tfplan`
+5. **Verify VM Provisioning:** Verify on the Proxmox host (`qm list --full` and `qm config 9300`) that VM `9300` exists and was created from the intended template path.
+6. **Destroy Smoke VM:** Remove the disposable VM with `terraform destroy`.
+7. **Confirm Final State:** Audit the environment to ensure no side effects occurred:
+   - VM Template `9010` still exists as the workload-ready source template.
+   - VM `9200` was unaffected and is still the healthy live target for `dev` and `prod`.
+   - Disposable VM `9300` is completely removed after the proof.
+
+This proves a complete and reproducible IaC lifecycle for Proxmox VM provisioning—while keeping the live `dev` / `prod` target platform safe.
+
+### Disaster Recovery & Rollback Readiness
 
 - DR backup helper added for `sock-shop-dev` and `sock-shop-prod`
 - Backup artifacts include Kubernetes namespace state, resource snapshots, Secret metadata only, and database backup reports
@@ -327,7 +446,7 @@ This repository demonstrates an iterative DevOps delivery path built around Sock
 - Live smoke checks passed after recovery
 - Kubernetes rollback path documented without forcing an artificial bad release
 
-#### 🚥 Traffic Generator (Observability Helper)
+### 🚥 Traffic Generator (Observability Helper)
 
 Reusable observability helper script (introduced in Phase 06):
 
@@ -377,7 +496,7 @@ On execution, it generates **repeatable storefront traffic** so the monitoring s
 |---------------------------+------------+------------------------------------------+--------+----------|
 ~~~
 
-#### Observability Make Helper Targets
+### Observability Make Helper Targets
 
 The repository exposes a few thin Makefile helpers for the most common bservability checks and traffic-generation flows (introduced in Phase 06):
 
@@ -389,7 +508,7 @@ The repository exposes a few thin Makefile helpers for the most common bservabil
 - `make p06-traffic-prod-preset`
 - `make p06-traffic-prod-live`
 
-#### 🛡️ Phase 07 Testing & Security Helper Targets
+### 🛡️ Phase 07 Testing & Security Helper Targets
 
 Phase 07 adds thin Makefile helpers for deterministic tests, live smoke checks, and focused security scans:
 
@@ -408,103 +527,112 @@ These targets keep local reruns aligned with the GitHub Actions validation path.
 
 ---
 
-## 🏗️ Architecture direction
+## 🏗️ Architecture Snapshot
 
-The current architecture direction is:
+The current architecture is a phase-built DevOps delivery path around the Sock Shop microservices application:
 
-- **application:** Sock Shop microservices
-- **local baseline runtime:** Docker Compose and local k3s
-- **Kubernetes deploy input:** raw manifests with environment overlays
+- **Application:** Sock Shop microservices
+- **Local baseline runtimes:** Docker Compose and local K3s
+- **Kubernetes deployment model:** Raw manifests plus environment-specific Kustomize overlays
 - **CI/CD platform:** GitHub Actions
-- **container registry:** GHCR
-- **historical CI/CD smoke target:** `kind` (Phase 03 baseline)
-- **Current long-lived target:** Proxmox-backed VM + K3s
-  - **Current realized target shape:**
-    - Workload-ready baseline template `9010`
-    - Target VM `9200`
-    - Single-node K3s control plane
-    - `sock-shop-dev` and `sock-shop-prod`
-    - Traefik ingress
-    - Tailscale private access path
-    - Cloudflare Tunnel public edge
-    - Dedicated `monitoring` namespace
-    - `kube-prometheus-stack` monitoring baseline
-    - Private Grafana and Prometheus access via `kubectl port-forward`
-- **Current support layers:**
-  - Terraform IaC baseline for reproducible Proxmox provisioning proof
-  - Phase 09 DR backup path for Kubernetes state and Mongo-compatible data-store dumps
-  - Pod recovery and rollback-readiness documentation
-- **Later planned / hardening layers:** broader IaC coverage, full restore drills in disposable environments, stronger secret-management integration, and optional GitOps
+- **Container registry:** GHCR
+- **Historical CI smoke target:** `kind` during the Phase 03 CI/CD baseline
+- **Long-lived target platform:** Proxmox VM `9200` running single-node K3s
+- **Environment model:** `sock-shop-dev` and `sock-shop-prod` namespaces on the same cluster
+- **Ingress and public edge:** Traefik behind Cloudflare Tunnel
+- **Private access path:** Tailscale for operator and CI access to the Kubernetes API
+- **Observability:** Dedicated `monitoring` namespace with `kube-prometheus-stack`, Prometheus, and Grafana
+- **Testing and security:** Ruby/Bash/Python validation tooling, Playwright smoke tests, Trivy scans, Dependabot, and protected PR checks
+- **Infrastructure as Code:** Terraform Proxmox smoke-VM baseline using template `9010` and disposable VM `9300`
+- **Disaster recovery:** Kubernetes state backup, Mongo-compatible dump validation, pod recovery proof, and rollback-readiness documentation
 
-This means the project is no longer only proving delivery mechanics in isolation; it is now also proving those mechanics against a real long-lived target environment.
+**Current architecture result:** The project now proves delivery, operations, observability, testing, security, IaC, and DR readiness against a long-lived Proxmox-backed K3s target platform, rather than only demonstrating isolated local or CI/CD mechanics.
 
-## 📚 Documentation (start here)
+---
 
-- **Project docs index:** [project-docs/INDEX.md](project-docs/INDEX.md)
+## 📚 Documentation  
 
-Project documentation is organized by phase under:
+### Project Hub & Cross-Phase Records
 
-- `project-docs/<phase-folder>/`
+* 🗂️ **Project Docs Index:** [project-docs/INDEX.md](project-docs/INDEX.md)
+* 🗺️ **Project Roadmap & Planning:** [project-docs/ROADMAP.md](project-docs/ROADMAP.md)
+* ⚖️ **Summarized Project Decisions:** [project-docs/DECISIONS.md](project-docs/DECISIONS.md)
+* 🐛 **Project Debug & Incident Log:** [project-docs/DEBUG-LOG.md](project-docs/DEBUG-LOG.md)   
 
-Depending on the phase, a folder may contain:
+### 🏛️ Architecture Decision Records (ADRs)
 
-- `SETUP.md`
+Project-wide standards and long-lived decisions live in the `adr/` directory:
+
+* **ADR-0001:** Git conventions (workflow, branching, commits) — [View Record](adr/%5B2026-03-17%5D%20ADR-0001%20--%20Git-Conventions.md)
+* **ADR-0002:** Documentation system and locations — [View Record](adr/%5B2026-03-18%5D%20ADR-0002%20--%20Docs-System.md)
+
+### Phase Docs
+
+All implementation phase related project documentation is organized by phase under 
+
+  **`project-docs/<phase-folder>/`**. 
+
+Each phase folder contains at least an `IMPLEMNATION.md` - and depending on the complexity of the implementation phase, additional companion docs:
+
 - `IMPLEMENTATION.md`
+- `SETUP.md`
+- `DISCOVERY.md`
 - `RUNBOOK.md`
 - `DECISIONS.md`
 - `evidence/`
 
-### Current phase docs
 
-- Phase 09 disaster recovery / rollback readiness:
-  - [project-docs/09-dr-rollback/IMPLEMENTATION.md](project-docs/09-dr-rollback/IMPLEMENTATION.md)
-  - Phase 09 documentation is in progress; the functional backup, restore-validation, and recovery proof are already implemented.
-- Phase 08 Proxmox IaC baseline:
-  - [project-docs/08-proxmox-iac/IMPLEMENTATION.md](project-docs/08-proxmox-iac/IMPLEMENTATION.md)
-  - Phase 08 documentation is in progress; the Terraform smoke-VM proof is already implemented.
-- Phase 07 setup:
-  - [project-docs/07-security-testing/SETUP.md](project-docs/07-security-testing/SETUP.md)
-- Phase 07 runbook:
-  - [project-docs/07-security-testing/RUNBOOK.md](project-docs/07-security-testing/RUNBOOK.md)  
-- Phase 07 implementation overview:
-  - [project-docs/07-security-testing/IMPLEMENTATION.md](project-docs/07-security-testing/IMPLEMENTATION.md)
-- Phase 07 decisions:
-  - [project-docs/07-security-testing/DECISIONS.md](project-docs/07-security-testing/DECISIONS.md)
-- Phase 07 detailed subphase guides:
-  - [Phase 07-A](project-docs/07-security-testing/implementation/PHASE-07-A.md)
-  - [Phase 07-B](project-docs/07-security-testing/implementation/PHASE-07-B.md)
-  - [Phase 07-C](project-docs/07-security-testing/implementation/PHASE-07-C.md)
-  - [Phase 07-D](project-docs/07-security-testing/implementation/PHASE-07-D.md)
+## 📁 Current Verified Scope
 
-### Previous phase docs
+The repository currently contains proven work across the following phases. *(Note: This is a moving summary, not the final shape of the project).*
 
-- Phase 06 implementation log:
-  - [project-docs/06-observability/IMPLEMENTATION.md](project-docs/06-observability/IMPLEMENTATION.md)
-- Phase 06 runbook:
-  - [project-docs/06-observability/RUNBOOK.md](project-docs/06-observability/RUNBOOK.md)
-- Phase 06 decisions:
-  - [project-docs/06-observability/DECISIONS.md](project-docs/06-observability/DECISIONS.md)
+* **Phase 00 — Compose Baseline**
+    * **Scope:** Repository reconnaissance, local Docker Compose baseline, and host-port conflict workaround.
+    * **Docs: [Implementation](project-docs/00-compose-baseline/IMPLEMENTATION.md) • [Runbook](project-docs/00-compose-baseline/RUNBOOK.md)**  
 
-### Cross-phase docs
+* **Phase 01 — Port-Based Kubernetes Baseline**
+    * **Scope:** Clean local K3s deployment via upstream manifests with the storefront reachable via NodePort `30001`.
+    * **Docs: [Implementation](project-docs/01-nodeport-baseline/IMPLEMENTATION.md) • [Runbook](project-docs/01-nodeport-baseline/RUNBOOK.md)**  
 
-- Summarized project decisions:
-  - [project-docs/DECISIONS.md](project-docs/DECISIONS.md)
-- Project roadmap / planning:
-  - [project-docs/ROADMAP.md](project-docs/ROADMAP.md)
-- Project Debug Log & Incident Reports:
-  - [project-docs/DEBUG-LOG.md](project-docs/DEBUG-LOG.md)
-- Architecture Decision Records (ADRs):
-  - [adr/](adr/)
+* **Phase 02 — Host-Based Ingress Baseline**
+    * **Scope:** Local Traefik ingress routing for `sockshop.local` (with NodePort retained as fallback).
+    * **Docs: [Implementation](project-docs/02-ingress-baseline/IMPLEMENTATION.md) • [Runbook](project-docs/02-ingress-baseline/RUNBOOK.md)**  
 
-## 🏛️ Architecture Decision Records (ADRs)
+* **Phase 03 — CI/CD Baseline**
+    * **Scope:** GitHub Actions delivery workflow, Kustomize overlays for `dev`/`prod`, GHCR publishing for the `healthcheck` image, automated `dev` deployments, and approval-gated `prod` deployments.
+    * **Docs: [Setup](project-docs/03-ci-cd-baseline/SETUP.md) • [Implementation](project-docs/03-ci-cd-baseline/IMPLEMENTATION.md) • [Runbook](project-docs/03-ci-cd-baseline/RUNBOOK.md) • [Decisions](project-docs/03-ci-cd-baseline/DECISIONS.md)**  
 
-Project-wide standards and long-lived decisions live in:
+* **Phase 04 — Proxmox VM Baseline**
+    * **Scope:** Target host inspected, reusable Ubuntu 24.04 Cloud-Init template (`9000`), reference smoke VM (`9100`), and workload-ready variant (`9010`) finalized with private guest bridge `vmbr1`, stable IP/DNS, and guest-agent capabilities.
+    * **Docs: [Discovery](project-docs/04-proxmox-vm-baseline/DISCOVERY.md) • [Setup](project-docs/04-proxmox-vm-baseline/SETUP.md) • [Implementation](project-docs/04-proxmox-vm-baseline/IMPLEMENTATION.md) • [Runbook](project-docs/04-proxmox-vm-baseline/RUNBOOK.md) • [Decisions](project-docs/04-proxmox-vm-baseline/DECISIONS.md)**
 
-- [adr/](adr/)
+* **Phase 05 — Proxmox Target Delivery**
+    * **Scope:** Real target VM `9200` cloned from `9010`, single-node K3s control plane, MongoDB compatibility fix, environment-separated `dev`/`prod` target deployments via Traefik, Tailscale private access, Cloudflare Tunnel public HTTPS, and dedicated CI/CD delivery workflows.
+    * **Docs: [Setup](project-docs/05-proxmox-target-delivery/SETUP.md) • [Implementation](project-docs/05-proxmox-target-delivery/IMPLEMENTATION.md) • [Runbook](project-docs/05-proxmox-target-delivery/RUNBOOK.md) • [Decisions](project-docs/05-proxmox-target-delivery/DECISIONS.md)**\
+    **Detailed Subphase Guides: [05-A](project-docs/05-proxmox-target-delivery/implementation/PHASE-05-A.md) • [05-B](project-docs/05-proxmox-target-delivery/implementation/PHASE-05-B.md) • [05-C](project-docs/05-proxmox-target-delivery/implementation/PHASE-05-C.md) • [05-D](project-docs05-proxmox-target-delivery/implementation/PHASE-05-D.md)**
 
-**Current ADRs (source of truth):**
-- ADR-0001 — Git conventions (workflow, branching, commit messages): [adr/[2026-03-17] ADR-0001 -- Git-Conventions.md](adr/%5B2026-03-17%5D%20ADR-0001%20--%20Git-Conventions.md)
-- ADR-0002 — Documentation system and locations: [adr/[2026-03-18] ADR-0002 -- Docs-System.md](adr/%5B2026-03-18%5D%20ADR-0002%20--%20Docs-System.md)
+* **Phase 06 — Observability & Health**
+    * **Scope:** Dedicated `monitoring` namespace, Helm-based `kube-prometheus-stack` baseline, private Grafana/Prometheus access via port-forward, namespace-level visibility for `prod`, and a Bash traffic-generator script.
+    * **Docs: [Implementation](project-docs/06-observability/IMPLEMENTATION.md) • [Runbook](project-docs/06-observability/RUNBOOK.md) • [Decisions](project-docs/06-observability/DECISIONS.md)**
+
+* **Phase 07 — Security Testing**
+    * **Scope:** Refactored Ruby `healthcheck` and Bash traffic generators with unit/CLI tests, Python `/catalogue` contract tests, Playwright browser smoke tests, Trivy filesystem/image scans, Dependabot integration, and deterministic PR/live-smoke workflow gates.
+    * **Docs:** **[Setup](project-docs/07-security-testing/SETUP.md) • [Implementation](project-docs/07-security-testing/IMPLEMENTATION.md) • [Runbook](project-docs/07-security-testing/RUNBOOK.md) • [Decisions](project-docs/07-security-testing/DECISIONS.md)**\
+    **Detailed Subphase Guides: [07-A](project-docs/07-security-testing/implementation/PHASE-07-A.md) • [07-B](project-docs/07-security-testing/implementation/PHASE-07-B.md) • [07-C](project-docs/07-security-testing/implementation/PHASE-07-C.md) • [07-D](project-docs/07-security-testing/implementation/PHASE-07-D.md)**
+
+* **Phase 08 — Proxmox IaC Baseline** *(In Progress)*
+    * **Scope:** Terraform workspace established for a disposable Proxmox smoke-VM proof (`9300`). API authentication validated, Terraform plan/apply/destroy lifecycle verified, and Makefile helpers added.
+    * **Docs: [Implementation](project-docs/08-proxmox-iac/IMPLEMENTATION.md)**
+
+* **Phase 09 — DR & Rollback Readiness** *(In Progress)*
+    * **Scope:** Target DR backup helper deployed, namespace state/secrets exported, MongoDB datastore dumps verified via temporary restore, frontend pod recovery proven, and rollback paths documented.
+    * **Docs: [Implementation](project-docs/09-dr-rollback/IMPLEMENTATION.md)**
+
+
+Note: This section is intentionally a moving summary, not the final shape of the project.
+
+
+  
 
 ## 📁 Current verified scope
 
@@ -639,8 +767,6 @@ The repository currently contains proven work across these phases:
   - Kubernetes rollback path documented for future bad-revision scenarios
   - Docs:
     - [Implementation](project-docs/09-dr-rollback/IMPLEMENTATION.md)
-
-Note: This section is intentionally a moving summary, not the final shape of the project.
 
 ---
 
