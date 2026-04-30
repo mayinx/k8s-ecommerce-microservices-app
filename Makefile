@@ -311,8 +311,8 @@ check-generated-files:
 # Phase 02 — Ingress baseline helpers
 # Thin convenience targets only.
 # Source of truth remains:
-# - project-docs/02-ingress-baseline/IMPLEMENTATION.md
-# - project-docs/02-ingress-baseline/RUNBOOK.md
+# - project-docs/02-k8s-ingress-baseline/IMPLEMENTATION.md
+# - project-docs/02-k8s-ingress-baseline/RUNBOOK.md
 # -------------------------------------------------------------------
 
 p02-ingress-apply:

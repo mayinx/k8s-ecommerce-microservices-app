@@ -3,7 +3,7 @@
 > ## 👤 About
 > This document is the implementation log and detailed project build diary for **Phase 01 (Local k3s Cluster Baseline)**.  
 > It records the full implementation path including rationales, key observations, corrections, verification/validation steps, and evidence pointers so the work remains auditable and reproducible.  
-> For a shorter, reproducible **TL;DR command checklist / rerun guide**, see: **[01-local-k3s-baseline/RUNBOOK.md](RUNBOOK.md)**.
+> For a shorter, reproducible **TL;DR command checklist / rerun guide**, see: **[01-k8s-nodeport-baseline/RUNBOOK.md](RUNBOOK.md)**.
 
 ---
 

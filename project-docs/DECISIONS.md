@@ -181,11 +181,11 @@ The initial phases use Docker Compose and a local k3s cluster to establish a sta
   - the storefront UI loaded successfully via **`http://localhost:30001/`** (and also via `http://<node-ip>:30001/`).
 
 **Primary evidence (Phase 01)**  
-- Storefront screenshot: `project-docs/01-local-k3s-baseline/evidence/[2026-03-09]-Port-30001_Storefront.png`
+- Storefront screenshot: `project-docs/01-k8s-nodeport-baseline/evidence/[2026-03-09]-Port-30001_Storefront.png`
 
 **Further details**  
-- Implementation log: `project-docs/01-local-k3s-baseline/IMPLEMENTATION.md`  
-- Runbook: `project-docs/01-local-k3s-baseline/RUNBOOK.md`
+- Implementation log: `project-docs/01-k8s-nodeport-baseline/IMPLEMENTATION.md`  
+- Runbook: `project-docs/01-k8s-nodeport-baseline/RUNBOOK.md`
 
 **Conclusion + Net steps**
 - Phase 01 proved the app is deployable and healthy on a local k3s cluster:
@@ -261,12 +261,12 @@ The initial phases use Docker Compose and a local k3s cluster to establish a sta
   - After that, the same hostname worked in the browser via `http://sockshop.local/`.
 
 **Primary evidence (Phase 02)**  
-- Browser screenshot before local hostname mapping: `project-docs/02-ingress-baseline/evidence/[2026-03-19]-sockshop.local-Storefront-1_before-hosts-edit_not-found.png`  
-- Browser screenshot after local hostname mapping: `project-docs/02-ingress-baseline/evidence/[2026-03-19]-sockshop.local-Storefront-2_after-hosts-edit_loaded.png`
+- Browser screenshot before local hostname mapping: `project-docs/02-k8s-ingress-baseline/evidence/[2026-03-19]-sockshop.local-Storefront-1_before-hosts-edit_not-found.png`  
+- Browser screenshot after local hostname mapping: `project-docs/02-k8s-ingress-baseline/evidence/[2026-03-19]-sockshop.local-Storefront-2_after-hosts-edit_loaded.png`
 
 **Further details**  
-- Implementation log: `project-docs/02-ingress-baseline/IMPLEMENTATION.md`  
-- Runbook: `project-docs/02-ingress-baseline/RUNBOOK.md`
+- Implementation log: `project-docs/02-k8s-ingress-baseline/IMPLEMENTATION.md`  
+- Runbook: `project-docs/02-k8s-ingress-baseline/RUNBOOK.md`
 
 **Conclusion + Next steps**  
 - Phase 02 proved that the storefront can be reached through a **host-based ingress route on port `80`**, while the **port-based NodePort `30001`** path remains available as a known-good fallback.

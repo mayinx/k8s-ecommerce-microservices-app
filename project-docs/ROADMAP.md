@@ -91,8 +91,8 @@
 - already proven:
   - NodePort storefront access
 - docs:
-  - [Implementation](./01-nodeport-baseline/IMPLEMENTATION.md)
-  - [Runbook](./01-nodeport-baseline/RUNBOOK.md)
+  - [Implementation](./01-k8s-nodeport-baseline/IMPLEMENTATION.md)
+  - [Runbook](./01-k8s-nodeport-baseline/RUNBOOK.md)
 
 ### Phase 02 — Host-based ingress baseline
 - status:
@@ -103,8 +103,8 @@
   - `sockshop.local`
   - rollback path
 - docs:
-  - [Implementation](./02-ingress-baseline/IMPLEMENTATION.md)
-  - [Runbook](./02-ingress-baseline/RUNBOOK.md)
+  - [Implementation](./02-k8s-ingress-baseline/IMPLEMENTATION.md)
+  - [Runbook](./02-k8s-ingress-baseline/RUNBOOK.md)
 
 ### Phase 03 — CI/CD baseline
 - status:

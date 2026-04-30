@@ -12,19 +12,19 @@ Documentation is iterative and phase-aligned: baseline notes first, then milesto
 - **[Project-wide decision summary](./DECISIONS.md)**
 - **[Project Debug Log](./DEBUG-LOG.md)**  
 
-## Phase 00: Compose + repo baseline (local poke-around + repo mapping)
+## Phase 00: Docker Compose + Repo Baseline (local poke-around + repo mapping)
 - **[Phase 00 — Implementation Log](./00-compose-baseline/IMPLEMENTATION.md)**
 - **[Phase 00 — Runbook (TL;DR)](./00-compose-baseline/RUNBOOK.md)**
 
-## Phase 01: Local k3s cluster baseline (port-based Sock Shop deploy, conflict-free)
-- **[Phase 01 — Implementation Log](./01-nodeport-baseline/IMPLEMENTATION.md)**
-- **[Phase 01 — Runbook (TL;DR)](./01-nodeport-baseline/RUNBOOK.md)**
+## Phase 01 — Port-based Kubernetes baseline (local K3s NodePort Sock Shop deploy)
+- **[Phase 01 — Implementation Log](./01-k8s-nodeport-baseline/IMPLEMENTATION.md)**
+- **[Phase 01 — Runbook (TL;DR)](./01-k8s-nodeport-baseline/RUNBOOK.md)**
 
 ---
 
-## Phase 02: Ingress baseline (host-based Traefik routing to storefront + rollback)
-- [Phase 02 — Implementation Log](./02-ingress-baseline/IMPLEMENTATION.md)
-- [Phase 02 — Runbook (TL;DR)](./02-ingress-baseline/RUNBOOK.md)
+## Phase 02 — Host-based Kubernetes ingress baseline (local K3s Traefik routing to storefront)
+- [Phase 02 — Implementation Log](./02-k8s-ingress-baseline/IMPLEMENTATION.md)
+- [Phase 02 — Runbook (TL;DR)](./02-k8s-ingress-baseline/RUNBOOK.md)
 
 ---
 

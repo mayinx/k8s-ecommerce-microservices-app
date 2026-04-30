@@ -3,7 +3,7 @@
 > ## 👤 About
 > This document is the implementation log and detailed project build diary for **Phase 02 (Ingress Baseline)**.  
 > It records the full implementation path including rationales, key observations, corrections, verification steps, and evidence pointers so the work remains auditable and reproducible.  
-> For a shorter, reproducible **TL;DR command checklist / rerun guide**, see: **[02-ingress-baseline/RUNBOOK.md](RUNBOOK.md)**.
+> For a shorter, reproducible **TL;DR command checklist / rerun guide**, see: **[02-k8s-ingress-baseline/RUNBOOK.md](RUNBOOK.md)**.
 
 ---
 
@@ -440,9 +440,9 @@ $ curl -s http://localhost:30001/ | head -n 5
 ### Evidence index
 
 - Browser screenshot before local name mapping:
-  - `project-docs/02-ingress-baseline/evidence/[2026-03-19]-sockshop.local-Storefront-1_before-hosts-edit_not-found.png`
+  - `project-docs/02-k8s-ingress-baseline/evidence/[2026-03-19]-sockshop.local-Storefront-1_before-hosts-edit_not-found.png`
 - Browser screenshot after local name mapping:
-  - `project-docs/02-ingress-baseline/evidence/[2026-03-19]-sockshop.local-Storefront-2_after-hosts-edit_loaded.png`
+  - `project-docs/02-k8s-ingress-baseline/evidence/[2026-03-19]-sockshop.local-Storefront-2_after-hosts-edit_loaded.png`
 
 ### Key terminal evidence used in this phase
 

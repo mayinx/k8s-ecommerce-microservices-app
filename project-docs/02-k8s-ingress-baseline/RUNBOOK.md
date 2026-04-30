@@ -3,7 +3,7 @@
 > ## 👤 About
 > This runbook is the short, command-first version of the Phase 02 Ingress baseline work.  
 > It’s meant as a quick reference for reruns without the long-form diary.  
-> For the full narrative log (incl. reasoning, observations, and evidence context), see: **[02-ingress-baseline/IMPLEMENTATION.md](IMPLEMENTATION.md)**.
+> For the full narrative log (incl. reasoning, observations, and evidence context), see: **[02-k8s-ingress-baseline/IMPLEMENTATION.md](IMPLEMENTATION.md)**.
 
 ---
 
