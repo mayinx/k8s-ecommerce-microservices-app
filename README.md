@@ -210,7 +210,7 @@ Note: The Terraform baseline currently supports this architecture as a reproduci
 |           overlay into final Kubernetes manifests and             |
 |        uses private kubectl access to the target cluster          |
 +-------------------------------------------------------------------+
-     
+
 ~~~
 
 The **numbered flow** above separates the public request path from the deployment control path: 
@@ -272,66 +272,137 @@ This repository demonstrates an iterative DevOps delivery path built around Sock
 
 ### Local and CI/CD baselines
 
-- Clean local Kubernetes baseline
-- Host-based local ingress baseline
-- Namespace-based `dev` / `prod` Kustomize overlays
-- GitHub Actions CI/CD smoke workflow
+#### Phase 00 — Docker Compose baseline
+- Repository reconnaissance
+- Local Docker Compose baseline
+- Host-port conflict diagnosis and workaround
+
+#### Phase 01 — Port-based Kubernetes baseline
+- Clean local Kubernetes baseline (k3s deployment via upstream manifests)
+- Storefront reachable via NodePort `30001`
+
+#### Phase 02 — Host-based Traefik ingress baseline
+- Host-based local Traefik ingress baseline for `sockshop.local`
+- NodePort access retained as fallback
+
+#### Phase 03 — CI/CD baseline
+- GitHub Actions CI/CD delivery smoke workflow
+- Kustomize overlays for `dev` / `prod` Namespaces
 - GHCR publishing for the repo-owned `healthcheck` image
 - Automated `dev` smoke deployment
 - Approval-gated `prod` smoke deployment
 
-### Proxmox target platform and public delivery path
+#### Phase 04 — Proxmox VM Baseline 
+- Provided Proxmox target host inspected and documented
+- Proxmox VM artifact model established:
+  - VM Template `9000`: Generic Ubuntu 24.04 Cloud-Init VM Template (reusable VM Template baseline)
+  - VM `9100`: Reference smoke VM 
+  - VM Template `9010`:  Workload-ready template variant  
+- Verified Proxmox Smoke `VM 9100` with host-side and guest-side proof:
+  - Login
+  - Cloud-Init completion
+  - Usable root disk
+  - Outbound connectivity
+- Workload-ready baseline variant prepared as VM Template `9010`:
+  - Private guest bridge `vmbr1`
+  - Stable private addressing/routing
+  - Deterministic DNS 
+  - Outbound bootstrap reachability
+  - QEMU Guest-agent capability
 
-- Reusable Proxmox VM template baseline
-- Verified Proxmox smoke VM with host-side and guest-side proof
-- Workload-ready Proxmox baseline variant for target-side deployment
-- Real target VM `9200`, cloned from workload-ready template `9010`
-- Single-node K3s control plane on the real target
-- Source-controlled MongoDB compatibility fix for the target runtime
-- Working `dev` / `prod` deployment model on the real target cluster
-- Private Tailnet-based operator and CI/CD access path
+### Phase 05 — Proxmox Target Delivery
+- Target VM `9200` created - cloned from workload-ready VM template `9010`
+- Single-node K3s control plane deoloyed on the target VM 9200
+- MongoDB compatibility fix for the target runtime (first in-target ad hoc fix and later repo-based permanent fix) 
+- Environment-separated `dev` / `prod` deployment model on the remote k8s target cluster
+- Working Traefik ingress for both environments
+- Private Tailnet-based access path for operator (workstation) and CI/CD (Hosted Runners) access
 - Public HTTPS exposure through Cloudflare Tunnel
 - Stable live public environments:
   - `https://dev-sockshop.cdco.dev/`
   - `https://prod-sockshop.cdco.dev/`
-- Dedicated Phase 05 workflow for automated `dev` and approval-gated `prod` deployment on the real target cluster
+- Dedicated Phase 05 GitHUb Actions delivery Workflow for automated `dev` and approval-gated `prod` deployment on the remote k8s target cluster
 
-### Observability Baseline
+### Phase 06 — Observability & Health
 
-- Dedicated `monitoring` namespace on the real target
+- Dedicated k8s `monitoring` namespace on the remote target
 - Maintained Helm-based monitoring baseline through `kube-prometheus-stack`
 - Private Grafana and Prometheus operator access via `kubectl port-forward`
 - Namespace-level workload visibility for `sock-shop-prod`
-- Healthy core monitoring targets through Prometheus
+- Healthy core monitoring targets through Prometheus (on the Prometheus `/targets` page)
+- Implementation of a custom TRaffic Generator Bash Script (Oberservability helper to auto-generate traffic on the target cluster for Grafana/Prometheus)  
 
-### Testing, Security, Merge Governance
+### Phase 07 - Testing, Security, Merge Governance
 
-- Repo-owned Ruby `healthcheck` helper refactored and covered by CLI/unit tests
-- Repo-owned Bash Observability Traffic Generator refactored and covered by CLI/function-level tests
-- Python `/catalogue` contract guard with deterministic local tests and live endpoint validation
+- Repo-owned Ruby `healthcheck` helper refactored into a testable structure and covered by CLI/unit tests
+- Ruby CLI characterization and unit tests added
+- Repo-owned Bash Observability Traffic Generator refactored (behind `main()` and an execution guard) and covered by Bash CLI and function-level tests
+- Implementation of a Python `/catalogue` API Contract Guard - coverd with deterministic local tests  
+  - Live Python contract smoke checks added for deployed `catalogue` API endpoints
 - Playwright browser smoke tests for live storefront rendering
 - Trivy filesystem scan baseline for repo-owned code/config components
 - Trivy image vulnerability scan for the repo-owned `healthcheck` image
-- Hardened `healthcheck` Dockerfile with clean focused Trivy reruns
-- Dependabot baseline for GitHub Actions, Playwright npm dependencies, and Terraform provider dependencies
-- Deterministic GitHub Actions PR gate with required status-check job names
-- Separate live-smoke workflow for deployed environment validation
+- `healthcheck` Dockerfile hardened and verified through focused clean Trivy reruns
+- Dependabot configured for GitHub Actions, Playwright npm dependencies, and Terraform provider dependencies
+- Deterministic GitHub Actions PR gate with required status-check jobs
+- Separate manual/reusable live-smoke test workflow for deployed environment validation
 - Protected `master` branch with required deterministic Phase 07 checks
 
-### Infrastructure as Code Baseline
+### Phase 08 — Infrastructure as Code Baseline 
 
-- Disposable VM `9300` provisioned from the workload-ready template `9010`
 - Isolated Terraform workspace created for a focused Proxmox Smoke-VM proof under `infra/terraform/proxmox-smoke-vm/`
+- Disposable VM `9300` provisioned from the workload-ready template `9010`
 - Proxmox automation through a Terraform Proxmox Provider (`bpg/proxmox`) 
+- Proxmox API endpoint and token-based provider authentication validated before provisioning
 - Disposable Smoke VM `9300` cloned and provcisioned from the workload-ready VM Template `9010` (created in Phase 04 - Proxmox VM Baseline) 
 - Proxmox node `sd-178532`, storage `vmdata`, and private VM network model reused from the proven Proxmox baseline
 - Cloud-Init used for guest initialization and static smoke-VM networking (to inject guest initialization values such as the `ubuntu` user, DNS, gateway, and static smoke-VM IP `10.10.10.30/24`)
-- Terraform plan/apply/destroy lifecycle completed successfully (`init`, `validate`, `plan`, `apply`, Proxmox host-side verification, guest reachability check, and `destroy`)
+- Terraform plan/apply/destroy lifecycle completed successfully (`init`, `validate`, `plan`, `apply`, Proxmox host-side verification to confirm the created VM, guest reachability check, and `destroy` to remove the disposable VM again)
 - Live K3s target VM `9200` remained unmanaged and untouched to protect Live Environmenst `dev` + `prod`
 - Terraform provider dependencies included in Dependabot scope
-- Terraform-related Makefile helpers added for repeatable local execution
+- Terraform-related Makefile helpers added for repeatable local execution (for Terraform init, validate, plan, apply, and destroy)
 
-#### Terraform communication model
+### Phase 09 - Disaster Recovery & Rollback Readiness
+
+- K8s Namespace Backup Helper implemented (`scripts/dr/backup-k8s-namespace.sh`) to create local disaster-recovery backup snapshots for selected live Sock Shop namespaces on the remote target: `sock-shop-dev` (default) or `sock-shop-prod`. 
+- Creates a unique, timestamped directory per run:
+~~~bash
+.
+├── backups
+│   ├── sock-shop-dev_20260427T203209Z
+│   │   ├── db
+│   │   │   ├── backup-report.txt
+│   │   │   ├── carts-db_carts-db-6bb589dd85-sdgdh.archive.gz
+│   │   │   ├── orders-db_orders-db-944d776bc-hwgqt.archive.gz
+│   │   │   └── user-db_user-db-7bd86cdcd-xwm7b.archive.gz
+│   │   ├── k8s
+│   │   │   ├── all-resources-wide.txt
+│   │   │   ├── configmaps.yaml
+│   │   │   ├── deployments.yaml
+│   │   │   ├── ingress.yaml
+│   │   │   ├── namespace.yaml
+│   │   │   ├── persistent-volumes-wide.txt
+│   │   │   ├── pods.yaml
+│   │   │   ├── pvc.yaml
+│   │   │   ├── secrets-metadata.txt
+│   │   │   └── services.y
+...
+~~~
+
+- Backup artifacts include the remote Kubernetes namespace state, resource snapshots, Secret metadata only (Secret values excluded), and database backup reports
+- Mongo-compatible data-store dumps created where `mongodump` is available
+- Representative `user-db` dump restored into a temporary local MongoDB container and queried successfully + comparison of users-db-dump state vs users-db-live state successfull (schema + collections count parity verified)  
+- Pod-level recovery proven by deleting a live `front-end` dev pod and validating auto-recreation by Kubernetes 
+- Live smoke checks passed after recovery
+- Kubernetes rollback path documented for future bad-release scenarios without forcing an artificial bad release
+
+
+
+---
+
+
+
+## Terraform communication model
 
 ~~~text
           Terraform configuration 
@@ -386,7 +457,7 @@ The Terraform resource created in this baseline is a single VM object:
 
 ---
 
-#### Proxmox authentication model
+### Proxmox authentication model
 
 In this baseline implementation, Terraform authenticates against the Proxmox VE API using a temporary **Proxmox API token**.
 
@@ -409,7 +480,7 @@ After the proof cycle completed, the Proxmox API access was destroyed again on P
 >
 > If Terraform is later expanded to manage long-lived target infrastructure, this should be replaced by a stronger secret-management approach (GitHub Actions secrets, SOPS, Vault, or another dedicated secret store).
 
-#### Provisioning lifecycle
+### Provisioning lifecycle
 
 The Phase 08 IaC proof performs the following provisioning lifecycle. It starts from the already proven workload-ready Proxmox VM Template `9010` with the goal to provision a new VM `9300` via Terraform: 
 
@@ -436,17 +507,7 @@ The Phase 08 IaC proof performs the following provisioning lifecycle. It starts 
 
 This proves a complete and reproducible IaC lifecycle for Proxmox VM provisioning—while keeping the live `dev` / `prod` target platform safe.
 
-### Disaster Recovery & Rollback Readiness
-
-- DR backup helper added for `sock-shop-dev` and `sock-shop-prod`
-- Backup artifacts include Kubernetes namespace state, resource snapshots, Secret metadata only, and database backup reports
-- Mongo-compatible data-store dumps created where `mongodump` is available
-- Representative `user-db` dump restored into a temporary local MongoDB container and queried successfully
-- Pod-level recovery proven by deleting a live `front-end` dev pod and validating Kubernetes recreation
-- Live smoke checks passed after recovery
-- Kubernetes rollback path documented without forcing an artificial bad release
-
-### 🚥 Traffic Generator (Observability Helper)
+## 🚥 Traffic Generator (Observability Helper)
 
 Reusable observability helper script (introduced in Phase 06):
 
@@ -498,7 +559,7 @@ On execution, it generates **repeatable storefront traffic** so the monitoring s
 
 ### Observability Make Helper Targets
 
-The repository exposes a few thin Makefile helpers for the most common bservability checks and traffic-generation flows (introduced in Phase 06):
+The repository exposes a few thin Makefile helpers for the most common observability checks and traffic-generation flows (introduced in Phase 06):
 
 - `make p06-monitoring-status`
 - `make p06-grafana-port-forward`
@@ -603,16 +664,16 @@ The repository currently contains proven work across the following phases. *(Not
     * **Docs: [Setup](project-docs/03-ci-cd-baseline/SETUP.md) • [Implementation](project-docs/03-ci-cd-baseline/IMPLEMENTATION.md) • [Runbook](project-docs/03-ci-cd-baseline/RUNBOOK.md) • [Decisions](project-docs/03-ci-cd-baseline/DECISIONS.md)**  
 
 * **Phase 04 — Proxmox VM Baseline**
-    * **Scope:** Target host inspected, reusable Ubuntu 24.04 Cloud-Init template (`9000`), reference smoke VM (`9100`), and workload-ready variant (`9010`) finalized with private guest bridge `vmbr1`, stable IP/DNS, and guest-agent capabilities.
+    * **Scope:** Target host inspected, reusable Ubuntu 24.04 Cloud-Init template (`9000`), reference Smoke VM (`9100`), host-side and guest-side verification completed, and workload-ready variant (`9010`) finalized with private guest bridge `vmbr1`, stable IP/DNS, outbound reachability, and guest-agent capability.
     * **Docs: [Discovery](project-docs/04-proxmox-vm-baseline/DISCOVERY.md) • [Setup](project-docs/04-proxmox-vm-baseline/SETUP.md) • [Implementation](project-docs/04-proxmox-vm-baseline/IMPLEMENTATION.md) • [Runbook](project-docs/04-proxmox-vm-baseline/RUNBOOK.md) • [Decisions](project-docs/04-proxmox-vm-baseline/DECISIONS.md)**
 
 * **Phase 05 — Proxmox Target Delivery**
     * **Scope:** Real target VM `9200` cloned from `9010`, single-node K3s control plane, MongoDB compatibility fix, environment-separated `dev`/`prod` target deployments via Traefik, Tailscale private access, Cloudflare Tunnel public HTTPS, and dedicated CI/CD delivery workflows.
     * **Docs: [Setup](project-docs/05-proxmox-target-delivery/SETUP.md) • [Implementation](project-docs/05-proxmox-target-delivery/IMPLEMENTATION.md) • [Runbook](project-docs/05-proxmox-target-delivery/RUNBOOK.md) • [Decisions](project-docs/05-proxmox-target-delivery/DECISIONS.md)**\
-    **Detailed Subphase Guides: [05-A](project-docs/05-proxmox-target-delivery/implementation/PHASE-05-A.md) • [05-B](project-docs/05-proxmox-target-delivery/implementation/PHASE-05-B.md) • [05-C](project-docs/05-proxmox-target-delivery/implementation/PHASE-05-C.md) • [05-D](project-docs05-proxmox-target-delivery/implementation/PHASE-05-D.md)**
+    **Detailed Subphase Guides: [05-A](project-docs/05-proxmox-target-delivery/implementation/PHASE-05-A.md) • [05-B](project-docs/05-proxmox-target-delivery/implementation/PHASE-05-B.md) • [05-C](project-docs/05-proxmox-target-delivery/implementation/PHASE-05-C.md) • [05-D](project-docs/05-proxmox-target-delivery/implementation/PHASE-05-D.md)**
 
 * **Phase 06 — Observability & Health**
-    * **Scope:** Dedicated `monitoring` namespace, Helm-based `kube-prometheus-stack` baseline, private Grafana/Prometheus access via port-forward, namespace-level visibility for `prod`, and a Bash traffic-generator script.
+    * **Scope:** Dedicated `monitoring` namespace, Helm-based `kube-prometheus-stack` baseline, private Grafana/Prometheus access via port-forward, namespace-level visibility for `prod`, healthy Prometheus target checks, and implementation of a custom Bash traffic-generator script.
     * **Docs: [Implementation](project-docs/06-observability/IMPLEMENTATION.md) • [Runbook](project-docs/06-observability/RUNBOOK.md) • [Decisions](project-docs/06-observability/DECISIONS.md)**
 
 * **Phase 07 — Security Testing**
@@ -620,153 +681,15 @@ The repository currently contains proven work across the following phases. *(Not
     * **Docs:** **[Setup](project-docs/07-security-testing/SETUP.md) • [Implementation](project-docs/07-security-testing/IMPLEMENTATION.md) • [Runbook](project-docs/07-security-testing/RUNBOOK.md) • [Decisions](project-docs/07-security-testing/DECISIONS.md)**\
     **Detailed Subphase Guides: [07-A](project-docs/07-security-testing/implementation/PHASE-07-A.md) • [07-B](project-docs/07-security-testing/implementation/PHASE-07-B.md) • [07-C](project-docs/07-security-testing/implementation/PHASE-07-C.md) • [07-D](project-docs/07-security-testing/implementation/PHASE-07-D.md)**
 
-* **Phase 08 — Proxmox IaC Baseline** *(In Progress)*
-    * **Scope:** Terraform workspace established for a disposable Proxmox smoke-VM proof (`9300`). API authentication validated, Terraform plan/apply/destroy lifecycle verified, and Makefile helpers added.
+* **Phase 08 — Proxmox IaC Baseline** *(Functionally implemented; docs polish in progress)*
+    * **Scope:** Terraform workspace established under `infra/terraform/proxmox-smoke-vm/` for disposable Proxmox smoke-VM proof. VM `9300` provisioned from workload-ready template `9010`, Proxmox API authentication validated, Terraform plan/apply/destroy lifecycle verified, live VM `9200` remained untouched, and Makefile helpers added.
     * **Docs: [Implementation](project-docs/08-proxmox-iac/IMPLEMENTATION.md)**
 
-* **Phase 09 — DR & Rollback Readiness** *(In Progress)*
-    * **Scope:** Target DR backup helper deployed, namespace state/secrets exported, MongoDB datastore dumps verified via temporary restore, frontend pod recovery proven, and rollback paths documented.
+* **Phase 09 — DR & Rollback Readiness** *(Functionally implemented; docs polish in progress)*
+    * **Scope:** Target DR backup helper deployed for `sock-shop-dev` and `sock-shop-prod`, Kubernetes namespace state exported, Secret metadata recorded without exporting Secret values, Mongo-compatible data-store dumps validated through a temporary restore check, `front-end` dev pod recovery proven, live smoke checks passed after recovery, and rollback paths documented.
     * **Docs: [Implementation](project-docs/09-dr-rollback/IMPLEMENTATION.md)**
 
-
 Note: This section is intentionally a moving summary, not the final shape of the project.
-
-
-  
-
-## 📁 Current verified scope
-
-The repository currently contains proven work across these phases:
-
-- **Phase 00 — Compose baseline**
-  - Repository reconnaissance
-  - Local Docker Compose baseline
-  - Host-port conflict diagnosis and workaround
-  - Docs:
-    - [Implementation](project-docs/00-compose-baseline/IMPLEMENTATION.md)
-    - [Runbook](project-docs/00-compose-baseline/RUNBOOK.md)  
-
-- **Phase 01 — Port-based Kubernetes baseline**
-  - Clean local k3s deployment via upstream manifests
-  - Storefront reachable via NodePort `30001`
-  - Docs:  
-    - [Implementation](project-docs/01-nodeport-baseline/IMPLEMENTATION.md)
-    - [Runbook](project-docs/01-nodeport-baseline/RUNBOOK.md)  
-
-- **Phase 02 — Host-based ingress baseline**
-  - Local Traefik ingress for `sockshop.local`
-  - NodePort retained as fallback
-  - Docs:  
-    - [Implementation](project-docs/02-ingress-baseline/IMPLEMENTATION.md)
-    - [Runbook](project-docs/02-ingress-baseline/RUNBOOK.md)  
-
-- **Phase 03 — CI/CD baseline**
-  - GitHub Actions delivery workflow
-  - Kustomize overlays for `dev` / `prod`
-  - GHCR publishing for the repo-owned `healthcheck` image
-  - automated `dev` smoke deployment
-  - Approval-gated `prod` smoke deployment
-  - Docs:
-    - [Setup](project-docs/03-ci-cd-baseline/SETUP.md)
-    - [Implementation](project-docs/03-ci-cd-baseline/IMPLEMENTATION.md)
-    - [Runbook](project-docs/03-ci-cd-baseline/RUNBOOK.md)
-    - [Decisions](project-docs/03-ci-cd-baseline/DECISIONS.md)  
-
-- **Phase 04 — Proxmox VM baseline**
-  - Provided Proxmox target host inspected and documented
-  - Reusable Ubuntu 24.04 Cloud-Init VM template created as `9000`
-  - Reference smoke VM created as `9100`
-  - Host-side verification completed
-  - Guest-side verification completed:
-    - Login
-    - Cloud-Init completion
-    - Usable root disk
-    - Outbound connectivity
-  - Workload-ready baseline variant prepared and finalized as `9010`
-    - Private guest bridge `vmbr1`
-    - Stable private guest addressing and routing
-    - Deterministic DNS and outbound bootstrap reachability
-    - Guest-agent capability
-  - docs:
-    - [Discovery](project-docs/04-proxmox-vm-baseline/DISCOVERY.md)
-    - [Setup](project-docs/04-proxmox-vm-baseline/SETUP.md)
-    - [Implementation](project-docs/04-proxmox-vm-baseline/IMPLEMENTATION.md)
-    - [Runbook](project-docs/04-proxmox-vm-baseline/RUNBOOK.md)
-    - [Decisions](project-docs/04-proxmox-vm-baseline/DECISIONS.md)
-
-- **Phase 05 — Proxmox target delivery**
-  - Real target VM `9200` cloned from workload-ready template `9010`
-  - Single-node K3s control plane on the target VM
-  - Source-controlled MongoDB compatibility fix for the target runtime
-  - Environment-separated `dev` / `prod` deployment model on the real target cluster
-  - Working Traefik ingress for both environments
-  - Private Tailscale-based operator and CI/CD access path
-  - Public HTTPS exposure through Cloudflare Tunnel
-  - Dedicated Phase 05 workflow for automated `dev` and approval-gated `prod` deployment on the real target
-  - Docs:
-    - [Setup](project-docs/05-proxmox-target-delivery/SETUP.md)
-    - [Implementation](project-docs/05-proxmox-target-delivery/IMPLEMENTATION.md)
-    - [Runbook](project-docs/05-proxmox-target-delivery/RUNBOOK.md)
-    - [Decisions](project-docs/05-proxmox-target-delivery/DECISIONS.md)
-
-- **Phase 06 — Observability & Health**
-  - Dedicated `monitoring` namespace on the real target cluster
-  - Maintained Helm-based monitoring baseline through `kube-prometheus-stack`
-  - Private Grafana access through `kubectl port-forward`
-  - Private Prometheus access through `kubectl port-forward`
-  - Namespace-level workload visibility for `sock-shop-prod`
-  - Healthy core monitoring targets on the Prometheus `/targets` page
-  - Oberservability helper Bash script to auto-generate traffic on the target cluster for Grafana/Prometheus  
-  - Docs:
-    - [Implementation](project-docs/06-observability/IMPLEMENTATION.md)
-    - [Runbook](project-docs/06-observability/RUNBOOK.md)
-    - [Decisions](project-docs/06-observability/DECISIONS.md)
-
-- **Phase 07 — Security Testing**
-  - Repo-owned Ruby `healthcheck` helper refactored into a testable structure
-  - Ruby CLI characterization and unit tests added
-  - Repo-owned Bash Observability Traffic Generator refactored behind `main()` and an execution guard
-  - Bash CLI and function-level tests added
-  - Python `/catalogue` contract guard added with deterministic local tests
-  - Live Python contract smoke checks added for deployed catalogue endpoints
-  - Playwright browser smoke tests added for live storefront rendering
-  - Trivy filesystem scan baseline added for repo-owned code/config components
-  - Trivy image scan added for the repo-owned `healthcheck` image
-  - `healthcheck` Dockerfile hardened and verified through focused clean Trivy reruns
-  - Dependabot configured for GitHub Actions and the Playwright npm toolchain
-  - Deterministic GitHub Actions PR gate added
-  - Separate manual/reusable live-smoke workflow added
-  - `master` protected with required deterministic Phase 07 checks
-  - Docs:
-    - [Setup](project-docs/07-security-testing/SETUP.md)
-    - [Implementation](project-docs/07-security-testing/IMPLEMENTATION.md)
-    - [Runbook](project-docs/07-security-testing/RUNBOOK.md)    
-    - [Decisions](project-docs/07-security-testing/DECISIONS.md)
-
-- **Phase 08 — Proxmox IaC baseline**
-  - Terraform workspace added for a focused Proxmox smoke-VM proof
-  - Proxmox API endpoint and token-based access validated
-  - Terraform plan created for disposable VM `9300`
-  - Terraform apply successfully created the smoke VM from template `9010`
-  - Proxmox host-side verification confirmed the created VM
-  - Terraform destroy successfully removed the disposable VM again
-  - Makefile helpers added for Terraform init, validate, plan, apply, and destroy
-  - Dependabot scope extended to Terraform provider dependencies
-  - Docs:
-    - [Implementation](project-docs/08-proxmox-iac/IMPLEMENTATION.md)
-
-- **Phase 09 — Disaster recovery / rollback readiness**
-  - DR backup helper added for `sock-shop-dev` and `sock-shop-prod`
-  - Remote Proxmox target kubeconfig used by default for backup execution
-  - Kubernetes namespace state exported into timestamped local backup artifacts
-  - Secret values intentionally excluded; only Secret metadata is recorded
-  - Mongo-compatible data-store dumps created where `mongodump` is available
-  - Representative `user-db` dump restored into a temporary MongoDB container and queried successfully
-  - Dev pod recovery proven through intentional `front-end` pod deletion and Kubernetes recreation
-  - Live smoke checks passed after recovery
-  - Kubernetes rollback path documented for future bad-revision scenarios
-  - Docs:
-    - [Implementation](project-docs/09-dr-rollback/IMPLEMENTATION.md)
 
 ---
 
@@ -836,11 +759,6 @@ The full evidence index for each phase is documented inside the corresponding `I
 - `adr/` — Architecture Decision Records
 - `project-docs/` — phase documentation, evidence, and decisions
 - `deploy/` — upstream deployment assets (Compose, Kubernetes manifests, Helm chart, related deployment material)
-
-## 🔮 What comes next
-
-This README is intentionally kept open for the next implementation phases.
-
 
 ## 🔮 What comes next
 
