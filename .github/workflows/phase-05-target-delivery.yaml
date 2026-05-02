@@ -81,7 +81,7 @@ jobs:
       # Checks out the repository content into the runner workspace so later steps can read files from the repo 
       # (like  workflow files, Kustomize overlays, and build contexts)    
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Show kubectl client version
         run: kubectl version --client
@@ -109,7 +109,7 @@ jobs:
     steps:
       # Make the repository contents available inside the runner workspace
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       # Normalize owner name for lowercase GHCR image paths
       - name: Prepare lowercase image owner
@@ -154,7 +154,7 @@ jobs:
     steps:
       # Make the repository contents available inside the runner workspace
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       # 1. Join the private Tailnet as an ephemeral CI node using the Tailscale OAuth Client secrets
       - name: Connect runner to tailnet
@@ -212,7 +212,7 @@ jobs:
     steps:
       # Make the repository contents available inside the runner workspace
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       # 1. Join the private Tailnet as an ephemeral CI node using the Tailscale OAuth Client secrets
       - name: Connect runner to tailnet
