@@ -38,7 +38,7 @@ Production-grade DevOps project based on the upstream WeaveSocks microservices a
 
 > **Project focus:** The goal is not just to run the application once, but to build a reproducible, phase-based DevOps delivery path with evidence-grade documentation. The project is intentionally implemented in phases so that each new capability builds on an already proven baseline, gradually covering the core capabilities expected from a modern DevOps delivery project:
 >
-> - **🏗️ Infrastructure & Platform:** Infrastructure as Code (IaC), Proxmox VM templating, Kubernetes deployment, and long-lived target-environment evolution.
+> - **🏗️ Infrastructure & Platform:** Infrastructure as Code (IaC), Proxmox VM templating, and Kubernetes deployment on a long-lived Proxmox-based K3s target platform.
 > - **🚢 Delivery & Operations:** Containerized microservices delivery and operation, CI/CD, repo-owned container image build and publishing, and `dev` / `prod` environment separation.
 > - **🛡️ Quality & Security:** Repo-owned validation tooling, deterministic test gates, security measures, Trivy scanning, and Dependabot dependency visibility.
 > - **📊 Resilience & Observability:** Prometheus/Grafana observability, Kubernetes state backup, Mongo-compatible data-store dump validation, pod recovery proof, and rollback readiness.
@@ -118,19 +118,75 @@ The project does not use separate long-lived Git branches for `dev` and `prod`. 
 
 ---
 
+## 🖼️ Architecture Overview
+
+The following architecture overview is the main visual map of the project.It illustrates the complete macro delivery path from source control and CI/CD to the Proxmox-based K3s runtime, public access, observability, IaC support, and DR backup flow.
+
+### Macro Architecture Map
+
+![Final architecture overview](project-docs/09-dr-rollback/evidence/06-DR-final-architecture-overview.svg)
+
+*Architecture overview of the production-like delivery path from repository and CI/CD workflow to the Proxmox-based K3s target platform, public `dev` / `prod` entrypoints, observability, IaC, and DR support paths.*
+
+### Component Specifications
+
+The following component summary defines the specific technologies and models driving the architecture shown above:
+
+| Area | Current project implementation |
+| :--- | :--- |
+| **Application** | Sock Shop E-Commerce Microservices Application |
+| **Local baseline Runtimes** | Docker Compose and local K3s |
+| **Kubernetes Deployment Model** | Raw manifests plus environment-specific Kustomize overlays |
+| **CI/CD Platform** | GitHub Actions |
+| **Container Registry** | GitHub Container Registry (GHCR) for the repo-owned Ruby `healthcheck` image |
+| **Historical CI Smoke Target** | `kind` during the Phase 03 (CI/CD Baseline) |
+| **Long-lived Target Platform** | Proxmox VM `9200` running single-node K3s since Phase 05 (Target Delivery) |
+| **Environment Model** | `sock-shop-dev` and `sock-shop-prod` namespaces on the same cluster |
+| **Ingress and Public Edge** | Traefik behind Cloudflare Tunnel |
+| **Private Access Path** | Tailscale for operator and CI access to the Kubernetes API |
+| **Observability** | Dedicated `monitoring` namespace with `kube-prometheus-stack`, Prometheus, and Grafana |
+| **Testing and Security** | Ruby/Bash/Python validation tooling, Playwright smoke tests, Trivy scans, Dependabot, and protected PR checks |
+| **Infrastructure as Code** | Terraform Proxmox "Smoke-VM" baseline using template `9010` and disposable VM `9300` |
+| **Disaster recovery** | Kubernetes state backup, Mongo-compatible dump validation, pod recovery proof, and rollback-readiness documentation |
+
+**Current architecture result:** The project now proves delivery, operations, observability, testing, security, IaC, and DR readiness against a long-lived Proxmox-backed K3s target platform, rather than only demonstrating isolated local or CI/CD mechanics.
+
+---
+
+### Core Architectural Principles
+
+The architecture shown above is the result of a set of pragmatic and goal-oriented decisions that prioritize target stability and security over compatibility with legacy assets inherited from the upstream project:
+
+- **Phase-based delivery path:** To keep the moving parts and unknowns introduced by the upstream project and the project requirements in control, the project implementation follows a phase-based approach so each new layer builds on an already proven baseline.
+- **Deployment Flow:** Phase 05 keeps the proven raw-manifest/Kustomize deployment path from Phase 03 and extends onto the remote Proxmox-based target instead of switching deployment models (like Helm).
+- **CI/CD Compute:** The CI/CD baseline uses GitHub-hosted runners, avoiding the security risks of attaching a self-hosted personal machine to a public repository.
+- **Proxmox VM Templating:** The Proxmox baseline is standardized on the official Cloud-Init template workflow via the `qm` CLI.
+- **Target verification:** Phase 04 proves the VM baseline through explicit host-side and guest-side verification, rather than relying on hypervisor inventory visibility alone.
+- **Private Control Plane:** The remote target cluster is reached privately through Tailscale. The Kubernetes API is intentionally not exposed to the public internet.
+- **Public Edge Routing:** Public application exposure is handled only through Cloudflare Tunnel and Traefik, avoiding opening inbound application ports directly on the Proxmox VM firewall.
+- **Workflow Preservation:** The historical Phase 03 `kind` workflow is preserved as evidence, while the Phase 05 workflow acts as the active remote-target delivery path.
+- **Observability:** The first observability baseline uses the maintained `kube-prometheus-stack` chart instead of the older fragmented repository monitoring path and  stays private-only.
+- **Validation split:** Deterministic repo-owned tests and focused security scans protect merges, while live smoke checks remain separate because they depend on deployed environment state.
+- **Security scope:** The first security baseline focuses on owned components and non-invasive controls first: Trivy scans, Dependabot, Dockerfile hardening, protected PR checks, HTTPS edge access, and private Kubernetes API access.
+- **IaC safety boundary:** The first Terraform proof provisions and destroys a disposable Proxmox smoke VM `9300` instead of replacing or destabilizing the already working target VM `9200`.
+- **DR safety boundary:** The first DR baseline favors safe executable proof: Kubernetes state export, Mongo-compatible dump validation in a disposable temporary container, pod recovery proof, and rollback documentation. Secret values are not exported, and live `dev` / `prod` database restores are intentionally avoided in this baseline.
+- **Asset Inheritance:** The project takes a pragmatic, phase-driven approach to the inherited upstream codebase. See [Upstream Inheritance & Decisions](#upstream-asset-handling) for the breakdown of which upstream assets were reused, replaced, or deferred.
+
+---
+
 ## 🌍 Target Environment Model 
 
 ### Target Shape
 
 The current `dev` and `prod` environments do not run on separate machines.
 
-Both run on the **same Proxmox-based target VM** inside the **same single-node K3s cluster**.
+Both run on the **same Proxmox-based target VM `9200`** inside the **same single-node K3s cluster**.
 
-**Result: `1 VM -> 1 cluster -> 2 namespaces -> 2 app environments`**
+| 🖥️ Compute | ☸️ Orchestration | 🗂️ Partitioning | 🚀 Delivery |
+| :--- | :--- | :--- | :--- |
+| **1 Proxmox VM** | **1 K3s Cluster** | **2 Namespaces** | **2 App Environments** |
 
-> **Architecture Flow:**
->
-> 🖥️ **1 Proxmox VM** ➔ ☸️ **1 K3s Cluster** ➔ 🗂️ **2 Namespaces** ➔ 🚀 **2 App Environments**
+---
 
 ### Logical environment separation
 
@@ -142,22 +198,20 @@ The logical environment separation is implemented through:
 4. **Separate public entrypoints:** Traffic is routed via [`dev-sockshop.cdco.dev`](https://dev-sockshop.cdco.dev/) and [`prod-sockshop.cdco.dev`](https://prod-sockshop.cdco.dev/).
 5. **Distinct workflow behaviors:** Automated `dev` deployment vs. approval-gated `prod` deployment.
 
+---
+
 ### Operational Support Around the Target Model
 
 Additional operational support around this target model now includes:
 
-- **Terraform IaC baseline:** Phase 08 proves reproducible Proxmox VM provisioning through an isolated disposable smoke VM path.
+- **Terraform IaC baseline:** Phase 08 introduces a Terraform baseline that currently supports this architecture with a reproducible Proxmox VM provisioning proof through an isolated disposable Smoke VM `9300`. The live `dev` / `prod` target remains the established VM `9200` from the Phase 05 target-delivery path. 
 - **DR backup baseline:** Phase 09 exports Kubernetes namespace state for `sock-shop-dev` and `sock-shop-prod` and validates Mongo-compatible dump artifacts through a temporary restore check.
 
-### Public routing path
+### Detailed Request and Deployment Flow
 
-Public traffic reaches the same target platform through Cloudflare Tunnel and is then routed by **hostname** through **Traefik** to the correct namespace-based application environment.
+The following ASCII chart provides a deep dive into the current target environment, focussing on specific parts of the architecture. It illustrates how public request traffic and private operational/deployment-control traffic reach the `dev` / `prod` namespaces on VM `9200`.
 
-**Result:\
-\
-`1 VM -> 1 cluster -> 2 namespaces -> 2 app environments`**
-
-Note: The Terraform baseline currently supports this architecture as a reproducible Proxmox provisioning proof, while the live `dev` / `prod` target remains the already established VM `9200` from the Phase 05 target-delivery path. 
+Public traffic enters through **Cloudflare Tunnel** and is routed by **Traefik** based on the requested **hostname** to the correct namespace-based application environment. Deployment traffic uses the private **Tailscale** access path to reach the Kubernetes API, where Kubernetes stores the desired state and reconciles the affected namespace resources.
 
 ~~~text
                           Public Internet
@@ -210,12 +264,13 @@ Note: The Terraform baseline currently supports this architecture as a reproduci
 |           overlay into final Kubernetes manifests and             |
 |        uses private kubectl access to the target cluster          |
 +-------------------------------------------------------------------+
-
 ~~~
 
 The **numbered flow** above separates the public request path from the deployment control path: 
+
 - **Public Request Path (R1-R3):**\
 User traffic enters through HTTPS, reaches the Cloudflare Tunnel, and is routed by Traefik based on the requested hostname to either `sock-shop-dev` or `sock-shop-prod`.
+
 - **Deployment Control Path (D1-D3):**\
 **GitHub Actions CI** renders the selected environment-specific Kustomize overlay into final Kubernetes manifests and applies those manifests to the Kubernetes API through the private **Tailscale** access path - as the desired target cluster state for the selected namespace. The same private access model is also used for operator `kubectl` access and private port-forwarding tasks.\
 **Kubernetes** then performs **reconciliation**: the API receives the manifests and stores them as desired state, and Kubernetes controllers create, update, or replace resources until the affected namespace matches the applied manifests.
@@ -228,36 +283,30 @@ The delivery workflow does not copy the repository onto the VM or run the applic
 
 Instead, GitHub Actions applies Kubernetes manifests to the cluster API. Kubernetes stores that desired state and recreates/updates the affected resources until the namespace matches it (reconciliation).
 
-## 🏗️ Architecture Snapshot
-
-The current architecture is a phase-built DevOps delivery path around the Sock Shop microservices application:
-
-- **Application:** Sock Shop microservices
-- **Local baseline runtimes:** Docker Compose and local K3s
-- **Kubernetes deployment model:** Raw manifests plus environment-specific Kustomize overlays
-- **CI/CD platform:** GitHub Actions
-- **Container registry:** GHCR
-- **Historical CI smoke target:** `kind` during the Phase 03 CI/CD baseline
-- **Long-lived target platform:** Proxmox VM `9200` running single-node K3s
-- **Environment model:** `sock-shop-dev` and `sock-shop-prod` namespaces on the same cluster
-- **Ingress and public edge:** Traefik behind Cloudflare Tunnel
-- **Private access path:** Tailscale for operator and CI access to the Kubernetes API
-- **Observability:** Dedicated `monitoring` namespace with `kube-prometheus-stack`, Prometheus, and Grafana
-- **Testing and security:** Ruby/Bash/Python validation tooling, Playwright smoke tests, Trivy scans, Dependabot, and protected PR checks
-- **Infrastructure as Code:** Terraform Proxmox smoke-VM baseline using template `9010` and disposable VM `9300`
-- **Disaster recovery:** Kubernetes state backup, Mongo-compatible dump validation, pod recovery proof, and rollback-readiness documentation
-
-**Current architecture result:** The project now proves delivery, operations, observability, testing, security, IaC, and DR readiness against a long-lived Proxmox-backed K3s target platform, rather than only demonstrating isolated local or CI/CD mechanics.
-
 ---
 
-## 🖼️ TODO!!!: Architecture Diagram
+## 🧩 Application Runtime Topology
 
-The final architecture diagram summarizes the complete delivery path: developer workflow, GitHub Actions, GHCR, Tailscale, Proxmox VM `9200`, K3s namespaces, Traefik, Cloudflare Tunnel, Prometheus/Grafana, Terraform smoke-VM provisioning, and DR backup flow.
+The following topology shows what the compact “Sock Shop workload” box contains inside each application namespace.
 
-![Final architecture overview](project-docs/09-dr-rollback/evidence/03-DR-final-architecture-overview.png)
+The same workload model is deployed into both `sock-shop-dev` and `sock-shop-prod`, with environment-specific Kustomize overlays and different promotion behavior.
 
-*Architecture overview of the production-like delivery path from repository and CI/CD workflow to the Proxmox-backed K3s target platform, public `dev` / `prod` entrypoints, observability, IaC, and DR support paths.*
+![Application runtime topology](project-docs/09-dr-rollback/evidence/07-application-runtime-topology.png)
+
+*Runtime topology of the Sock Shop workload on the project target platform: Showing public ingress through Cloudflare Tunnel and Traefik, the `front-end` BFF, core application services, checkout orchestration through `orders`, Redis-backed sessions, stateful backing services, RabbitMQ-based async shipping flow, and the current repo-owned DR dump scope for the Mongo-backed services.*
+
+> **🛡️ Note on DR scope:** Phase 09 currently proves Kubernetes namespace-state export plus Mongo-compatible dump validation for `carts-db`, `orders-db`, and `user-db`. It does currently not prove dump-based recovery for `catalogue-db` (MySQL), `session-db` (Redis), or `rabbitmq`.
+
+> **🏗️ Note on the BFF (Backend for Frontend) pattern:** The `front-end` container acts as a hybrid UI server and browser-facing API gateway. It serves the web UI and exposes the main browser-facing routes for catalogue, cart, order, and user flows, while internal checkout orchestration remains handled by the `orders` service.
+
+### Runtime topology source notes
+
+- **Official Sock Shop repository:** Sock Shop is a user-facing microservices demo application packaged in Docker containers.
+- **Official Kubernetes manifests:** The deployed workload includes `front-end`, `catalogue`, `carts`, `orders`, `payment`, `shipping`, `queue-master`, `rabbitmq`, `session-db`, and database services.
+- **Front-end routing:** The `front-end` application mounts cart, catalogue, orders, and user API modules; it does not directly mount payment or shipping routes.
+- **Checkout orchestration:** The `orders` service calls payment and shipping during order creation.
+- **Session state:** `session-db` is Redis-backed frontend session state. It is mapped as a runtime state component; Phase 09 Mongo-compatible dump validation focuses on the Mongo-backed business data services.
+- **Queue processing:** `queue-master` processes the queue behind RabbitMQ.
 
 ---
 
@@ -283,7 +332,7 @@ The final architecture diagram summarizes the complete delivery path: developer 
 | **Security / DevSecOps** | Trivy repo/image scans, evidence-based hardening of the repo-owned `healthcheck` Docker image, Dependabot for GitHub Actions / Playwright / Terraform provider dependencies, no committed live secrets, GitHub Secrets / repository variables, protected PR gate, and HTTPS edge access through Cloudflare Tunnel. | Phase 06, Phase 07, Phase 08, Phase 09 |
 | **Disaster Recovery / Rollback** | Backup helper exports Kubernetes namespace state, records Secret metadata only, creates Mongo-compatible dumps, validates restore/query behavior, proves pod recovery through Kubernetes reconciliation, and documents rollback paths for bad-release scenarios. | Phase 09 |
 | **Documentation / Evidence** | README, phase implementation logs, setup guides, runbooks, decisions, ADRs, evidence folders, roadmap, debug/incident log, workflow screenshots, monitoring screenshots, Terraform lifecycle proof, and DR backup/restore proof. | Documentation & Evidence Backbone, `project-docs/INDEX.md` |
-| **Architecture Diagram** | Final architecture diagram is planned/linked as the visual overview of application components, CI/CD pipeline, infrastructure, Kubernetes target model, observability, IaC, and DR paths. | Architecture Diagram section |
+| **Architecture Diagram** | Final architecture diagrams are linked as visual overviews of the delivery path and the Sock Shop runtime topology, including CI/CD, infrastructure, Kubernetes target model, observability, IaC, and DR support paths. | Architecture Overview, Application Runtime Topology |
 
 ---
 
@@ -342,7 +391,7 @@ Alongside the technical phases, the project establishes a documentation system t
 | **Phase docs** | `IMPLEMENTATION.md`, `RUNBOOK.md`, `SETUP.md`, `DECISIONS.md`, `DISCOVERY.md` where applicable |
 | **Evidence folders** | Phase-level screenshots, command outputs, workflow proof, diagrams, and verification artifacts |
 
-This documentation is part of the delivery work itself and acts as the project's backbone, illustrating and proving the baseline- and phase-based implementation appraach of the project.
+This documentation is part of the delivery work itself and acts as the project's backbone, illustrating and proving the baseline- and phase-based implementation approach of the project.
 
 ---
 
@@ -1185,7 +1234,7 @@ All implementation phase related project documentation is organized by phase und
 
   **`project-docs/<phase-folder>/`**. 
 
-Each phase folder contains at least an `IMPLEMNATION.md` - and depending on the complexity of the implementation phase, additional companion docs:
+Each phase folder contains at least an `IMPLEMENTATION.md` - and depending on the complexity of the implementation phase, additional companion docs:
 
 - `IMPLEMENTATION.md`
 - `SETUP.md`
@@ -1209,59 +1258,112 @@ The full evidence index for each phase is documented inside the corresponding `I
 
 ---
 
-## Current notable decisions
+<a id="upstream-asset-handling"></a>
+## ⚖️ Upstream Inheritance & Decisions
 
-[TODO: Organize in Implementation Phases (see Phase 06 ff.) ]
+This fork-based DevOps project was built around an inherited upstream microservices demo introducing numerous upstream assets. I did not attempt to refactor or audit every single legacy folder or tool that I encountered along the way. 
 
-- Helm was evaluated but deferred because the chart path still introduces legacy compatibility friction.
-- The CI/CD baseline uses GitHub-hosted runners, not a self-hosted runner on a personal machine.
-- `openapi` is excluded for now because it is a legacy auxiliary build target and not required for proving the main delivery path.
-- The Proxmox baseline is standardized on the official Cloud-Init template workflow via `qm`.
-- Phase 04 proves the target VM baseline through both host-side and guest-side verification, not through inventory visibility alone.
-- Phase 05 keeps the Kubernetes/Kustomize deployment path and evolves it onto the real Proxmox-backed target instead of switching deployment models midstream.
-- The real target cluster is reached privately through Tailscale, not by exposing the Kubernetes API publicly.
-- Public application exposure is handled through Cloudflare Tunnel and Traefik, not by opening inbound application ports directly on the VM.
-- The historical Phase 03 workflow is preserved, while the Phase 05 workflow is the active real-target delivery path.
-- The project remains phase-based so later observability, security, and DR work can build on already proven mechanics.
+Instead, the implementation was pragmatic and driven by the capstone requirements and the resulting phase-based approach: When an upstream asset intersected with a phase goal, it was evaluated. If it provided a stable baseline, it was reused. If it introduced legacy friction or clashed with the final target Proxmox/K3s architecture, it was deferred and replaced with custom repo-owned implementation.
 
-### Phase 06 - Oberservabiliyt & Health
-- The first observability baseline uses the maintained `kube-prometheus-stack` chart instead of the older fragmented repository monitoring path.
-- The first monitoring rollout is intentionally small and private-only.
-- Grafana and Prometheus are accessed privately through `kubectl port-forward` over the already proven Tailnet-based kubeconfig path.
-- The first observability baseline is considered proven only when both dashboard visibility and Prometheus scrape health are shown successfully.
+### Actively Evaluated & Resolved Upstream Assets: Chosen Project Path
 
-### Phase 07 — Security Testing
+| Inherited / Upstream Area | Original Role / Decision Rationale | Chosen Project Path |
+| :--- | :--- | :--- |
+| **Raw Kubernetes manifests + Kustomize layer**<br/>Found: `deploy/kubernetes/manifests/`, added: `deploy/kubernetes/kustomize/overlays/dev` (`/prod`) | The raw manifests were already proven in Phases 01–02, but alone they were still a single-environment deployment path. Duplicating all manifests per environment or patching them ad hoc inside CI would have made the workflow less reviewable. | Reused as the stable deployment base and extended with thin Kustomize overlays for `sock-shop-dev` and `sock-shop-prod`. The overlays codify namespace creation, patch the `front-end` Service from fixed `NodePort` to `ClusterIP`, render cleanly via `kubectl kustomize`, and become the deployment input through `kubectl apply -k`. |
+| **Upstream GitHub Actions workflow**<br/>Found: `.github/workflows/main.yaml` | The original upstream CI workflow validates manifest sync, starts a `kind` cluster, applies `complete-demo.yaml`, and builds/pushes upstream `openapi` + `healthcheck` images to DockerHub. It reflects not the custom Proxmox/K3s delivery path (with Proxmox as a hard requirement as per the Capstone expectations). Automatic push/tag workflow triggers would add legacy failure noise, require upstream-style DockerHub secrets (`DOCKER_USER`, `DOCKER_PASS`), and publish images under `weaveworksdemos/<image>:<sha>` instead of GHCR. | Kept as **Legacy Upstream CI (Manual Only)** for historical reference/debugging; automatic push/tag workflow triggers were intentionally removed. Active CI/CD moved to project-owned workflows: Phase 03 CI Smoke Baseline Workflow (GitHub-hosted runners plus `kind` as a temporary Kubernetes smoke target); Phase 05 Remote-target Delivery Workflow to Proxmox K3s; Phase 07 Deterministic PR Gate Workflow; Phase 07 Live Smoke workflow. Repo-owned image publishing uses GHCR, not DockerHub (see Ruby `healthcheck` image). |
+| **Upstream Helm chart**<br/>Found: `deploy/kubernetes/helm-chart/` | Helm packaging path for Sock Shop. It was evaluated first because the repository already contained a chart, but it was not usable as a clean Phase 03 baseline: `helm lint` / `helm template` first exposed a missing `nginx-ingress` dependency; `helm dependency build` fetched it successfully; the real `helm upgrade --install` path still failed because the pulled subchart used deprecated Kubernetes APIs such as `apiextensions.k8s.io/v1beta1` and `rbac.authorization.k8s.io/v1beta1`. Helm was therefore deferred, not rejected. | Kustomize became the app delivery layer for `dev` / `prod`: proven raw manifests are reused as the base, while thin overlays add namespace separation and patch the `front-end` Service without duplicating the full manifest set. Helm remains used where it fits better: maintained monitoring deployment through `kube-prometheus-stack` in Phase 06. |
+| **Docker Compose baseline**<br/>Found: `deploy/docker-compose/docker-compose.yml` | Good local runtime baseline for understanding the inherited app, service ports, router behavior, datastores, and monitoring sidecars. Not suitable as the final target platform because the project must prove Kubernetes orchestration and dev/prod target delivery. | Used in Phase 00 for repository reconnaissance, service/port mapping, local runtime proof, and the first troubleshooting baseline. Final runtime moves to K3s on Proxmox. |
+| **Docker Compose local override**<br/>Found/added: `deploy/docker-compose/docker-compose.local.yml` | Phase 00 needed a local-only workaround because host `:80` was intercepted by local K3s/CNI hostport rules. Changing the upstream/default compose file would have mixed local troubleshooting into inherited app assets. | Added as a local-only baseline override exposing the storefront on `localhost:8081`, while leaving the upstream/default Compose file unchanged. |
+| **Docker Compose monitoring**<br/>Found: `deploy/docker-compose/docker-compose.monitoring.yml` | Provides local Prometheus/Grafana/Alertmanager/node-exporter stack. Useful for Phase 00 inventory and local understanding, but separate from the Kubernetes target model and not the best final observability path. | Used for early inventory only. Target observability is implemented in Phase 06 through `kube-prometheus-stack`, Prometheus, and Grafana in the `monitoring` namespace. | 
+| **Upstream Kubernetes monitoring manifests**<br/>Found: `deploy/kubernetes/manifests-monitoring/` | Older **multi-stage raw-manifest monitoring path** for Prometheus/Grafana. It requires several manual steps for namespace creation, Prometheus resources, Grafana resources, and dashboard import jobs; the related alerting path is separate again and expects additional Secret handling. It also documents **NodePort-oriented exposure** for Prometheus (`31090`) and Grafana (`31300`), which conflicts with the project’s later access model: host-based ingress for the app, private-only monitoring access, and no public monitoring surface in the first baseline. | Replaced by Phase 06 monitoring baseline using the maintained Helm-based `kube-prometheus-stack` in a dedicated `monitoring` namespace. The rollout is intentionally small and private-only: Prometheus, Grafana, Prometheus Operator, kube-state-metrics, and node-exporter are installed as one integrated stack; Alertmanager/default rules, long retention, persistent storage, and public ingress are deferred. Grafana and Prometheus are accessed privately via `kubectl port-forward` over the Tailscale/kubeconfig path. |
+| **Upstream load-test manifest**<br/>Found: `deploy/kubernetes/manifests-loadtest/` | Provides a Kubernetes-based load generator against the Sock Shop frontend. Less convenient for local/manual/CI-aligned reruns. | Replaced by repo-owned Bash Observability Traffic Generator in `scripts/observability/generate-sockshop-traffic.sh`, with repeatable `dev` / `prod` request flows, CLI/non-interactive execution, clean output, tests, and Make targets. | 
+| **Upstream Terraform**<br/>Found: `deploy/kubernetes/terraform/` | AWS EC2/ELB-style Kubernetes provisioning example with older provisioning assumptions (AWS etc.). Does not match the chosen Proxmox VM target architecture (with Proxmox as a hard project requirement), and it opens public SSH/HTTP/NodePort access paths unlike the project’s Tailscale/Cloudflare model. | Replaced by repo-owned Terraform under `infra/terraform/proxmox-smoke-vm`, using the `bpg/proxmox` provider to clone disposable VM `9300` from the workload-ready VM Template `9010` through the Proxmox API. The IaC proof is intentionally scoped to a disposable smoke VM, verified, and destroyed again so the live `dev` / `prod` target VM `9200` remains untouched. |
+| **Upstream install / minimesos / AWS material**<br/>Found: `install/`, `staging/` | Older install/staging helpers for AWS/minimesos or other environment paths. They do not match the chosen Proxmox/K3s target architecture. | Not used; the project uses Proxmox VM `9200`, K3s, Tailscale, Cloudflare Tunnel, and Terraform Proxmox Smoke-VM `9300` proof instead. |
+| **Upstream healthcheck helper/image**<br/>Found: `healthcheck/` | Existing API healthcheck path existed, but needed refactoring, testability, image hardening, and CI/security integration. The original upstream CI workflow published it to DockerHub; the project needed GHCR publishing, deterministic tests, and security scanning instead. | Turned into repo-owned implementation work: Ruby helper refactor, CLI/unit tests, Dockerfile hardening, Trivy scanning, GHCR publishing, and CI/CD reuse. It also became the first explicit image remediation target in Phase 07. |
+| **Upstream OpenAPI / Dredd path**<br/>Found: `openapi/` | API-spec verification path exists, but the first Phase 03 workflow run showed it was not suitable for the delivery baseline: The `openapi` image failed during `npm install`, uses Node 6 / npm 3 and a legacy Docker base image, and is not part of the main storefront deployment path. Blocking the whole CI/CD baseline on this legacy helper target would have been the wrong priority. | Deferred and excluded from the Phase 03 image-build matrix. The workflow scope kept the usable repo-owned `healthcheck` image for GHCR publishing and later security hardening. API validation was implemented later through the repo-owned Python `/catalogue` API contract guard, live API smoke checks, and Playwright browser smoke tests in Phase 07. |
+| **Upstream testing strategy notes**<br/>Found: `internal-docs/testing.md` | Describes a broad microservice testing strategy and pipeline model: unit/component/container/application/user tests, environments, gates, staging, and production. Useful conceptually, but not directly executable as the final project pipeline. | Implemented in project-specific form through deterministic PR gate, repo-owned Ruby/Bash/Python tests, Playwright live smoke checks, Phase 05 target delivery workflow, branch protection, and manual/reusable live validation. |
+| **Upstream Sock Shop docs / public site links**<br/>Found: upstream README, `internal-docs/design.md`, several folder-specific README, dead references to `microservices-demo.github.io` (`404`) | Upstream documentation was useful for some application context, but it was not useful as operational runbook for the custom Proxmox/K3s target architecture. Most public-site material was also sparse or unavailable during the project. | Own discovery and resulting project documentation became the source of the phase- and baseline-based implementation work: README, phase implementation logs, runbooks, decision logs, ADRs, debug log, evidence folders, and architecture diagrams under `project-docs/`. |
 
-- The first testing and security baseline focuses on repo-owned components before inherited upstream legacy components.
-- Deterministic tests and focused security scans are used as required merge checks.
-- Live smoke checks remain separate from the required PR gate because they depend on deployed environment state.
-- Trivy is used as the first security scanner for repo-owned code/config checks and the repo-owned `healthcheck` image.
-- The repo-owned `healthcheck` image is the first explicit remediation target.
-- Dependabot is scoped to owned dependency targets: GitHub Actions and the Playwright npm project.
-- The default branch is protected through required deterministic Phase 07 checks.
+### Inventoried & Deferred Upstream Assets
 
-### Phase 08 — Proxmox IaC baseline
+The following upstream assets were inventoried but fell outside the required scope of the delivery proof. They were intentionally deferred to avoid adding operational friction and additional layers that are not directly relevant for the project's core objectives. They might be revisited and evaluated on further implementation phases: 
 
-- The first IaC proof is intentionally scoped to a disposable Proxmox smoke VM instead of replacing the already working target VM `9200`.
-- Terraform is used to prove reproducible Proxmox VM provisioning without destabilizing the live `dev` / `prod` target.
-- The Terraform-managed smoke VM is destroyed after verification so the target host remains clean.
-
-### Phase 09 — Disaster Recovery & Rollback Readiness
-
-- The first DR baseline focuses on safe, executable proof: Kubernetes state export, Mongo-compatible dump validation, pod recovery, and rollback path documentation.
-- Backup artifacts are generated locally and excluded from Git.
-- Secret values are not exported; only Secret metadata is recorded.
-- Full database restore into live `dev` or `prod` is intentionally avoided; restore validation is performed in a disposable temporary MongoDB container.
-- The current single-node K3s target is documented honestly: pod recovery is automatic, while full node/VM recovery follows rebuild, redeploy, and restore procedures.
+| Inherited / Upstream Area | Original Role / Decision Rationale | Current Boundary / Possible Later Path |
+| :--- | :--- | :--- |
+| **Docker Compose logging**<br/>Found: `deploy/docker-compose/docker-compose.logging.yml` | Provides Elasticsearch/Kibana/log-server/Fluentd local logging path. Interesting observability material, but it would add another operational surface without being required for the final requirement set. | Not used; the project prioritized target delivery, Prometheus/Grafana observability, testing/security gates, IaC, and DR readiness. |
+| **Upstream alerting manifests**<br/>Found: `deploy/kubernetes/manifests-alerting/`, Compose alerting files | Alertmanager and alert rules existed as inherited material, but alerting was not the safest final focus after target delivery, observability, security, IaC, and DR were already covered. Adding alerting late could create extra tuning/noise without improving the core proof as much as the implemented layers. | Deferred as a later operational hardening step. The implemented observability proof focuses on Prometheus/Grafana target health and workload visibility. |
+| **Upstream logging manifests**<br/>Found: `deploy/kubernetes/manifests-logging/` | Elasticsearch/Fluentd/Kibana path existed, but would add another stateful stack and operational surface late in the project. It was not needed to satisfy the core monitoring/observability requirement once Prometheus/Grafana was proven. | Deferred. The project instead documents/debugs through phase evidence, CI logs, Prometheus/Grafana, and DR artifacts. |
+| **Upstream Jaeger manifests**<br/>Found: `deploy/kubernetes/manifests-jaeger/` | Tracing path exists for selected services, but it is not required for the core project requirements and would introduce another operational layer after the target, monitoring, security, IaC, and DR paths were already established. | Deferred as optional future observability hardening. Current observability proof is Prometheus/Grafana. |
+| **Upstream NetworkPolicy manifests**<br/>Found: `deploy/kubernetes/manifests-policy/` | Pre-existing NetworkPolicy assets define pod-to-pod traffic restrictions, including default-deny and service-specific access rules. They are relevant as a later internal segmentation / east-west traffic hardening layer, but not as the safest final-phase security control: applying them late could change service connectivity, database access, ingress behavior, monitoring access, or live-smoke behavior on an already proven target. | Deferred for a dedicated hardening phase. A future NetworkPolicy phase would first adapt the policies to `sock-shop-dev` / `sock-shop-prod`, test all service paths, and verify Traefik, monitoring, and smoke-test compatibility. |
+| **Upstream autoscaling / Heapster / InfluxDB assets**<br/>Found: `deploy/kubernetes/autoscaling/` | Older Kubernetes autoscaling/monitoring tools based on Heapster/InfluxDB components; outdated and not needed for the final target proof. | Not used. The final target prioritizes stable K3s delivery, Prometheus/Grafana observability, security gates, IaC, and DR. A later autoscaling phase would use current Kubernetes metrics tooling, not the inherited Heapster-era path. |
+| **Upstream install / minimesos / AWS material**<br/>Found: `install/`, `staging/` | Older install/staging helpers for AWS/minimesos or other environment paths. They do not match the chosen Proxmox/K3s target architecture. | Not used. The project uses Proxmox VM `9200`, K3s, Tailscale, Cloudflare Tunnel, and Terraform Proxmox Smoke-VM `9300` proof instead. |
+| **Upstream Graph/Dashboard helpers**<br/>Found: `graphs/` | Existing Python/Weave Scope dashboard helpers for older visualization paths. Interesting inherited material, but not part of the final target delivery or monitoring path. | Not used; runtime visibility is provided through Prometheus/Grafana dashboards and phase evidence screenshots. |
 
 ---
 
-## Repository structure (high level)
+## 📂 Repository Structure (High Level) & Ownership Map
 
-- `.github/workflows/` — workflow definitions
-- `adr/` — Architecture Decision Records
-- `project-docs/` — phase documentation, evidence, and decisions
-- `deploy/` — upstream deployment assets (Compose, Kubernetes manifests, Helm chart, related deployment material)
+To clearly distinguish between the inherited microservices demo and the custom DevOps delivery path, the repository structure below is annotated by ownership:
+* 🟢 **`[+]`** Custom repo-owned assets added for this project
+* 🟡 **`[*]`** Inherited upstream assets refactored or modified for this project
+* ⚪ **`[~]`** Inherited upstream assets kept as reference or deployment base
+
+~~~text
+.
+├── .github/                          # 🟡 [*] GitHub configuration and CI/CD
+│   ├── dependabot.yml                # 🟢 [+] Phase 07 automated dependency scanning
+│   └── workflows/                    # 🟢 [+] CI/CD pipelines (Phases 03, 05, 07)
+│       ├── main.yaml                 # ⚪ [~] Legacy upstream CI (Archived)
+│       ├── phase-03-delivery-smoke.yml          # 🟢 [+] Phase 03 dev/prod smoke validation
+│       ├── phase-05-proxmox-target-delivery.yml # 🟢 [+] Phase 05 Trunk-based target cluster promotion
+│       ├── phase-07-deterministic-pr-gate.yml   # 🟢 [+] Phase 07 PR protection and static checks
+│       └── phase-07-live-smoke.yml              # 🟢 [+] Phase 07 Reusable target environment tests
+├── adr/                              # 🟢 [+] Architecture Decision Records
+├── backups/                          # 🟢 [+] Local DR artifacts generated by Phase 09 (Git-ignored)
+│   ├── sock-shop-dev_.../            # 🟢 [+] Dev namespace dumps and YAML exports
+│   └── sock-shop-prod_.../           # 🟢 [+] Prod namespace dumps and YAML exports
+├── deploy/                           # 🟡 [*] Inherited deployment root (Modified/Extended)
+│   ├── docker-compose/               # 🟡 [*] Upstream Compose base
+│   │   ├── docker-compose.yml        # ⚪ [~] Upstream baseline
+│   │   └── docker-compose.local.yml  # 🟢 [+] Custom local port override (Phase 00)
+│   └── kubernetes/                   # 🟡 [*] Upstream Kubernetes deployment path
+│       ├── manifests/                # 🟡 [*] Upstream raw manifests reused as deployment base
+│       │   ├── ...                   # ⚪/🟡 [~/*] 00 to 28 resource YAMLs, reused with selected project changes
+│       │   └── kustomization.yaml    # 🟢 [+] Base Kustomize entrypoint
+│       ├── kustomize/                # 🟢 [+] Custom overlays for dev/prod delivery (Phase 03/05)
+│       │   └── overlays/             # 🟢 [+] dev/ and prod/ patching layers
+│       ├── observability/            # 🟢 [+] Helm values for kube-prometheus-stack; local secret override is gitignored (Phase 06)
+│       │   ├── prometheus-local.secrets.yaml  # 🟢 [+] Gitignored Grafana credentials
+│       │   └── prometheus-values-minimal.yaml # 🟢 [+] Custom metric scraping configurations
+│       ├── helm-chart/               # ⚪ [~] Upstream Helm path (evaluated & deferred)
+│       └── terraform/                # ⚪ [~] Upstream legacy AWS IaC (deferred)
+├── healthcheck/                      # 🟡 [*] Inherited Ruby tool (Refactored & tested in Phase 07)
+├── infra/                            # 🟢 [+] Repo-owned IaC
+│   └── terraform/proxmox-smoke-vm/   # 🟢 [+] Terraform definitions for disposable VM 9300
+│       ├── main.tf                   # 🟢 [+] Proxmox VM resource config
+│       ├── provider.tf               # 🟢 [+] Proxmox API provider definitions
+│       └── variables.tf              # 🟢 [+] Reusable input variables
+├── project-docs/                     # 🟢 [+] Project documentation hub
+│   ├── 00-compose-baseline/          # 🟢 [+] Example phase folder
+│   │   ├── evidence/                 # 🟢 [+] Verification screenshots and command outputs
+│   │   ├── IMPLEMENTATION.md         # 🟢 [+] Execution log
+│   │   └── RUNBOOK.md                # 🟢 [+] Operational steps
+│   └── ...                           # 🟢 [+] Phase 01 through 09 docs, evidence, runbooks, decisions where applicable
+├── scripts/                          # 🟢 [+] Repo-owned automation tooling
+│   ├── dr/                           # 🟢 [+] backup-k8s-namespace.sh
+│   ├── observability/                # 🟢 [+] generate-sockshop-traffic.sh
+│   └── testing/                      # 🟢 [+] run-healthcheck-target-env.sh
+├── tests/                            # 🟢 [+] Repo-owned validation stack (Phase 07)
+│   ├── bash/                         # 🟢 [+] Traffic generator CLI tests
+│   ├── e2e/                          # 🟢 [+] Playwright browser smoke tests
+│   ├── python/                       # 🟢 [+] API contract guard + live smoke checks
+│   └── ruby/                         # 🟢 [+] Healthcheck unit and CLI tests
+├── Makefile                          # 🟢 [+] Project helper targets for repeatable local reruns and validation
+└── ...                               # ⚪ [~] Additional inherited/reference paths: internal-docs/, graphs/, install/, openapi/, staging/
+
+~~~
+
+---
 
 ## 🔮 What comes next
 
