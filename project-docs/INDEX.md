@@ -93,14 +93,11 @@ Documentation is iterative and phase-aligned: baseline notes first, then milesto
 
 ---
 
-## Phase 09 — Disaster Recovery & Rollback Readiness
+## Phase 09 — Disaster Recovery & Rollback (Backup baseline, restore validation, recovery proof, rollback readiness)
 
-- **Status:** Functionally implemented; detailed documentation polish in progress.
-- **Purpose:** Add the first recovery baseline for Kubernetes state, Mongo-compatible data-store dumps, pod recovery, and rollback readiness.
-- **Scope:** DR backup helper for `sock-shop-dev` and `sock-shop-prod`, local backup artifacts, MongoDB dump validation, pod recovery proof, and rollback path documentation.
-- **Key proof:** Kubernetes namespace state exported, representative `user-db` dump restored into a temporary MongoDB container, live dev pod deleted and recreated by Kubernetes, and live smoke checks passed afterward.
-- **Docs:**
-  - **[Phase 09 — Implementation Log *(in work)*](./09-dr-rollback/IMPLEMENTATION.md)**
+- **[Phase 09 — Implementation Log](./09-dr-rollback/IMPLEMENTATION.md)**
+- **[Phase 09 — Runbook (TL;DR)](./09-dr-rollback/RUNBOOK.md)**
+- **[Phase 09 — Decision Log](./09-dr-rollback/DECISIONS.md)**
 
 ---
 

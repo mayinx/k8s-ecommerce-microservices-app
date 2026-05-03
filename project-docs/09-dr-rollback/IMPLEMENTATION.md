@@ -1,92 +1,34 @@
-# Implementation Log Template
----
-
-# Implementation Log — Phase XX (<Docs-Short-Name>): <long phase title>
+# Implementation Log — Phase 09 (Disaster Recovery & Rollback): Backup, recovery, nd rollback readiness on the Proxmox-based target cluster
 
 > ## About
-> This document is the implementation log and detailed build diary for **Phase XX (<Docs-Short-Name>)**.
-> It records the full implementation path including rationales, key observations, verification steps, and evidence pointers so the work remains auditable and reproducible.
+> This document is the implementation log and detailed build diary for **Phase 09 (Disaster Recovery & Rollback)**.
+> It records the backup baseline, restore validation, recovery proof, rollback model, and platform-rebuild path so the work remains auditable and reproducible.
 >
 > For top-level project navigation, see: **[INDEX.md](../INDEX.md)**.
 > For cross-phase incident and anomaly tracking, see: **[DEBUG-LOG.md](../DEBUG-LOG.md)**.
 > For the broader project planning view, see: **[ROADMAP.md](../ROADMAP.md)**.
+>
+> Note: This phase deliberately does **not** attempt to convert the current single-node target into a full high-availability platform. The current target is a single-node K3s platform, so the recovery model is **backup + rebuild + redeploy**, not automatic failover.
 
 ---
 
 ## Index (top-level)
 
 - [**Purpose / Goal**](#purpose--goal)
-- [**Definition of done**](#definition-of-done)
+- [**Definition of done (Phase 09)**](#definition-of-done-phase-09)
 - [**Preconditions**](#preconditions)
-- [**Step 1 — -----]
-- [**Step 2 — -----]
-- [**Step 3 — -----]
-- [**Step 4 — -----]
-- [**Step 5 — -----]
-- [**Phase XX outcome summary**](#phase-XX-outcome-summary)
+- [**Step 1 — Add the DR project structure and implement the backup script**](#step-1--add-the-dr-project-structure-and-implement-the-backup-script)
+- [**Step 2 — Run the backup proof against `sock-shop-dev` and `sock-shop-prod`, then validate one MongoDB dump**](#step-2--run-the-backup-proof-against-sock-shop-dev-and-sock-shop-prod-then-validate-one-mongodb-dump)
+- [**Step 3 — Prove recovery and rollback paths safely**](#step-3--prove-recovery-and-rollback-paths-safely)
+- [**Step 4 — Connect the DR model to the platform rebuild and delivery path**](#step-4--connect-the-dr-model-to-the-platform-rebuild-and-delivery-path)
+- [**Phase 09 outcome summary**](#phase-09-outcome-summary)
 - [**Sources**](#sources)
 
 ---
 
 ## Purpose / Goal
 
-### Goal Line
-
-### Some Prose + Concept/Terms notes 
-
----
-
-## Definition of done (Phase 06)
-
-Phase XX is considered done when the following conditions are met:
-
-- Condition 1
-- Condition 2
-- Condition 3
-- ...
-- (Browser) evidence for X, Y is captured in the phase evidence folder
-
----
-
-## Preconditions
-
-- The <feature> from Phase XX exists/whatever ... 
-- The local workstation ...
-- The production Sock Shop environment / The VM environment...
-- Tool X is available on the workstation | the VM | Whatever
-
----
-
-# Disaster Recovery & Rollback Readiness — Phase 09
-
-> ## About
-> This document is the implementation guide for **Phase 09 — Disaster Recovery & Rollback Readiness**.
->
-> Phase 09 closes the remaining resilience and hand-in readiness gap by adding a practical disaster-recovery baseline:
->
-> - A namespace backup script for Kubernetes state and MongoDB dump attempts
-> - A safe container-recovery proof in the `dev` environment
-> - A documented rollback model
-> - A documented node/VM recovery model
-> - Final README and architecture-documentation readiness notes
->
-> This phase deliberately does **not** attempt to convert the current single-node target into a full high-availability platform. The current target is a single-node K3s platform, so the recovery model is **backup + rebuild + redeploy**, not automatic failover.
-
----
-
-## Index
-
-- [Phase 09 outcome at a glance](#phase-09-outcome-at-a-glance)
-- [Step 1 — Add the DR baseline structure and backup script](#step-1--add-the-dr-baseline-structure-and-backup-script)
-- [Step 2 — Run the backup proof against `sock-shop-dev`](#step-2--run-the-backup-proof-against-sock-shop-dev)
-- [Step 3 — Prove recovery and rollback paths safely](#step-3--prove-recovery-and-rollback-paths-safely)
-- [Step 4 — Final hand-in documentation and README readiness](#step-4--final-hand-in-documentation-and-readme-readiness)
-- [Phase outcome summary](#phase-outcome-summary)
-- [Sources](#sources)
-
----
-
-## Phase 09 outcome at a glance
+### Establish a practical disaster-recovery and rollback baseline
 
 Phase 09 establishes the project’s first practical disaster-recovery and rollback baseline.
 
@@ -98,7 +40,6 @@ By the end of this phase, the project proves:
 - **(4)** **Container-level failure recovery** is safely demonstrated in the live traget `sock-shop-dev`
 - **(5)** **Rollback paths are documented** for both **Git-based** and **Kubernetes-level rollback**
 - **(6)** **Node/VM failure recovery** is **documented** for the current **single-node target** 
-
 
 **Final recovery model:**
 
@@ -113,6 +54,76 @@ By the end of this phase, the project proves:
   - A namespace-level backup script is utilized that executed MongoDB dump attempts for sock-shop DB pods.
 
 ---
+
+## Definition of done (Phase 09)
+
+Phase 09 is considered done when the following conditions are met:
+
+- A local DR backup helper exists under `scripts/dr/`
+- Generated backup artifacts are written to `backups/` and excluded from Git
+- Kubernetes namespace state can be exported for `sock-shop-dev` and `sock-shop-prod`
+- MongoDB-compatible data-store pods are backed up through logical dump archives where `mongodump` is available
+- At least one MongoDB dump artifact is restored and queried in a temporary local container
+- Container-level recovery is proven safely in `sock-shop-dev`
+- Kubernetes rollout inspection and emergency rollback commands are documented
+- The node/VM recovery model is connected to the documented platform rebuild and delivery path
+- Remaining hardening boundaries are documented as follow-up scope, not hidden as completed work
+
+> [!NOTE] **Disaster recovery baseline**
+>
+> A **disaster recovery baseline** defines how the project can recover after something breaks. In this phase, the baseline **focuses on practical recovery readiness**: 
+> - Creating backup artifacts 
+> - Proving pod recovery 
+> - Documenting backup, insepction and rollback commands 
+> - Describing how the single-node target can be rebuilt and redeployed if needed
+
+---
+
+> [!NOTE] **Common failure modes covered in this phase**
+>
+> Phase 09 focuses on the failure modes that fit the current project architecture:
+>
+> - **Application pod/container failure:** Kubernetes can recreate failed pods through Deployments.
+> - **Bad rollout or broken Deployment revision:** Kubernetes rollback commands provide an emergency revert path.
+> - **Database/data-store state risk:** Backup artifacts preserve Kubernetes state and MongoDB-compatible data-store dumps where available.
+> - **Single-node VM loss:** The current K3s target does not provide automatic node failover, so recovery is documented as rebuild, redeploy, and restore from available artifacts.
+
+---
+
+> [!NOTE] **Logical database dump**
+>
+> A **logical database dump** exports database contents through the database engine itself, for example with `mongodump` for MongoDB. The output is a portable archive that can later be restored into a compatible database.
+>
+> This is different from a **physical backup** or **storage snapshot**, which copies database files, volumes, or disks at the storage layer.
+>
+> For this project, a logical dump is the better first DR baseline because it is:
+>
+> - easy to run from the existing Kubernetes pods,
+> - portable across environments,
+> - small enough for a lightweight proof,
+> - and independent from Proxmox or storage-level snapshot tooling.
+
+---
+
+> [!NOTE] **MongoDB and `mongodump`**
+>
+> **MongoDB** is a document database used by several Sock Shop data-store pods.  
+> **`mongodump`** is MongoDB’s logical backup utility. It can export database contents into an archive file.
+>
+> In this phase, the backup helper checks each known data-store pod first. If `mongodump` is available, the script streams a compressed archive into the local backup folder. If `mongodump` is not available, the pod is skipped and the reason is written to `backup-report.txt`.
+>
+> The created archive is a real **restoreable MongoDB dump artifact**. 
+
+---
+
+## Preconditions
+
+- The Proxmox-backed K3s target cluster from Phase 05 exists and is reachable
+- The application environments `sock-shop-dev` and `sock-shop-prod` already exist on the target cluster
+- The workstation has working `kubectl` access through the target kubeconfig
+- Docker is available locally for the temporary MongoDB restore validation container
+- The Phase 07 live validation targets are available for post-recovery smoke testing
+- The Phase 04, Phase 05, and Phase 08 docs exist as the rebuild and IaC reference path for the node/VM recovery model
 
 ---
 
@@ -135,45 +146,6 @@ The **backup script** needs to focus on capturing the recovery-relevant state la
 - **(2) Database state:** Create **logical database dumps** from the Sock Shop database pods that support **`mongodump`**.
 
 The backup script must provide a **repeatable and auditable DR baseline** that can be executed safely against `sock-shop-dev` first and later against `sock-shop-prod` when needed.
-
-> [!NOTE] **Disaster recovery baseline**
->
-> A **disaster recovery baseline** defines how the project can recover after something breaks. In this phase, the baseline **focuses on practical recovery readiness**: 
-> - Creating backup artifacts 
-> - Proving pod recovery 
-> - Documenting backup, insepction and rollback commands 
-> - Describing how the single-node target can be rebuilt and redeployed if needed
-
-> [!NOTE] **Common failure modes covered in this phase**
->
-> Phase 09 focuses on the failure modes that fit the current project architecture:
->
-> - **Application pod/container failure:** Kubernetes can recreate failed pods through Deployments.
-> - **Bad rollout or broken Deployment revision:** Kubernetes rollback commands provide an emergency revert path.
-> - **Database/data-store state risk:** Backup artifacts preserve Kubernetes state and MongoDB-compatible data-store dumps where available.
-> - **Single-node VM loss:** The current K3s target does not provide automatic node failover, so recovery is documented as rebuild, redeploy, and restore from available artifacts.
-
-> [!NOTE] **Logical database dump**
->
-> A **logical database dump** exports database contents through the database engine itself, for example with `mongodump` for MongoDB. The output is a portable archive that can later be restored into a compatible database.
->
-> This is different from a **physical backup** or **storage snapshot**, which copies database files, volumes, or disks at the storage layer.
->
-> For this project, a logical dump is the better first DR baseline because it is:
->
-> - easy to run from the existing Kubernetes pods,
-> - portable across environments,
-> - small enough for a lightweight proof,
-> - and independent from Proxmox or storage-level snapshot tooling.
-
-> [!NOTE] **MongoDB and `mongodump`**
->
-> **MongoDB** is a document database used by several Sock Shop data-store pods.  
-> **`mongodump`** is MongoDB’s logical backup utility. It can export database contents into an archive file.
->
-> In this phase, the backup helper checks each known data-store pod first. If `mongodump` is available, the script streams a compressed archive into the local backup folder. If `mongodump` is not available, the pod is skipped and the reason is written to `backup-report.txt`.
->
-> The created archive is a real **restoreable MongoDB dump artifact**. 
 
 ### Action
 
@@ -213,7 +185,27 @@ In this phase, the backup script functions as a **K8s State & Data Backup Helper
 #
 # PURPOSE:
 #   Create a local disaster-recovery backup snapshot for a Sock Shop namespace.
-#   Each run creates a unique, timestamped directory. 
+#   Each run creates a unique, timestamped directory:
+#   .
+#   ├── backups
+#   │   ├── sock-shop-dev_20260427T203209Z
+#   │   │   ├── db
+#   │   │   │   ├── backup-report.txt
+#   │   │   │   ├── carts-db_carts-db-6bb589dd85-sdgdh.archive.gz
+#   │   │   │   ├── orders-db_orders-db-944d776bc-hwgqt.archive.gz
+#   │   │   │   └── user-db_user-db-7bd86cdcd-xwm7b.archive.gz
+#   │   │   ├── k8s
+#   │   │   │   ├── all-resources-wide.txt
+#   │   │   │   ├── configmaps.yaml
+#   │   │   │   ├── deployments.yaml
+#   │   │   │   ├── ingress.yaml
+#   │   │   │   ├── namespace.yaml
+#   │   │   │   ├── persistent-volumes-wide.txt
+#   │   │   │   ├── pods.yaml
+#   │   │   │   ├── pvc.yaml
+#   │   │   │   ├── secrets-metadata.txt
+#   │   │   │   └── services.yaml
+#   │   │   └── README.txt
 #
 # BACKUP SCOPE:
 # - Resource State: Full K8s namespace/resource state as YAML and text snapshots
@@ -670,7 +662,7 @@ Step 1 establishes the project’s first executable DR backup path:
 
 ---
 
-## Step 2 — Run the backup proof against `sock-shop-dev`
+## Step 2 — Run the backup proof against `sock-shop-dev` and `sock-shop-prod`, then validate one MongoDB dump
 
 ### Rationale
 
@@ -710,7 +702,7 @@ OK: Bash syntax valid -> scripts/dr/backup-k8s-namespace.sh
 $ make p09-dr-backup-dev
 ============================================================
 Starting DR backup for namespace: sock-shop-dev
-Kubeconfig: /home/mayinx/.kube/config-proxmox-dev.yaml
+Kubeconfig: $HOME/.kube/config-proxmox-dev.yaml
 Destination: backups/sock-shop-dev_20260427T203209Z
 ============================================================
 Kubernetes context: default
@@ -766,10 +758,10 @@ Database report: backups/sock-shop-dev_20260427T203209Z/db/backup-report.txt
 A live prod backup can be created as easily using the corresponding make target:
 
 ~~~bash
-$ make p09-dr-backup-dev
+$ make p09-dr-backup-prod
 ============================================================
 Starting DR backup for namespace: sock-shop-prod
-Kubeconfig: /home/mayinx/.kube/config-proxmox-dev.yaml
+Kubeconfig: $HOME/.kube/config-proxmox-dev.yaml
 Destination: backups/sock-shop-prod_20260427T204004Z
 ============================================================
 Kubernetes context: default
@@ -973,9 +965,7 @@ RUN: Show MongoDB archive dump details for prod -> backups/sock-shop-prod_202604
 
 ---
 
-
-#### DB dump validation
-TODO: Wrap that baby with a bash script!
+#### Mongo DB dump restore validation
 
 As a **final validation step**, one representative **MongoDB dump artifact is restored** into a **temporary local MongoDB container** and queried there. 
 
@@ -1005,6 +995,7 @@ user-db-7bd86cdcd-xwm7b
 $ KUBECONFIG="$HOME/.kube/config-proxmox-dev.yaml" \
   kubectl exec -n sock-shop-dev "$USER_DB_POD" -- \
   mongo users --quiet --eval '
+    print("LIVE USERS-DB-COLLECTIONS (NAMES, COUNT, SCHEMA):");
     db.getCollectionNames().sort().forEach(function(c) {
       print("----- " + c + " -----");
       var doc = db.getCollection(c).findOne();
@@ -1012,6 +1003,7 @@ $ KUBECONFIG="$HOME/.kube/config-proxmox-dev.yaml" \
       print(c + ".keys=" + (doc ? Object.keys(doc).sort().join(",") : "<empty>"));
     })
   '
+LIVE USERS-DB-COLLECTIONS (NAMES, COUNT, SCHEMA):  
 ----- addresses -----
 addresses.count=4
 addresses.keys=_id,city,country,number,postcode,street
@@ -1104,18 +1096,23 @@ addresses=4
 # This uses the same query shape as the live check above, so the restored dump can be compared directly.
 docker exec "$RESTORE_CHECK_CONTAINER" mongo users --quiet --eval '
   db.getCollectionNames().sort().forEach(function(c) {
+    print("RESTORED USERS-DB-COLLECTIONS (NAMES, COUNT, SCHEMA):");  
     print("----- " + c + " -----");
     var doc = db.getCollection(c).findOne();
     print(c + ".count=" + db.getCollection(c).count());
     print(c + ".keys=" + (doc ? Object.keys(doc).sort().join(",") : "<empty>"));
   })
 '
+RESTORED USERS-DB-COLLECTIONS (NAMES, COUNT, SCHEMA):  
+----- addresses -----
 addresses.count=4
 addresses.keys=_id,city,country,number,postcode,street
+----- cards -----
 cards.count=4
 cards.keys=_id,ccv,expires,longNum
+----- customers -----
 customers.count=3
-customers.keys=_id,addresses,cards,firstName,lastName,password,salt,username
+customers.keys=_id,addresses,cards,firstName,lastName,password,salt,username  
 
 # Remove the temporary restore-check container.
 # -f = force removal; if the container is still running, Docker stops it first and then removes it.
@@ -1177,59 +1174,472 @@ This confirms the **intended behavior** of the backup helper:
 
 ---
 
+## Step 3 — Prove recovery and rollback paths safely
 
+### Rationale
 
----
+The project now provides the capability to capture database and k8s state in form of timestamped backup artifacts. But DR is about more than just backups: 
 
-## Step 3 — ...
+An application needs to be able to recover from failure and to rollback into a previous stable state after a bad release.
 
----
+This step **proves a safe recovery path** directly on the **Proxmox target dev environment**:
 
-## Step 4 — ...
+- **Container-level failure recovery** through Kubernetes reconciliation
 
---- 
+It also **documents further recovery paths** without performing risky destructive actions:
 
-## Result
+- **Node/VM recovery** for the current single-node target model
+- **Git-based rollback**
+- **Kubernetes emergency rollback**
 
-**The <main phase feature/goal > was <inatlled|implemeted|verified|...> successfully ...**
+The proof is executed against `sock-shop-dev` on the Proxmox target cluster, not against production.
+
+### Preflight — Confirm backup artifacts before the recovery proof
+
+Before testing recovery behavior, the latest `dev` backup package is inspected once. 
+
+~~~bash
+# Print the latest dev backup report, artifact list, and archive details.
+# This confirms that Step 2 produced recovery artifacts before the recovery proof starts.
+$ make p09-dr-print-report-dev
+RUN: Print database backup report for dev -> backups/sock-shop-dev_20260427T203209Z/db/backup-report.txt
+carts-db: OK - backups/sock-shop-dev_20260427T203209Z/db/carts-db_carts-db-6bb589dd85-sdgdh.archive.gz
+catalogue-db: SKIPPED - mongodump not available in catalogue-db-74885c6d4c-xtrxj
+orders-db: OK - backups/sock-shop-dev_20260427T203209Z/db/orders-db_orders-db-944d776bc-hwgqt.archive.gz
+session-db: SKIPPED - mongodump not available in session-db-5d89f4b5bb-9cwbx
+user-db: OK - backups/sock-shop-dev_20260427T203209Z/db/user-db_user-db-7bd86cdcd-xwm7b.archive.gz
+
+RUN: Show generated backup k8s artifact list for dev -> backups/sock-shop-dev_20260427T203209Z
+backups/sock-shop-dev_20260427T203209Z/db/backup-report.txt
+backups/sock-shop-dev_20260427T203209Z/db/carts-db_carts-db-6bb589dd85-sdgdh.archive.gz
+backups/sock-shop-dev_20260427T203209Z/db/orders-db_orders-db-944d776bc-hwgqt.archive.gz
+backups/sock-shop-dev_20260427T203209Z/db/user-db_user-db-7bd86cdcd-xwm7b.archive.gz
+backups/sock-shop-dev_20260427T203209Z/k8s/all-resources-wide.txt
+backups/sock-shop-dev_20260427T203209Z/k8s/configmaps.yaml
+backups/sock-shop-dev_20260427T203209Z/k8s/deployments.yaml
+backups/sock-shop-dev_20260427T203209Z/k8s/ingress.yaml
+backups/sock-shop-dev_20260427T203209Z/k8s/namespace.yaml
+backups/sock-shop-dev_20260427T203209Z/k8s/persistent-volumes-wide.txt
+backups/sock-shop-dev_20260427T203209Z/k8s/pods.yaml
+backups/sock-shop-dev_20260427T203209Z/k8s/pvc.yaml
+backups/sock-shop-dev_20260427T203209Z/k8s/secrets-metadata.txt
+backups/sock-shop-dev_20260427T203209Z/k8s/services.yaml
+backups/sock-shop-dev_20260427T203209Z/README.txt
+
+RUN: Show MongoDB archive dump details for dev -> backups/sock-shop-dev_20260427T203209Z/db
+  6428259      4 -rw-rw-r--   1   337 Apr 27 22:32 backups/sock-shop-dev_20260427T203209Z/db/orders-db_orders-db-944d776bc-hwgqt.archive.gz
+  6428252      8 -rw-rw-r--   1  5773 Apr 27 22:32 backups/sock-shop-dev_20260427T203209Z/db/carts-db_carts-db-6bb589dd85-sdgdh.archive.gz
+  6428261      4 -rw-rw-r--   1  1038 Apr 27 22:32 backups/sock-shop-dev_20260427T203209Z/db/user-db_user-db-7bd86cdcd-xwm7b.archive.gz
+~~~
+
+This preflight confirms that recovery artifacts exist before the pod-recovery test starts. 
+
+### Action A — Prove container-level recovery in dev
+
+This action proves the recovery from one of the most common operational failure modes: pod/container failure:
+
+- One application pod is deleted in `sock-shop-dev` on purpose 
+- The Deployment definition remains unchanged 
+- Kubernetes is expected to recreate that pod through the existing Deployment controller. 
+
+This is safe executable recovery case because the pod is "disposable runtime state"; Kubernetes should be able to recreate it automatically from the existing Deployment controller.
+
+If the replacement pod becomes healthy and the live smoke checks pass afterward, the project has demonstrated real self-healing behavior without touching production or persistent database state.
+
+The proof stays limited to the Proxmox target `dev` namespace and does not touch production:
+
+~~~bash
+# Use the Proxmox target kubeconfig for this recovery proof.
+$ export KUBECONFIG="$HOME/.kube/config-proxmox-dev.yaml"
+
+# Show the active Kubernetes context for traceability.
+$ kubectl config current-context
+default
+
+# Confirm that the dev namespace is running on the target K3s node.
+$ kubectl get pods -n sock-shop-dev -o wide
+NAME                            READY   STATUS      IP            NODE                        
+carts-5f5859c84b-qbrjp          1/1     Running     10.42.0.92    ubuntu-2404-k3s-target-01              
+carts-db-6bb589dd85-sdgdh       1/1     Running     10.42.0.73    ubuntu-2404-k3s-target-01              
+catalogue-cd4ff8c9f-7mwmr       1/1     Running     10.42.0.94    ubuntu-2404-k3s-target-01              
+catalogue-db-74885c6d4c-xtrxj   1/1     Running     10.42.0.97    ubuntu-2404-k3s-target-01              
+front-end-7467866c7b-qwpvh      1/1     Running     10.42.0.93    ubuntu-2404-k3s-target-01              
+orders-6b8dd47986-xx6wc         1/1     Running     10.42.0.98    ubuntu-2404-k3s-target-01              
+orders-db-944d776bc-hwgqt       1/1     Running     10.42.0.95    ubuntu-2404-k3s-target-01              
+payment-c5fbdbc6-822lj          1/1     Running     10.42.0.96    ubuntu-2404-k3s-target-01              
+queue-master-7f965677fb-cppg8   1/1     Running     10.42.0.90    ubuntu-2404-k3s-target-01              
+rabbitmq-59955f8bff-5j8gq       2/2     Running     10.42.0.99    ubuntu-2404-k3s-target-01              
+session-db-5d89f4b5bb-9cwbx     1/1     Running     10.42.0.100   ubuntu-2404-k3s-target-01              
+shipping-868cd6587d-r74f9       1/1     Running     10.42.0.101   ubuntu-2404-k3s-target-01              
+user-67488ff854-x2wz7           1/1     Running     10.42.0.102   ubuntu-2404-k3s-target-01              
+user-db-7bd86cdcd-xwm7b         1/1     Running     10.42.0.103   ubuntu-2404-k3s-target-01              
+~~~
+
+To record the current `front-end` pod before deletion.
+
+~~~bash
+# Verify the selected front-end pod before deletion.
+$ make k8s-show-live-dev-pod COMPONENT=front-end
+RUN: Show live dev pod -> name=front-end, pod=front-end-7467866c7b-qwpvh
+NAME                         READY   STATUS    RESTARTS   AGE   IP            NODE                        
+front-end-7467866c7b-msxw6   1/1     Running   0          15m   <redacted-pod-ip>   ubuntu-2404-k3s-target-01   
+~~~
+
+Delete the selected pod and let the Kubernetes Deployment controller recreate it.
+
+~~~bash
+# Delete one front-end pod in dev.
+# This is safe because the Deployment controller should create a replacement pod.
+$ make k8s-delete-live-dev-pod COMPONENT=front-end 
+RUN: Delete live dev pod -> name=front-end, pod=front-end-7467866c7b-msxw6
+pod "front-end-7467866c7b-msxw6" deleted from sock-shop-dev namespace
+
+# Use the Proxmox target kubeconfig.
+$ export KUBECONFIG="$HOME/.kube/config-proxmox-dev.yaml"
+
+# Wait until the front-end Deployment is available again.
+$ kubectl rollout status deployment/front-end -n sock-shop-dev --timeout=180s
+deployment "front-end" successfully rolled out
+
+# Show the current front-end pod after recovery.
+$ kubectl get pods -n sock-shop-dev -l name=front-end -o wide
+NAME                         READY   STATUS    RESTARTS   AGE   IP            NODE                        
+front-end-7467866c7b-ttws7   1/1     Running   0          69s   10.42.0.148   ubuntu-2404-k3s-target-01              
+~~~
+
+Note: The names of the front-end pods differ:
+- Original pod before deletion: `front-end-7467866c7b-msxw6` 
+- New pod after recreation: `front-end-7467866c7b-ttws7` 
+
+This is prove that the Kubernetes Deployment controller really detected the deleted `front-end` pod and recreate it.
+
+To verify the new pods fucntionality we now run the already established live smoke validation tests:
+
+~~~bash
+# Run the Phase 07 live smoke checks after the recovery proof.
+# This validates the live catalogue contract and browser smoke path.
+$ make p07-tests-live
+RUN: Phase 07 live Python contract smoke -> https://dev-sockshop.cdco.dev/catalogue
+.                                                                            [100%]
+1 passed in 0.44s
+OK: Phase 07 live Python contract smoke passed
+OK: Node.js tooling detected for Phase 07 Playwright smoke tests
+RUN: Phase 07 Playwright setup -> tests/e2e
+OK: Phase 07 Playwright environment ready -> tests/e2e
+RUN: Phase 07 Playwright smoke -> https://dev-sockshop.cdco.dev (CI: false)
+Running 2 tests using 1 worker
+  ✓  1 [chromium] › smoke.spec.js:17:1 › storefront root loads and key landing content is visible (816ms)
+  ✓  2 [chromium] › smoke.spec.js:32:1 › storefront renders at least one catalogue image (1.4s)
+  2 passed (3.4s)
+OK: Phase 07 Playwright smoke passed
+~~~
+
+**Result**: Pod recovery / self healing cluster is proven.
+
+### Action B — Document Kubernetes rollback readiness 
+
+This action documents the Kubernetes rollback path for a different failure mode than the pod recovery test above.
+
+- Action A proved that Kubernetes can recover from a deleted runtime pod.  
+- Action B focuses on a **bad Deployment revision** scenario: if a future rollout introduces a broken version, Kubernetes can revert the Deployment to a previous revision.
+
+In the current project state, no rollback is executed because the `front-end` Deployment has only one recorded revision. The purpose here is therefore to inspect the rollout history and document the emergency rollback command without changing the working deployment.
+
+~~~bash
+# Use the Proxmox target kubeconfig.
+$ export KUBECONFIG="$HOME/.kube/config-proxmox-dev.yaml"
+
+# Show rollout history for the front-end Deployment.
+# This checks whether previous Deployment revisions are available.
+$ kubectl rollout history deployment/front-end -n sock-shop-dev
+deployment.apps/front-end 
+REVISION  CHANGE-CAUSE
+1         <none>
+~~~
+
+The output shows one recorded Deployment revision. This means the current `front-end` Deployment has no older revision available for an actual rollback at this point.
+
+The emergency rollback command is therefore documented as a reference command, but not executed in this phase:
+
+~~~bash
+# Emergency rollback command.
+# Use this only if a bad Deployment revision must be reverted.
+kubectl rollout undo deployment/front-end -n sock-shop-dev
+~~~
+
+After any real rollback, the validation path is:
+
+~~~bash
+# Verify the Deployment becomes healthy again after rollback.
+kubectl rollout status deployment/front-end -n sock-shop-dev --timeout=180s
+
+# Re-run live smoke checks after rollback.
+make p07-tests-live
+~~~
+
+This records the rollback path **without forcing an artificial bad release**. 
+
+The executable recovery proof for this phase remains the **pod deletion and successful recreation** from Action A.
+
+### Action C — Document the node/VM recovery model
+
+This action documents the recovery path for the larger failure case that Kubernetes cannot solve inside a single-node cluster: 
+- loss of the node or VM itself. 
+
+Instead of pretending that automatic high availability exists, the project documents the realistic rebuild, redeploy, and restore path for the current target architecture.
+
+The current target platform is intentionally documented as a **single-node Proxmox-based K3s target**.
+
+That means:
+
+- Container/pod failure can recover automatically through Kubernetes reconciliation
+- Full node/VM failure does **not** have automatic high-availability failover
+- Node/VM recovery is based on rebuild and redeploy
+
+The documented node/VM recovery path is:
+
+1. Recreate the target VM baseline using the documented Proxmox template approach from Phase 04/05.
+2. Use the Phase 08 Terraform smoke-VM proof as the IaC baseline that demonstrates reproducible Proxmox VM provisioning.
+3. Reinstall or reconnect the required target-side access components:
+   - K3s
+   - Tailscale
+   - Cloudflare Tunnel
+4. Redeploy the application through the existing GitHub Actions/Kustomize target delivery path.
+5. Recreate backup artifacts with the Phase 09 DR helper, or restore MongoDB-compatible data-store state from existing backup artifacts where available.
+6. Re-run the validation paths:
+   - `make p07-tests`
+   - `make p07-tests-live`
+   - relevant Trivy scan targets
+   - relevant Terraform validation targets
+
+> [!NOTE] **Single-node recovery scope**
+>
+> This project currently uses a single-node K3s target. Kubernetes can automatically replace failed pods on the running node, but it cannot fail over the whole cluster if the node or VM is gone.
+>
+> That limitation is documented intentionally. The recovery model for full node/VM loss is rebuild, redeploy, and restore where backup artifacts are available. A multi-node high-availability K3s setup would be a separate future hardening step.
+
+### Result
+
+Step 3 **proves the executable recovery path** that fits the current **single-node target architecture** and documents (but not forces) the recovery paths.
 
 The successful end state is shown by these signals / verification points:
 
-- signal 1
-- signal 2
-- signal 3
-- ...
+- The latest `sock-shop-dev` backup package was inspected before the recovery proof.
+- The `front-end` pod in `sock-shop-dev` was deleted intentionally.
+- Kubernetes recreated a new `front-end` pod through the existing Deployment controller.
+- The replacement pod reached `Running` state with `READY` set to `1/1`.
+- The pod name changed from the deleted runtime pod to a newly created replacement pod, proving that the workload was recreated rather than merely rechecked.
+- The Phase 07 live validation bundle passed after the recovery proof:
+  - Python live catalogue contract smoke test passed.
+  - Playwright storefront smoke tests passed in Chromium.
+- The Kubernetes rollout history was inspected for `front-end`.
+- No artificial bad release was created because the current Deployment had only one recorded revision.
+- The emergency `kubectl rollout undo` command path was documented without changing the healthy running deployment.
+- Full node/VM recovery was documented as rebuild, redeploy, and restore where backup artifacts are available.
 
-### Non-blocking observations and later follow-up
+This confirms the Phase 09 recovery boundary:
 
-The observations below <did (not) block> successful completion of Phase XX....:
-
-- observation 1
-- observation 2
-- observation 3
-- ...
+- Kubernetes handles pod/container loss through Deployment reconciliation.
+- Bad application releases should normally be handled through Git revert, protected PR validation, and redeployment.
+- `kubectl rollout undo` remains an emergency runtime rollback command for Deployment revisions.
+- Full node or VM loss is not automatically handled by the current single-node K3s target and requires rebuild/redeploy.
 
 ---
 
-## Phase XX outcome summary
+## Step 4 — Connect the DR model to the platform rebuild and delivery path
 
-Phase XX <established|demonstarred|implemented> succcessfully <main goal / feature>.
+### Rationale
 
-- outcome-1
-- outcome-2
-- outcome-3
-- ...
+With backup creation, restore validation, pod recovery, and rollback commands now covered, the final Phase 09 documentation step is to connect those pieces to the rest of the platform path.
 
-This makes Phase XX the point **where the project moves from <previous feature/project state/phase> toward <current feature/project state/phase>** .
+The current target platform is a single-node K3s platform on Proxmox VM `9200` - not a high-availability cluster. For this architecture, the correct recovery model is based on the already documented build and delivery chain:
+
+- Phase 04 provides the reusable Proxmox VM-template baseline.
+- Phase 05 provides the long-lived target VM, K3s runtime, private access path, public edge, and target-delivery workflow.
+- Phase 08 provides the Terraform-backed Proxmox IaC proof with a disposable smoke VM.
+- Phase 09 adds namespace backup artifacts, Mongo-compatible dump validation, pod recovery proof, and rollback guidance.
+
+This step makes the DR story explicit: the project can recover common runtime failures automatically, and larger platform failures are handled through rebuild, redeploy, and restore from available artifacts.
+
+### Action
+
+The recovery model is documented as a layered recovery path:
+
+| Failure mode | Recovery model | Proven or documented path |
+| :--- | :--- | :--- |
+| Application pod/container failure | Kubernetes Deployment reconciliation | Proven by deleting a `front-end` pod in `sock-shop-dev` and validating the replacement through live smoke checks |
+| Bad application rollout | Git revert and redeploy as the normal path; `kubectl rollout undo` as emergency runtime rollback | Documented through rollout-history inspection and rollback command surface |
+| Kubernetes namespace/application state loss | Reapply manifests and overlays, then inspect or restore available backup artifacts where applicable | Supported by Kustomize overlays, GitHub Actions delivery workflow, and Phase 09 namespace-state exports |
+| MongoDB-compatible data-store loss | Restore from available `.archive.gz` dump artifacts into a compatible MongoDB target | Validated with the `user-db` dump restored into a temporary MongoDB container |
+| Full target VM/node loss | Rebuild, redeploy, and restore where backup artifacts are available | Documented through the Phase 04 VM baseline, Phase 05 target-delivery model, Phase 08 Terraform proof, and Phase 09 backup artifacts |
+
+The practical full-target recovery sequence is:
+
+1. Recreate the Proxmox VM foundation from the documented Phase 04 baseline.
+2. Recreate or replace the target runtime from the Phase 05 target-delivery model:
+   - K3s
+   - Tailscale private access
+   - Cloudflare Tunnel public edge
+   - Traefik ingress routing
+3. Use the Phase 08 Terraform proof as the current IaC baseline for reproducible Proxmox VM provisioning.
+4. Redeploy `sock-shop-dev` and `sock-shop-prod` through the GitHub Actions/Kustomize target-delivery path.
+5. Use Phase 09 backup artifacts to inspect previous namespace state and restore Mongo-compatible data where applicable.
+6. Validate the recovered platform through the established validation stack:
+   - Deterministic tests
+   - Live Python contract smoke checks
+   - Playwright storefront smoke checks
+   - Relevant security scan targets
+   - Observability checks in Grafana and Prometheus
+
+### Result
+
+Step 4 completes the Phase 09 recovery story by connecting the DR baseline to the already documented platform build path.
+
+The successful end state is shown by these signals / verification points:
+
+- The recovery model is aligned with the actual single-node K3s target architecture.
+- The documentation does not claim automatic node failover or full high availability.
+- Container-level recovery is backed by an executable proof.
+- Database recovery readiness is backed by a successful Mongo-compatible restore validation.
+- Larger platform recovery is connected to the documented Phase 04, Phase 05, and Phase 08 implementation paths.
+- The project now has teh following DR model:
+  - backup
+  - inspect
+  - restore where available
+  - redeploy
+  - validate
+  - document remaining hardening boundaries
+
+This makes Phase 09 a practical disaster-recovery and rollback-readiness baseline.
+
+---
+
+## Phase 09 outcome summary
+
+Phase 09 completes the project’s disaster-recovery and rollback readiness baseline.
+
+The phase adds:
+
+- A local DR backup script
+- Kubernetes namespace-state export
+- MongoDB dump attempts for known database pods
+- Gitignored local backup artifacts
+- Safe container-recovery proof in `sock-shop-dev`
+- Rollback documentation
+- Node/VM recovery documentation
+- Final README and architecture-readiness notes
+
+At the end of Phase 09, the project can be described as:
+
+- deployed
+- observable
+- security-scanned
+- dependency-aware
+- IaC-backed
+- tested
+- merge-governed
+- DR-documented
+- rollback-ready
 
 ---
 
 ## Sources
 
-- [Source 1 Caption](source-1-url) 
-  Source 1 optional details.
-- [Source 2 Caption](source-2-url)  
-  Source 2 optional details.
-- [Source 3 Caption](source-3-url)  
-  Source 3 optional details.
-- ...
+### Step 1 — DR baseline, backup helper, and repository hygiene
+
+- [Google SRE Book — Data Integrity](https://sre.google/sre-book/data-integrity/)  
+  Backup integrity, recovery testing, and restoreability as part of operational reliability.
+
+- [Google Cloud Architecture Framework — Perform testing for recovery from data loss](https://docs.cloud.google.com/architecture/framework/reliability/perform-testing-for-recovery-from-data-loss)  
+  Backup validation through restore tests in a non-production environment.
+
+- [Git documentation — `gitignore`](https://git-scm.com/docs/gitignore)  
+  `.gitignore` patterns for generated local backup artifacts.
+
+- [IBM Docs — Migrating DevOps Velocity from Docker Compose to Kubernetes or OpenShift](https://www.ibm.com/docs/en/devops-velocity/5.1.0?topic=mdv-migrating-devops-velocity-from-docker-compose-kubernetes-openshift)  
+MongoDB export/restore (`mongodump --gzip --archive`, `docker cp`, `kubectl exec`, `mongorestore`).
+
+- [OneUptime — How to Configure MongoDB Backups on Kubernetes](https://oneuptime.com/blog/post/2026-03-31-mongodb-configure-mongodb-backups-on-kubernetes/view)  
+MongoDB backup script pattern (`mongodump`, timestamped backup output, backup storage).
+
+- [CloudyTuts — How to Backup and Restore MongoDB Deployment on Kubernetes](https://www.cloudytuts.com/tutorials/kubernetes/how-to-backup-and-restore-mongodb-deployment-on-kubernetes/)  
+    Kubernetes backup/restore (`kubectl exec`, `mongodump`, `mongorestore`).
+
+- **Kubernetes documentation** — Resource export, Pod selection, in-Pod command execution, and Secret handling:
+  - [Kubernetes Docs — `kubectl get`](https://kubernetes.io/docs/reference/kubectl/generated/kubectl_get/)
+  - [Kubernetes Docs — JSONPath Support](https://kubernetes.io/docs/reference/kubectl/jsonpath/)
+  - [Kubernetes Docs — `kubectl exec`](https://kubernetes.io/docs/reference/kubectl/generated/kubectl_exec/)
+  - [Kubernetes Docs — `kubectl cp`](https://kubernetes.io/docs/reference/kubectl/generated/kubectl_cp/)
+  - [Kubernetes Docs — Secrets](https://kubernetes.io/docs/concepts/configuration/secret/)
+  - [Kubernetes Docs — Good practices for Kubernetes Secrets](https://kubernetes.io/docs/concepts/security/secrets-good-practices/)
+
+- **Shell scripting references** — Bash safety, arrays, redirection, Make recipes, and helper command patterns:
+  - [GNU Bash Manual — The `set` builtin](https://www.gnu.org/software/bash/manual/html_node/The-Set-Builtin.html)
+  - [GNU Bash Manual — Redirections](https://www.gnu.org/software/bash/manual/html_node/Redirections.html)
+  - [GNU Bash Manual — Arrays](https://www.gnu.org/software/bash/manual/html_node/Arrays.html)
+  - [GNU Make Manual — Recipe Syntax](https://www.gnu.org/software/make/manual/html_node/Recipe-Syntax.html)
+  - [GNU Findutils Manual — Directories / `-maxdepth`](https://www.gnu.org/software/findutils/manual/html_node/find_html/Directories.html)
+  - [GNU Awk Manual — String Functions](https://www.gnu.org/software/gawk/manual/html_node/String-Functions.html)
+
+---
+
+### Step 2 — MongoDB dump artifacts and restore validation
+
+- [DEV Community — Backup and Restore MongoDB in a Docker Environment](https://dev.to/denisakp/backup-and-restore-mongodb-in-a-docker-environment-1ebb)  
+  Docker-based restore flow, temporary MongoDB container creation incl. backup archive copy,  `mongorestore --gzip --archive`, validate restore behavior.
+
+- **MongoDB documentation** — Logical dump and restore workflow:
+  - [MongoDB Docs — `mongodump`](https://www.mongodb.com/docs/database-tools/mongodump/)
+  - [MongoDB Docs — `mongodump` examples](https://www.mongodb.com/docs/database-tools/mongodump/mongodump-examples/)
+  - [MongoDB Docs — `mongorestore`](https://www.mongodb.com/docs/database-tools/mongorestore/)
+  - [MongoDB Docs — `mongorestore` examples](https://www.mongodb.com/docs/database-tools/mongorestore/mongorestore-examples/)
+
+- **Docker documentation** — Temporary local restore-check container:
+  - [Docker CLI Reference — `docker container run`](https://docs.docker.com/reference/cli/docker/container/run/)
+  - [Docker CLI Reference — `docker container exec`](https://docs.docker.com/reference/cli/docker/container/exec/)
+  - [Docker CLI Reference — `docker container cp`](https://docs.docker.com/reference/cli/docker/container/cp/)
+  - [Docker CLI Reference — `docker container rm`](https://docs.docker.com/reference/cli/docker/container/rm/)
+
+---
+
+### Step 3 — Pod recovery, rollout inspection, and rollback command surface
+
+- **Kubernetes documentation** — Deployment reconciliation and rollout operations:
+  - [Kubernetes Docs — Deployments](https://kubernetes.io/docs/concepts/workloads/controllers/deployment/)
+  - [Kubernetes Docs — ReplicaSet](https://kubernetes.io/docs/concepts/workloads/controllers/replicaset/)
+  - [Kubernetes Docs — `kubectl delete`](https://kubernetes.io/docs/reference/kubectl/generated/kubectl_delete/)
+  - [Kubernetes Docs — `kubectl rollout status`](https://kubernetes.io/docs/reference/kubectl/generated/kubectl_rollout/kubectl_rollout_status/)
+  - [Kubernetes Docs — `kubectl rollout history`](https://kubernetes.io/docs/reference/kubectl/generated/kubectl_rollout/kubectl_rollout_history/)
+  - [Kubernetes Docs — `kubectl rollout undo`](https://kubernetes.io/docs/reference/kubectl/generated/kubectl_rollout/kubectl_rollout_undo/)
+
+- [Git documentation — `git revert`](https://git-scm.com/docs/git-revert)  
+  Git-based rollback through a new revert commit without rewriting shared history.
+
+---
+
+### Step 4 — Platform rebuild and redeploy path
+
+- [K3s Docs — Architecture](https://docs.k3s.io/architecture)  
+  K3s server/agent architecture and single-server baseline.
+
+- [K3s Docs — High Availability Embedded etcd](https://docs.k3s.io/datastore/ha-embedded)  
+  High-availability requirements and quorum behavior, used to define the current single-node recovery boundary.
+
+- [Proxmox VE Wiki — Cloud-Init Support](https://pve.proxmox.com/wiki/Cloud-Init_Support)  
+  Proxmox Cloud-Init support used by the VM-template baseline.
+
+- [Proxmox VE Documentation — `qm` manual](https://pve.proxmox.com/pve-docs/qm.1.html)  
+  Proxmox VM management commands for template, clone, and VM lifecycle operations.
+
+- [Terraform documentation — Workflow for provisioning infrastructure](https://developer.hashicorp.com/terraform/cli/run)  
+  Terraform workflow used as the Phase 08 IaC reference for reproducible Proxmox VM provisioning proof.
+
+- **Kubernetes deployment references** — Declarative redeployment path:
+  - [Kubernetes Docs — Declarative Management of Kubernetes Objects Using Configuration Files](https://kubernetes.io/docs/tasks/manage-kubernetes-objects/declarative-config/)
+  - [Kubernetes Docs — Declarative Management of Kubernetes Objects Using Kustomize](https://kubernetes.io/docs/tasks/manage-kubernetes-objects/kustomization/)
+  - [Kustomize — Kubernetes native configuration management](https://kustomize.io/)
+
+- **GitHub Actions documentation** — Environment-based delivery and approval-gated promotion:
+  - [GitHub Docs — Deploying with GitHub Actions](https://docs.github.com/actions/deployment/about-deployments/deploying-with-github-actions)
+  - [GitHub Docs — Deployments and environments](https://docs.github.com/en/actions/reference/workflows-and-actions/deployments-and-environments)
+  - [GitHub Docs — Reviewing deployments](https://docs.github.com/actions/managing-workflow-runs/reviewing-deployments)

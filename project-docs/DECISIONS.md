@@ -757,4 +757,93 @@ Protect `master` with required deterministic Phase 07 checks, pull-request-based
 
 ---
 
+## Phase 09 — Disaster Recovery & Rollback: Backup Baseline, Restore Validation, Recovery Proof, and Rollback Readiness
+
+Phase 09 established the project’s disaster-recovery and rollback baseline for the Proxmox-based single-node K3s target platform.
+
+### Quick recap (Phase 09)
+
+#### Starting point: The project needed a practical recovery baseline
+
+After the delivery, observability, security, and IaC phases, the project already had:
+
+- Proxmox-based target delivery
+- Environment-separated `sock-shop-dev` and `sock-shop-prod` namespaces
+- Public HTTPS access through Cloudflare Tunnel
+- Private operator and CI/CD access through Tailscale
+- GitHub Actions based delivery
+- Observability and security validation paths
+- A first Terraform-backed Proxmox IaC proof
+
+What was still missing was a practical recovery baseline: backup artifacts, restore validation, recovery proof, and rollback guidance.
+
+#### Constraint: The target is single-node, not highly available
+
+The current target is a single-node K3s cluster on one Proxmox VM.
+
+This means:
+
+- Kubernetes can recreate failed Pods while the node is healthy.
+- Kubernetes cannot automatically fail over the whole platform if the only node or VM is lost.
+- Full node/VM recovery must therefore be handled through rebuild, redeploy, and restore where backup artifacts are available.
+
+#### Chosen path: Backup, inspect, restore where available, redeploy, and validate
+
+Phase 09 added a local DR backup helper that creates timestamped backup folders under `backups/`.
+
+The helper exports Kubernetes namespace state and attempts MongoDB logical dumps for known Sock Shop database Pods where `mongodump` is available.
+
+The phase also validates one representative MongoDB dump by restoring it into a temporary local MongoDB container, without writing anything back into `dev` or `prod`.
+
+#### Verified result: DR baseline and safe recovery proof completed
+
+By the end of Phase 09, the project had proven:
+
+- Kubernetes namespace state can be exported for `sock-shop-dev` and `sock-shop-prod`
+- MongoDB-compatible database Pods can be backed up through `.archive.gz` dump artifacts
+- Unsupported data-store Pods are recorded as skipped instead of failing the whole backup run
+- One representative `user-db` dump can be restored and queried in a temporary local MongoDB container
+- A deleted `front-end` Pod in `sock-shop-dev` is recreated by Kubernetes
+- Live smoke validation passes after the recovery proof
+- Git-based and Kubernetes-level rollback paths are documented
+- Full node/VM recovery is documented as rebuild, redeploy, and restore where possible
+
+#### Why this matters next
+
+Phase 09 gives the project a realistic recovery story that matches the actual target architecture. It does not overclaim high availability, but it proves the first operationally useful DR baseline.
+
+### Key decisions
+
+#### P09-D01 — DR scope = Backup + rebuild + redeploy, not full HA
+
+Treat Phase 09 as a practical disaster-recovery baseline, not as a high-availability redesign.
+
+The current single-node K3s target does not provide automatic node failover, so full node/VM loss is documented as rebuild, redeploy, and restore where backup artifacts are available.
+
+#### P09-D02 — Backup model = Kubernetes state export plus MongoDB dump attempts
+
+Use a local backup helper that exports namespace-level Kubernetes state and attempts MongoDB logical dumps from known Sock Shop database Pods.
+
+Generated backup artifacts remain local under `backups/` and are excluded from Git.
+
+#### P09-D03 — Restore validation = Representative MongoDB dump restored into a temporary local container
+
+Validate one representative MongoDB dump by restoring it into a disposable local MongoDB container and querying the restored data.
+
+This proves that the dump is readable and restoreable without writing back into the live `dev` or `prod` environments.
+
+#### P09-D04 — Recovery proof = Safe pod deletion in dev
+
+Prove container-level recovery by deleting one `front-end` Pod in `sock-shop-dev`.
+
+Kubernetes recreates the Pod through Deployment reconciliation, and the live smoke validation bundle passes afterward.
+
+#### P09-D05 — Rollback model = Git revert first, Kubernetes rollout undo for emergency runtime rollback
+
+Use Git revert plus protected validation and redeploy as the normal rollback path.
+
+Keep `kubectl rollout undo` documented as an emergency runtime rollback command for Deployment revisions.
+
+---
+
 ## (Further entries will be added to record technical choices)

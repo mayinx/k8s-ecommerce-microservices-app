@@ -39,6 +39,7 @@
 
 ---
 > **🧩 Info box — NodePort Service** 
+>
 > A NodePort is a **Kubernetes Service type** that exposes an  application by opening a static TCP port (range 30000-32767) on every Node in the cluster. Any traffic sent to that port is automatically forwarded to the underlying Service.
 > NodePort operates at ISO/OSI Layer 4 (Transport). It routes traffic based on IP and Port but cannot "read" hostnames or URLs.
 > It is used here as a transparent, port-based, "no-frills" entry point: It bypasses complex routing logic and can be used as a first check to verify that the front-end Pods are healthy and accessible before introducing host-based Layer 7 Ingress routing in Phase 02.
