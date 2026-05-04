@@ -2,11 +2,6 @@
 
 Documentation is iterative and phase-aligned: baseline notes first, then milestone implementation notes, setup guides when needed, runbooks, and decision logs.
 
-## Current hand-in status
-
-- The functional project scope meets now completely the Capstone requirements and covers deployment, CI/CD, observability, security/testing, Terraform IaC baseline, and disaster recovery / rollback readiness. 
-- Phase 08 and Phase 09 detailed docs are still being polished for the final defense.
-
 ## Cross-phase docs
 - **[Project roadmap / planning](./ROADMAP.md)**
 - **[Project-wide decision summary](./DECISIONS.md)**
@@ -84,12 +79,9 @@ Documentation is iterative and phase-aligned: baseline notes first, then milesto
 
 ## Phase 08 — Proxmox IaC Baseline (Terraform smoke-VM provisioning proof)
 
-- **Status:** Functionally implemented; detailed documentation polish in progress.
-- **Purpose:** Prove a first Infrastructure as Code baseline for reproducible Proxmox VM provisioning.
-- **Scope:** Terraform workspace for a disposable Proxmox smoke VM `9300`, cloned from workload-ready template `9010`.
-- **Key proof:** Terraform `init`, `validate`, `plan`, `apply`, Proxmox host-side verification, and `destroy` completed successfully.
-- **Docs:**
-  - **[Phase 08 — Implementation Log *(in work)*](./08-proxmox-iac/IMPLEMENTATION.md)**
+- **[Phase 08 — Implementation Log](./08-proxmox-iac/IMPLEMENTATION.md)**
+- **[Phase 08 — Runbook (TL;DR)](./08-proxmox-iac/RUNBOOK.md)**
+- **[Phase 08 — Decision Log](./08-proxmox-iac/DECISIONS.md)**
 
 ---
 
