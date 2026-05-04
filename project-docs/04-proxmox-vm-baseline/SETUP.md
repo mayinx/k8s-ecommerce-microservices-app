@@ -23,11 +23,11 @@
 - [**Step 05 - Optional: add a local SSH config entry**](#step-05---optional-add-a-local-ssh-config-entry)
 - [**Step 06 - Verify SSH access from the laptop to the Proxmox host**](#step-06---verify-ssh-access-from-the-laptop-to-the-proxmox-host)
 - [**Step 07 - Verify that Proxmox host-shell work can now be launched from the laptop**](#step-07---verify-that-proxmox-host-shell-work-can-now-be-launched-from-the-laptop)
-- [**Sources**](#sources)
 - [**Step 08 - Implement VM-level SSH access**](#step-08---implement-vm-level-ssh-access)
 - [**Step 09 - Add the public key to the Ubuntu target VM**](#step-09---add-the-public-key-to-the-ubuntu-target-vm)
 - [**Step 10 - Optional: add a local SSH config entry for the Ubuntu target VM**](#step-10---optional-add-a-local-ssh-config-entry-for-the-ubuntu-target-vm)
 - [**Step 11 - Verify SSH and `scp` access to the Ubuntu target VM**](#step-11---verify-ssh-and-scp-access-to-the-ubuntu-target-vm)
+- [**Sources**](#sources)
 
 ---
 

@@ -34,7 +34,7 @@
 ![Trivy](https://img.shields.io/badge/Trivy-1E5B99?style=for-the-badge&logo=aquasecurity&logoColor=white)
 ![Dependabot](https://img.shields.io/badge/Dependabot-025E8C?style=for-the-badge&logo=dependabot&logoColor=white) -->
 
-Production-grade DevOps project based on the upstream WeaveSocks microservices application. This repository demonstrates a **reproducible, phase-based delivery path** from a **local Docker Compose baseline** to a **long-lived Proxmox-based K3s target environment** with public `dev` and `prod` entrypoints.
+Production-grade DevOps project based on the upstream Weaveworks microservices application (aka Sock Shop). This repository demonstrates a **reproducible, phase-based delivery path** from a **local Docker Compose baseline** to a **long-lived Proxmox-based K3s target environment** with public `dev` and `prod` entrypoints.
 
 > **Project focus:** The goal is not just to run the application once, but to build a reproducible, phase-based DevOps delivery path with evidence-grade documentation. The project is intentionally implemented in phases so that each new capability builds on an already proven baseline, gradually covering the core capabilities expected from a modern DevOps delivery project:
 >
@@ -47,13 +47,48 @@ Production-grade DevOps project based on the upstream WeaveSocks microservices a
 
 ---  
 
-## 🧱 Tech Stack
+<!-- ## 🧱 Tech Stack
 
 *Infrastructure, delivery & operations:*\
 🐳 **Docker** | ☸️ **Kubernetes (K3s)** | 🧪 **kind** | 🐙 **GitHub Actions** | 📦 **GHCR** | 🚜 **Proxmox VE** | ☁️ **Cloud-Init** | 🧱 **Terraform** | 🛡️ **Tailscale** | ☁️ **Cloudflare Tunnels** | 🚦 **Traefik** | 🧩 **Kustomize** | 📈 **Prometheus & Grafana** | ⚓ **Helm** | 🔎 **Trivy** | 🤖 **Dependabot** | 🗄️ **MongoDB**
 
 *Repo-owned code, tooling & tests:*\
-💎 **Ruby** | 🐍 **Python** | 🐚 **Bash** | 🟨 **JavaScript** | **Minitest** | **pytest** | 🎭 **Playwright**
+💎 **Ruby** | 🐍 **Python** | 🐚 **Bash** | 🟨 **JavaScript** | **Minitest** | **pytest** | 🎭 **Playwright** -->
+
+ 
+
+<!-- ## ⚙️ Tech Stack
+
+**Infrastructure, Delivery & Operations**  
+![Docker](https://img.shields.io/badge/Docker-333333?style=flat-square&logo=docker&logoColor=white)
+![Kubernetes](https://img.shields.io/badge/K3s-333333?style=flat-square&logo=kubernetes&logoColor=white)
+![GitHub Actions](https://img.shields.io/badge/GitHub_Actions-333333?style=flat-square&logo=githubactions&logoColor=white)
+![GHCR](https://img.shields.io/badge/GHCR-333333?style=flat-square&logo=github&logoColor=white)
+![Proxmox VE](https://img.shields.io/badge/Proxmox_VE-333333?style=flat-square&logo=proxmox&logoColor=white)
+![Terraform](https://img.shields.io/badge/Terraform-333333?style=flat-square&logo=terraform&logoColor=white)
+![Tailscale](https://img.shields.io/badge/Tailscale-333333?style=flat-square&logo=tailscale&logoColor=white)
+![Cloudflare](https://img.shields.io/badge/Cloudflare_Tunnels-333333?style=flat-square&logo=cloudflare&logoColor=white)
+![Traefik](https://img.shields.io/badge/Traefik-333333?style=flat-square&logo=traefik&logoColor=white)
+![Prometheus](https://img.shields.io/badge/Prometheus-333333?style=flat-square&logo=prometheus&logoColor=white)
+![Grafana](https://img.shields.io/badge/Grafana-333333?style=flat-square&logo=grafana&logoColor=white)
+![Trivy](https://img.shields.io/badge/Trivy-333333?style=flat-square&logo=aquasecurity&logoColor=white)
+![Dependabot](https://img.shields.io/badge/Dependabot-333333?style=flat-square&logo=dependabot&logoColor=white)
+
+**Repo-Owned Code, Tooling & Tests**  
+![Ruby](https://img.shields.io/badge/Ruby-333333?style=flat-square&logo=ruby&logoColor=white)
+![Python](https://img.shields.io/badge/Python-333333?style=flat-square&logo=python&logoColor=white)
+![Bash](https://img.shields.io/badge/Bash-333333?style=flat-square&logo=gnubash&logoColor=white)
+![JavaScript](https://img.shields.io/badge/JavaScript-333333?style=flat-square&logo=javascript&logoColor=white)
+![Playwright](https://img.shields.io/badge/Playwright-333333?style=flat-square&logo=playwright&logoColor=white) -->
+
+## ⚙️ Tech Stack
+
+**Infrastructure, Delivery & Operations:**  
+`Docker` | `Kubernetes (K3s)` | `kind` | `GitHub Actions` | `GHCR` | `Proxmox VE` | `Cloud-Init` | `Terraform` | `Tailscale` | `Cloudflare Tunnels` | `Traefik` | `Kustomize` | `Prometheus & Grafana` | `Helm` | `Trivy` | `Dependabot` | `MongoDB`
+
+**Repo-Owned Code, Tooling & Tests:**  
+`Ruby` | `Python` | `Bash` | `JavaScript` | `Minitest` | `pytest` | `Playwright`
+
 
 ---
 
@@ -301,8 +336,8 @@ The same workload model is deployed into both `sock-shop-dev` and `sock-shop-pro
 
 ### Runtime topology source notes
 
-- **Official Sock Shop repository:** Sock Shop is a user-facing microservices demo application packaged in Docker containers.
-- **Official Kubernetes manifests:** The deployed workload includes `front-end`, `catalogue`, `carts`, `orders`, `payment`, `shipping`, `queue-master`, `rabbitmq`, `session-db`, and database services.
+- **Official Sock Shop repository:** Microservices demo application packaged in Docker containers.
+- **Kubernetes manifests:** The deployed workload includes `front-end`, `catalogue`, `carts`, `orders`, `payment`, `shipping`, `queue-master`, `rabbitmq`, `session-db`, and database services.
 - **Front-end routing:** The `front-end` application mounts cart, catalogue, orders, and user API modules; it does not directly mount payment or shipping routes.
 - **Checkout orchestration:** The `orders` service calls payment and shipping during order creation.
 - **Session state:** `session-db` is Redis-backed frontend session state. It is mapped as a runtime state component; Phase 09 Mongo-compatible dump validation focuses on the Mongo-backed business data services.
@@ -400,7 +435,7 @@ This documentation is part of the delivery work itself and acts as the project's
 > **Scope Summary:** Repository fork/remotes check, deployment-surface inventory, local Docker Compose runtime baseline, service/port/stateful-component mapping, and local host-port conflict workaround.\
 **Docs: [Implementation](project-docs/00-compose-baseline/IMPLEMENTATION.md) • [Runbook](project-docs/00-compose-baseline/RUNBOOK.md)**  
 
-#### 🔲 Proven Capabilities
+#### ✦ Proven Capabilities
 
 - Fork/remotes verified, with upstream retained as read-only reference (through `no_push`)
 - Existing deployment surfaces inventoried: Docker Compose, Kubernetes manifests, Helm chart, monitoring/alerting manifests, NetworkPolicy manifests, and inherited Terraform material    
@@ -448,8 +483,7 @@ upstream  no_push (push)
 
   - Dedicated Kubernetes namespace `sock-shop` created as the local deployment boundary
   - Upstream Kubernetes manifests applied without rewriting the application deployment path
-  - NodePort `30001` collision checked before deployment because NodePort values are cluster-wide, not namespace-scoped
-  - Known local collision source resolved before applying the Sock Shop manifests
+  - NodePort `30001` collision checked + resolved before before applying the Sock Shop manifests (NodePort values are cluster-wide, not namespace-scoped)
   - All Sock Shop workloads in `sock-shop` reached `Running` / `Ready`
   - Storefront reachable through the upstream NodePort path:
     - `http://localhost:30001/`
@@ -851,7 +885,7 @@ Trigger:
 
 ---
 
-### 🔲 Phase 08 — Infrastructure as Code Baseline *(Functionally implemented; docs polish in progress)*
+### 🔲 Phase 08 — Infrastructure as Code Baseline
 
 > **Scope Summary:** Terraform workspace established under `infra/terraform/proxmox-smoke-vm/` for disposable Proxmox smoke-VM proof. VM `9300` provisioned from workload-ready template `9010`, Proxmox API authentication validated, Terraform plan/apply/destroy lifecycle verified, live VM `9200` remained untouched, and Makefile helpers added.\
 **Docs: [Implementation](project-docs/08-proxmox-iac/IMPLEMENTATION.md)**
@@ -926,7 +960,7 @@ Destroy complete! Resources: 1 destroyed.
 
 ---
 
-### 🔲 Phase 09 - Disaster Recovery & Rollback Readiness *(Functionally implemented; docs polish in progress)*
+### 🔲 Phase 09 - Disaster Recovery & Rollback Readiness
 
 > **Scope Summary:** Target DR backup helper deployed for `sock-shop-dev` and `sock-shop-prod`, Kubernetes namespace state exported, Secret metadata recorded without exporting Secret values, Mongo-compatible data-store dumps validated through a temporary restore check, `front-end` dev pod recovery proven, live smoke checks passed after recovery, and rollback paths documented.\
 **Docs: [Implementation](project-docs/09-dr-rollback/IMPLEMENTATION.md)**
@@ -1076,8 +1110,6 @@ Purpose:
 - Check visible storefront content and catalogue image visibility
 - Produce browser-level evidence through Playwright reports and artifacts
 - Stay separate from the deterministic PR gate because live browser checks depend on deployed environment state
-
-
 
 ### Make Helper Targets
 
