@@ -63,7 +63,7 @@ jobs:
     steps:
       # Check out the repository contents for this PR revision.
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       # Install a Ruby runtime for the repo-owned Ruby helper tests.
       - name: Set up Ruby
@@ -94,7 +94,7 @@ jobs:
     steps:
       # Check out the repository so Trivy can scan the current PR content.
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       # Reuse the focused repo-level Trivy scan already proven locally.
       - name: Run focused Trivy repo scan for healthcheck
@@ -112,7 +112,7 @@ jobs:
     steps:
       # Check out the repository so Docker can build the owned image.
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       # Reuse the existing Make target that builds and scans the owned image.
       - name: Run Trivy image scan for healthcheck
