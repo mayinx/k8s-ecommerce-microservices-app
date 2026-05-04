@@ -3,7 +3,7 @@
 > ## 👤 About
 > This document is the implementation log and detailed project build diary for **Phase 01 (Local k3s Cluster Baseline)**.  
 > It records the full implementation path including rationales, key observations, corrections, verification/validation steps, and evidence pointers so the work remains auditable and reproducible.  
-> For a shorter, reproducible **TL;DR command checklist / rerun guide**, see: **[01-local-k3s-baseline/RUNBOOK.md](RUNBOOK.md)**.
+> For a shorter, reproducible **TL;DR command checklist / rerun guide**, see: **[01-k8s-nodeport-baseline/RUNBOOK.md](RUNBOOK.md)**.
 
 ---
 
@@ -39,6 +39,7 @@
 
 ---
 > **🧩 Info box — NodePort Service** 
+>
 > A NodePort is a **Kubernetes Service type** that exposes an  application by opening a static TCP port (range 30000-32767) on every Node in the cluster. Any traffic sent to that port is automatically forwarded to the underlying Service.
 > NodePort operates at ISO/OSI Layer 4 (Transport). It routes traffic based on IP and Port but cannot "read" hostnames or URLs.
 > It is used here as a transparent, port-based, "no-frills" entry point: It bypasses complex routing logic and can be used as a first check to verify that the front-end Pods are healthy and accessible before introducing host-based Layer 7 Ingress routing in Phase 02.

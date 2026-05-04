@@ -23,9 +23,9 @@
 ## Current position
 
 - Current proven phase:
-  - Phase 07 — Security Testing
+  - Phase 09 — Disaster Recovery & Rollback
 - Primary next target:
-  - Phase 08 — Infrastructure as Code (Terraform)
+  - ...
 
 ---
 
@@ -40,23 +40,25 @@
   - status: done in Phase 07
 - Testing track
   - status: done as first baseline in Phase 07
-- IaC for the stable target/bootstrap pieces
-  - status: next core phase
+- IaC baseline
+  - status: done in Phase 08
 - DR / rollback baseline
-  - status: still open
+  - status: done in Phase 09
 - Clean final project documentation
-  - status: ongoing
+  - status: ongoing final polish
 
 ### Tier B — Strong stretch goals before evaluation, if time allows
-- custom Python microservice:
+- Deeper Playwright storefront checks beyond the current smoke baseline
+- Optional custom Python microservice:
   - Order Guard / Policy Service
-- unit tests for the Python service
-- Playwright storefront smoke / E2E coverage
-- image scanning / SBOM generation
-- optional selective image optimization for stronger delivery/security signal
+- Unit tests for the optional Python service if it is added
+- Optional SBOM generation or signing / verification follow-up
+- Optional selective hardening of broader Trivy findings outside the already remediated `healthcheck` path
 
-### Tier C — Post-bootcamp portfolio extensions
-- GitOps layer (for example Argo CD)
+### Tier C — Post-evaluation portfolio extensions
+- Broader Terraform coverage for target VM recreation and bootstrap steps
+- Full restore drill in a disposable namespace or throwaway cluster
+- GitOps layer, for example Argo CD
 - stronger secret-management integration
 - optional AWS target as an additional Terraform-driven deployment track
 - recruiter-facing live dashboard / situation-room style proof layer
@@ -91,8 +93,8 @@
 - already proven:
   - NodePort storefront access
 - docs:
-  - [Implementation](./01-nodeport-baseline/IMPLEMENTATION.md)
-  - [Runbook](./01-nodeport-baseline/RUNBOOK.md)
+  - [Implementation](./01-k8s-nodeport-baseline/IMPLEMENTATION.md)
+  - [Runbook](./01-k8s-nodeport-baseline/RUNBOOK.md)
 
 ### Phase 02 — Host-based ingress baseline
 - status:
@@ -103,8 +105,8 @@
   - `sockshop.local`
   - rollback path
 - docs:
-  - [Implementation](./02-ingress-baseline/IMPLEMENTATION.md)
-  - [Runbook](./02-ingress-baseline/RUNBOOK.md)
+  - [Implementation](./02-k8s-ingress-baseline/IMPLEMENTATION.md)
+  - [Runbook](./02-k8s-ingress-baseline/RUNBOOK.md)
 
 ### Phase 03 — CI/CD baseline
 - status:
@@ -212,25 +214,48 @@
 
 ### Phase 08 — Infrastructure as Code (Terraform)
 - status:
-  - core phase still open
+  - done
 - purpose:
-  - codify the stable target/bootstrap pieces using the Capstone-recommended IaC tool
-- likely work:
-  - do *not* rebuild the entire Proxmox VM layer to avoid timeline risk
-  - use Terraform (and the Terraform Helm Provider) to manage Kubernetes namespaces
-  - codify the Phase 06 monitoring stack installation via Terraform
-- Relevance:
-  - safely satisfies the IaC requirement while demonstrating senior-level add-on management.
+  - prove a safe Proxmox Infrastructure as Code baseline without importing or modifying the live K3s target VM `9200`
+- already proven:
+  - isolated Terraform workspace under `infra/terraform/proxmox-smoke-vm/`
+  - Proxmox-specific Terraform proof using the `bpg/proxmox` provider
+  - disposable smoke VM `9300` cloned from workload-ready template `9010`
+  - Proxmox node `sd-178532`, storage `vmdata`, and private VM network model reused from the proven Proxmox baseline
+  - Cloud-Init guest initialization for the `ubuntu` user, DNS, gateway, and static smoke-VM IP `10.10.10.30/24`
+  - Terraform `init`, `validate`, `plan`, `apply`, Proxmox host-side verification, guest reachability check, and `destroy`
+  - live K3s target VM `9200` remained untouched
+  - Terraform-related Makefile helpers for repeatable local execution
+  - Terraform provider dependency monitoring through Dependabot
+  - Trivy scan coverage extended to the Terraform infrastructure path
+- docs:
+  - [Implementation](./08-proxmox-iac/IMPLEMENTATION.md)
+  - [Runbook](./08-proxmox-iac/RUNBOOK.md)
+  - [Decisions](./08-proxmox-iac/DECISIONS.md)
 
 ### Phase 09 — DR / rollback baseline
 - status:
-  - core phase still open
+  - done
 - purpose:
-  - document and prove recovery thinking (Capstone requirement)
-- likely work:
-  - demonstrate how to roll back a deployment to a previous version
-  - outline database backup and persistent-storage strategies
-  - document the redeploy-from-IaC path
+  - establish a practical disaster-recovery and rollback-readiness baseline for the single-node Proxmox-backed K3s target
+- already proven:
+  - local DR backup helper under `scripts/dr/`
+  - timestamped backup artifacts under gitignored `backups/`
+  - Kubernetes namespace-state exports for `sock-shop-dev` and `sock-shop-prod`
+  - MongoDB dump attempts for known Sock Shop database pods
+  - successful MongoDB-compatible dumps for `carts-db`, `orders-db`, and `user-db`
+  - unsupported data-store pods recorded as skipped instead of failing the whole backup run
+  - representative `user-db` dump restored and queried in a temporary local MongoDB container
+  - safe pod-recovery proof by deleting a `front-end` pod in `sock-shop-dev`
+  - Kubernetes recreated the deleted pod through Deployment reconciliation
+  - live smoke validation passed after the recovery proof
+  - Git-based rollback and Kubernetes emergency rollback paths documented
+  - full node/VM recovery documented as rebuild, redeploy, and restore where artifacts are available
+- docs:
+  - [Implementation](./09-dr-rollback/IMPLEMENTATION.md)
+  - [Runbook](./09-dr-rollback/RUNBOOK.md)
+  - [Decisions](./09-dr-rollback/DECISIONS.md)
+
 ---
 
 ## Extension tracks
@@ -340,22 +365,26 @@
 - Dependabot-generated PRs should be reviewed through the protected pull-request path and merged or deferred intentionally
 - The Phase 07 live-smoke workflow can later be called automatically after deployment workflows once that behavior is desired
 - Playwright coverage can later be expanded beyond the current smoke-level storefront checks
-- GitHub Actions runtime deprecation warnings remain a later workflow-maintenance cleanup item  
+- Phase 08 deliberately proves a disposable Proxmox smoke-VM lifecycle only; broader target recreation and bootstrap automation remain later IaC hardening
+- Phase 09 deliberately records `session-db` and `catalogue-db` backup gaps as follow-up hardening instead of hiding them as completed work
+- A full restore drill should later run against a disposable namespace or throwaway cluster before any production-style restore claim is made
 
 ---
 
 ## Open planning questions
 
-- Which Terraform scope is the strongest low-risk fit for the remaining timeline:
-  - codify namespaces and selected Kubernetes resources
-  - codify the monitoring baseline
-  - codify only stable target/bootstrap pieces
+- Which broader Terraform extension gives the strongest portfolio value next:
+  - target VM recreation
+  - K3s bootstrap
+  - Cloudflare / Tailscale setup documentation-to-automation bridge
+  - monitoring stack codification
+- Should the next recovery hardening step be a full restore drill in a disposable namespace or better data-store-specific backup coverage first?
+- Should `session-db` Redis backup handling or `catalogue-db` image-specific backup handling be prioritized first?
 - Should the Phase 07 live-smoke workflow be called automatically after deployment workflows, or remain manually triggered for now?
 - Which broader Trivy findings outside the remediated `healthcheck` path should be prioritized first?
-- Should monitoring remain private-only through the next phase, or is there a later justified case for stronger controlled exposure?
-- Should the custom Python microservice be implemented before or after the first IaC / DR baseline?
-- Is an AWS extension realistic before evaluation, or better kept for post-evaluation portfolio work?
+- Should monitoring remain private-only, or is there a later justified case for stronger controlled exposure?
 - Which later extension gives the strongest hiring signal per hour of effort:
+  - broader Terraform automation
   - Argo CD
   - Python microservice
   - stronger E2E coverage

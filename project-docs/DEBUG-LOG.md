@@ -1,6 +1,7 @@
 # Project Debug Log & Incident Reports
 
 TODO: Add an index!
+TODO: Re-eval Phase 01 - 04 for earlier entries here  
 
 This document tracks technical anomalies discovered during deployment, the investigation process, and the resulting architectural decisions.
 

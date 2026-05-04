@@ -12,16 +12,10 @@
 #   project workflows.
 #
 # Rationale:
-# - Architecture Mismatch: Reflects the inherited upstream CI model rather than 
-#   the custom Proxmox/K3s target delivery path built for this project.
-# - Obsolete Targets: Tests legacy complete-demo and local KinD assumptions.
-# - Stale Registry Auth: Attempts an old Docker Hub publish path requiring 
-#   upstream-specific secrets, whereas this project utilizes GHCR.
-
-# - Architecture mismatch: reflects the inherited upstream CI model rather than
-#   the repo-specific Proxmox / K3s delivery path used in this project.
-# - Obsolete targets: Validates legacy complete-demo and local Kind assumptions.
-# - Docekr Hub based: includes an old Docker Hub publish flow requiring
+# - Architecture Mismatch: Reflects the inherited upstream CI model rather than
+#   the custom Proxmox/K3s delivery path used in this project.
+# - Obsolete targets: Tests the legacy complete-demo and local Kind assumptions.
+# - Docker Hub-based: Includes an old Docker Hub publish path requiring
 #   upstream-specific secrets (DOCKER_USER, DOCKER_PASS) and image tags like 
 #   `weaveworksdemos/<image>:<sha>`, while this project uses GHCR.
 

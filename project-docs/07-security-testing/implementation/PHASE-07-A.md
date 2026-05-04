@@ -1472,13 +1472,6 @@ Yes — this grouped version is cleaner and less repetitive. Replace the current
 ```
 
 ---
-
-### Phase 07 rerun entrypoints
-
-- [GNU Make Manual](https://www.gnu.org/software/make/manual/make.html)  
-  Makefile targets as thin rerun entrypoints for repeated Phase 07 checks.
-
----
 <br>
 
 > [!TIP] **Navigation**  

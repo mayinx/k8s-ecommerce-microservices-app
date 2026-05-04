@@ -16,8 +16,9 @@ Decisions in this project are made along an explicit, **phase-based delivery pat
 - [**Phase 04 — Proxmox VM Baseline**](#phase-04-proxmox-vm-baseline-generic-ubuntu-vm-template-smoke-vm-and-workload-ready-vm-template)
 - [**Phase 05 — Proxmox Target Delivery: Real target VM, public edge, and workflow-driven delivery**](#phase-05-proxmox-target-delivery-real-target-vm-public-edge-and-workflow-driven-delivery)
 - [**Phase 06 — Observability & Health**](#phase-06--observability--health)
-- [**Phase 07 — Security Testing: deterministic validation, security scanning, live smoke checks, and branch governance**](#phase-07--security-testing-deterministic-validation-security-scanning-live-smoke-checks-and-branch-governance)
-
+- [**Phase 07 — Security Testing: Deterministic validation, Security Scanning, Live Smoke Tests, Branch Governance**](#phase-07--security-testing-deterministic-validation-security-scanning-live-smoke-tests-branch-governance)
+- [**Phase 08 — Proxmox IaC Baseline: Terraform smoke-VM provisioning proof**](#phase-08--proxmox-iac-baseline-terraform-smoke-vm-provisioning-proof)
+- [**Phase 09 — Disaster Recovery & Rollback: backup baseline, restore validation, recovery proof, and rollback readiness**](#phase-09--disaster-recovery--rollback-backup-baseline-restore-validation-recovery-proof-and-rollback-readiness)
 ---
 
 
@@ -181,11 +182,11 @@ The initial phases use Docker Compose and a local k3s cluster to establish a sta
   - the storefront UI loaded successfully via **`http://localhost:30001/`** (and also via `http://<node-ip>:30001/`).
 
 **Primary evidence (Phase 01)**  
-- Storefront screenshot: `project-docs/01-local-k3s-baseline/evidence/[2026-03-09]-Port-30001_Storefront.png`
+- Storefront screenshot: `project-docs/01-k8s-nodeport-baseline/evidence/[2026-03-09]-Port-30001_Storefront.png`
 
 **Further details**  
-- Implementation log: `project-docs/01-local-k3s-baseline/IMPLEMENTATION.md`  
-- Runbook: `project-docs/01-local-k3s-baseline/RUNBOOK.md`
+- Implementation log: `project-docs/01-k8s-nodeport-baseline/IMPLEMENTATION.md`  
+- Runbook: `project-docs/01-k8s-nodeport-baseline/RUNBOOK.md`
 
 **Conclusion + Net steps**
 - Phase 01 proved the app is deployable and healthy on a local k3s cluster:
@@ -261,12 +262,12 @@ The initial phases use Docker Compose and a local k3s cluster to establish a sta
   - After that, the same hostname worked in the browser via `http://sockshop.local/`.
 
 **Primary evidence (Phase 02)**  
-- Browser screenshot before local hostname mapping: `project-docs/02-ingress-baseline/evidence/[2026-03-19]-sockshop.local-Storefront-1_before-hosts-edit_not-found.png`  
-- Browser screenshot after local hostname mapping: `project-docs/02-ingress-baseline/evidence/[2026-03-19]-sockshop.local-Storefront-2_after-hosts-edit_loaded.png`
+- Browser screenshot before local hostname mapping: `project-docs/02-k8s-ingress-baseline/evidence/[2026-03-19]-sockshop.local-Storefront-1_before-hosts-edit_not-found.png`  
+- Browser screenshot after local hostname mapping: `project-docs/02-k8s-ingress-baseline/evidence/[2026-03-19]-sockshop.local-Storefront-2_after-hosts-edit_loaded.png`
 
 **Further details**  
-- Implementation log: `project-docs/02-ingress-baseline/IMPLEMENTATION.md`  
-- Runbook: `project-docs/02-ingress-baseline/RUNBOOK.md`
+- Implementation log: `project-docs/02-k8s-ingress-baseline/IMPLEMENTATION.md`  
+- Runbook: `project-docs/02-k8s-ingress-baseline/RUNBOOK.md`
 
 **Conclusion + Next steps**  
 - Phase 02 proved that the storefront can be reached through a **host-based ingress route on port `80`**, while the **port-based NodePort `30001`** path remains available as a known-good fallback.
@@ -754,6 +755,200 @@ Add a separate manual/reusable live-smoke workflow for deployed `dev` and `prod`
 #### P07-D11 — Default-branch protection = Enforce the deterministic PR gate through a protected `master` ruleset
 
 Protect `master` with required deterministic Phase 07 checks, pull-request-based changes, up-to-date branch state, and blocked force pushes.
+
+---
+
+## Phase 08 — Proxmox IaC Baseline: Terraform Smoke-VM Provisioning Proof
+
+Phase 08 established the project’s first safe Infrastructure as Code baseline for the Proxmox-backed target platform.
+
+### Quick recap (Phase 08)
+
+#### Starting point: The project needed an Infrastructure as Code proof without risking the live target
+
+After Phase 05, the project already had a long-lived Proxmox-backed K3s target VM:
+
+- VM `9200` as the live K3s target, cloned from a workload-ready VM Template `9010`
+- Environment-separated `sock-shop-dev` and `sock-shop-prod` namespaces
+- Public HTTPS access through Cloudflare Tunnel
+- Private operator and CI/CD access through Tailscale
+- Observability, security validation, and later DR/rollback work built on top of the same target
+
+Phase 08 needed to satisfy the Infrastructure as Code requirement, but without destabilizing the already working target platform.
+
+#### Obstacle: Existing Terraform material did not match the Proxmox-first target platform
+
+The repository already contained inherited Terraform-related material under paths such as:
+
+- `deploy/kubernetes/terraform/`
+- `install/aws-minimesos/`
+- `staging/`
+
+Those paths were not reused because they are AWS focused. The current project target is Proxmox-first, so Phase 08 needed a focused Proxmox Terraform proof instead of adapting unrelated upstream examples.
+
+#### Chosen path: Create a focused Proxmox Terraform workspace for one disposable smoke VM
+
+Phase 08 introduced a new Terraform root module under:
+
+- `infra/terraform/proxmox-smoke-vm/`
+
+The Terraform configuration defines exactly one Terraform-owned infrastructure object:
+
+- Terraform resource: `proxmox_virtual_environment_vm.smoke_vm`
+- Disposable VM ID: `9300`
+- VM name: `ubuntu-2404-terraform-smoke-01`
+- Clone source: workload-ready template `9010`
+- Private IP: `10.10.10.30/24`
+- Gateway: `10.10.10.1`
+- DNS: `1.1.1.1`
+- Storage: `vmdata`
+- Network bridge: `vmbr1`
+
+#### Safety boundary: Keep live K3s target VM `9200` outside Terraform management
+
+The live VM `9200` was deliberately not imported, modified, or managed by Terraform in Phase 08.
+
+This kept the live target platform stable while still proving that Terraform can communicate with Proxmox, clone from the existing workload-ready template, inject Cloud-Init values, create a VM, verify it, and remove it again.
+
+#### Verified result: Full Terraform lifecycle completed successfully
+
+By the end of Phase 08, the project had proven:
+
+- Terraform can authenticate against the Proxmox API
+- Terraform can use the `bpg/proxmox` provider to create Proxmox infrastructure
+- Terraform can clone a disposable VM from template `9010`
+- Cloud-Init can inject guest network configuration for the smoke VM
+- VM `9300` can boot and become reachable on `10.10.10.30/24`
+- QEMU Guest Agent can report the expected guest-side network interface
+- Terraform can destroy the managed VM again
+- Live target VM `9200` remains untouched
+
+#### Why this matters next
+
+Phase 08 gives the project a safe IaC foundation for Proxmox automation. It proves the Terraform/Proxmox integration without overreaching into the live target platform.
+
+### Key decisions
+
+#### P08-D01 — IaC scope = Isolated disposable Proxmox smoke VM, not live target VM `9200`
+
+Use one disposable Terraform-managed smoke VM `9300` to prove the IaC lifecycle, while keeping the already live K3s target VM `9200` outside Terraform management.
+
+#### P08-D02 — Terraform path = New Proxmox-specific root module instead of inherited upstream Terraform examples
+
+Create a focused Terraform workspace under `infra/terraform/proxmox-smoke-vm/` instead of adapting inherited Terraform paths that do not match the current Proxmox-first target platform.
+
+#### P08-D03 — Provider model = `bpg/proxmox` over the Proxmox API
+
+Use the `bpg/proxmox` Terraform provider to communicate with Proxmox through the Proxmox VE API and translate Terraform configuration into VM lifecycle actions.
+
+#### P08-D04 — Source template = Workload-ready Proxmox template `9010`
+
+Clone VM `9300` from the already qualified workload-ready template `9010`, which carries the private `vmbr1` network model, Cloud-Init support, DNS/gateway baseline, and QEMU Guest Agent capability.
+
+#### P08-D05 — Module structure = Flat Terraform root module for the first proof
+
+Keep Phase 08 as a small flat Terraform root module with `provider.tf`, `variables.tf`, and `main.tf`, instead of introducing a reusable child module before there are multiple VM roles to generalize.
+
+#### P08-D06 — Credential handling = Local environment variables, not committed files
+
+Pass the Proxmox API endpoint, Proxmox API token, and temporary Cloud-Init password through local `TF_VAR_...` environment variables. Real credentials, local state, plans, `.tfvars`, and provider cache stay outside Git.
+
+#### P08-D07 — Cleanup proof = Successful `terraform destroy` is part of the definition of done
+
+Treat successful destruction of VM `9300` as part of the Phase 08 proof, not as optional cleanup. The phase proves both creation and removal of Terraform-managed infrastructure.
+
+#### P08-D08 — Repository integration = Makefile helpers, provider lock file, Dependabot, and Trivy scope
+
+Integrate the Terraform proof into the existing repository workflow through repeatable Makefile targets, a committed provider lock file, `.gitignore` hygiene, Terraform provider monitoring through Dependabot, and Trivy scan coverage for the Terraform path.
+
+---
+
+## Phase 09 — Disaster Recovery & Rollback: Backup Baseline, Restore Validation, Recovery Proof, and Rollback Readiness
+
+Phase 09 established the project’s disaster-recovery and rollback baseline for the Proxmox-based single-node K3s target platform.
+
+### Quick recap (Phase 09)
+
+#### Starting point: The project needed a practical recovery baseline
+
+After the delivery, observability, security, and IaC phases, the project already had:
+
+- Proxmox-based target delivery
+- Environment-separated `sock-shop-dev` and `sock-shop-prod` namespaces
+- Public HTTPS access through Cloudflare Tunnel
+- Private operator and CI/CD access through Tailscale
+- GitHub Actions based delivery
+- Observability and security validation paths
+- A first Terraform-backed Proxmox IaC proof
+
+What was still missing was a practical recovery baseline: backup artifacts, restore validation, recovery proof, and rollback guidance.
+
+#### Constraint: The target is single-node, not highly available
+
+The current target is a single-node K3s cluster on one Proxmox VM.
+
+This means:
+
+- Kubernetes can recreate failed Pods while the node is healthy.
+- Kubernetes cannot automatically fail over the whole platform if the only node or VM is lost.
+- Full node/VM recovery must therefore be handled through rebuild, redeploy, and restore where backup artifacts are available.
+
+#### Chosen path: Backup, inspect, restore where available, redeploy, and validate
+
+Phase 09 added a local DR backup helper that creates timestamped backup folders under `backups/`.
+
+The helper exports Kubernetes namespace state and attempts MongoDB logical dumps for known Sock Shop database Pods where `mongodump` is available.
+
+The phase also validates one representative MongoDB dump by restoring it into a temporary local MongoDB container, without writing anything back into `dev` or `prod`.
+
+#### Verified result: DR baseline and safe recovery proof completed
+
+By the end of Phase 09, the project had proven:
+
+- Kubernetes namespace state can be exported for `sock-shop-dev` and `sock-shop-prod`
+- MongoDB-compatible database Pods can be backed up through `.archive.gz` dump artifacts
+- Unsupported data-store Pods are recorded as skipped instead of failing the whole backup run
+- One representative `user-db` dump can be restored and queried in a temporary local MongoDB container
+- A deleted `front-end` Pod in `sock-shop-dev` is recreated by Kubernetes
+- Live smoke validation passes after the recovery proof
+- Git-based and Kubernetes-level rollback paths are documented
+- Full node/VM recovery is documented as rebuild, redeploy, and restore where possible
+
+#### Why this matters next
+
+Phase 09 gives the project a realistic recovery story that matches the actual target architecture. It does not overclaim high availability, but it proves the first operationally useful DR baseline.
+
+### Key decisions
+
+#### P09-D01 — DR scope = Backup + rebuild + redeploy, not full HA
+
+Treat Phase 09 as a practical disaster-recovery baseline, not as a high-availability redesign.
+
+The current single-node K3s target does not provide automatic node failover, so full node/VM loss is documented as rebuild, redeploy, and restore where backup artifacts are available.
+
+#### P09-D02 — Backup model = Kubernetes state export plus MongoDB dump attempts
+
+Use a local backup helper that exports namespace-level Kubernetes state and attempts MongoDB logical dumps from known Sock Shop database Pods.
+
+Generated backup artifacts remain local under `backups/` and are excluded from Git.
+
+#### P09-D03 — Restore validation = Representative MongoDB dump restored into a temporary local container
+
+Validate one representative MongoDB dump by restoring it into a disposable local MongoDB container and querying the restored data.
+
+This proves that the dump is readable and restoreable without writing back into the live `dev` or `prod` environments.
+
+#### P09-D04 — Recovery proof = Safe pod deletion in dev
+
+Prove container-level recovery by deleting one `front-end` Pod in `sock-shop-dev`.
+
+Kubernetes recreates the Pod through Deployment reconciliation, and the live smoke validation bundle passes afterward.
+
+#### P09-D05 — Rollback model = Git revert first, Kubernetes rollout undo for emergency runtime rollback
+
+Use Git revert plus protected validation and redeploy as the normal rollback path.
+
+Keep `kubectl rollout undo` documented as an emergency runtime rollback command for Deployment revisions.
 
 ---
 

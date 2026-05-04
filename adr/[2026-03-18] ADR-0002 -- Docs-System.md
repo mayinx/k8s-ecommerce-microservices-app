@@ -92,7 +92,7 @@ This split avoids losing the implementation narrative in terminal + commit histo
 
 Example:
 
-`project-docs/01-local-k3s-baseline/...` 
+`project-docs/01-k8s-nodeport-baseline/...` 
 
 **Each phase folder contains at minimum:**
 - `IMPLEMENTATION.md` (narrative log with rationales + evidence)
@@ -101,7 +101,7 @@ Example:
 
 **Current phases:**
 - `project-docs/00-compose-baseline/`
-- `project-docs/01-local-k3s-baseline/`
+- `project-docs/01-k8s-nodeport-baseline/`
 
 ### ADR structure and naming
 - ADRs live in `adr/` at repo root (visible to reviewers)

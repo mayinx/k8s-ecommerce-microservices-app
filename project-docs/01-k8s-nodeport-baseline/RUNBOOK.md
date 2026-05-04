@@ -3,9 +3,8 @@
 > ## 👤 About
 > This runbook is the short, command-first version of the Phase 01 local k3s baseline deploy of Sock Shop.  
 > It’s meant as a quick reference for reruns without the long-form diary.  
-> For the full narrative log, see: **[01-local-k3s-baseline/IMPLEMENTATION.md](IMPLEMENTATION.md)**.
+> For the full narrative log, see: **[01-k8s-nodeport-baseline/IMPLEMENTATION.md](IMPLEMENTATION.md)**.
 
----
 ---
 
 ## 📌 Index (top-level)

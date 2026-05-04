@@ -8,7 +8,27 @@
 #
 # PURPOSE:
 #   Create a local disaster-recovery backup snapshot for a Sock Shop namespace.
-#   Each run creates a unique, timestamped directory. 
+#   Each run creates a unique, timestamped directory:
+#   .
+#   ├── backups
+#   │   ├── sock-shop-dev_20260427T203209Z
+#   │   │   ├── db
+#   │   │   │   ├── backup-report.txt
+#   │   │   │   ├── carts-db_carts-db-6bb589dd85-sdgdh.archive.gz
+#   │   │   │   ├── orders-db_orders-db-944d776bc-hwgqt.archive.gz
+#   │   │   │   └── user-db_user-db-7bd86cdcd-xwm7b.archive.gz
+#   │   │   ├── k8s
+#   │   │   │   ├── all-resources-wide.txt
+#   │   │   │   ├── configmaps.yaml
+#   │   │   │   ├── deployments.yaml
+#   │   │   │   ├── ingress.yaml
+#   │   │   │   ├── namespace.yaml
+#   │   │   │   ├── persistent-volumes-wide.txt
+#   │   │   │   ├── pods.yaml
+#   │   │   │   ├── pvc.yaml
+#   │   │   │   ├── secrets-metadata.txt
+#   │   │   │   └── services.yaml
+#   │   │   └── README.txt
 #
 # BACKUP SCOPE:
 # - Resource State: Full K8s namespace/resource state as YAML and text snapshots
