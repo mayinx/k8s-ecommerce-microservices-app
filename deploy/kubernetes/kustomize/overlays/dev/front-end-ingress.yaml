@@ -10,7 +10,7 @@ spec:
   # (explicitly tells Kubernetes to use Traefik to execute this routing rule 
   # to prevent conflicts if multiple ingress controllers exist on the cluster)
   ingressClassName: traefik  
-  # Forward requests that match that hostname 'dev.sockshop.local'  
+  # Forward requests that match that hostname 'dev-sockshop.cdco.dev'  
   # to the internal 'front-end' Kubernetes Service on port '80'  
   rules:
     # The external hostname that Traefik listens for. 
