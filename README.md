@@ -1146,7 +1146,8 @@ These helper targets keep manual reruns, local validation, and GitHub Actions ex
 * 🗂️ **Project Docs Index:** [project-docs/INDEX.md](project-docs/INDEX.md)
 * 🗺️ **Project Roadmap & Planning:** [project-docs/ROADMAP.md](project-docs/ROADMAP.md)
 * ⚖️ **Summarized Project Decisions:** [project-docs/DECISIONS.md](project-docs/DECISIONS.md)
-* 🐛 **Project Debug & Incident Log:** [project-docs/DEBUG-LOG.md](project-docs/DEBUG-LOG.md)   
+* 🐛 **Project Debug & Incident Log:** [project-docs/DEBUG-LOG.md](project-docs/DEBUG-LOG.md)
+* 🖥️ **Final Project Presentation (PDF):** [Sock Shop: Production-Grade DevOps Delivery Path](project-docs/%5B2026-05-05%5D-Sock-Shop-Production-Grade-DevOps-Delivery-Path.pdf)
 
 ### Architecture Decision Records (ADRs)
 
