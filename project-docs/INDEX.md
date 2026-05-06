@@ -6,10 +6,15 @@ Documentation is iterative and phase-aligned: baseline notes first, then milesto
 - **[Project roadmap / planning](./ROADMAP.md)**
 - **[Project-wide decision summary](./DECISIONS.md)**
 - **[Project Debug Log](./DEBUG-LOG.md)**  
+- **[Final Project Presentation](./final-presentation/%5B2026-05-05%5D-Sock-Shop-Production-Grade-DevOps-Delivery-Path.pd)**
+
+---
 
 ## Phase 00: Docker Compose + Repo Baseline (local poke-around + repo mapping)
 - **[Phase 00 — Implementation Log](./00-compose-baseline/IMPLEMENTATION.md)**
 - **[Phase 00 — Runbook (TL;DR)](./00-compose-baseline/RUNBOOK.md)**
+
+---
 
 ## Phase 01 — Port-based Kubernetes baseline (local K3s NodePort Sock Shop deploy)
 - **[Phase 01 — Implementation Log](./01-k8s-nodeport-baseline/IMPLEMENTATION.md)**
@@ -18,25 +23,25 @@ Documentation is iterative and phase-aligned: baseline notes first, then milesto
 ---
 
 ## Phase 02 — Host-based Kubernetes ingress baseline (local K3s Traefik routing to storefront)
-- [Phase 02 — Implementation Log](./02-k8s-ingress-baseline/IMPLEMENTATION.md)
-- [Phase 02 — Runbook (TL;DR)](./02-k8s-ingress-baseline/RUNBOOK.md)
+- **[Phase 02 — Implementation Log](./02-k8s-ingress-baseline/IMPLEMENTATION.md)**
+- **[Phase 02 — Runbook (TL;DR)](./02-k8s-ingress-baseline/RUNBOOK.md)**
 
 ---
 
 ## Phase 03: CI/CD baseline (GitHub Actions delivery smoke path for dev/prod)
-- [Phase 03 — Setup Guide](./03-ci-cd-baseline/SETUP.md)
-- [Phase 03 — Implementation Log](./03-ci-cd-baseline/IMPLEMENTATION.md)
-- [Phase 03 — Runbook (TL;DR)](./03-ci-cd-baseline/RUNBOOK.md)
-- [Phase 03 — Decision Log](./03-ci-cd-baseline/DECISIONS.md)
+- **[Phase 03 — Setup Guide](./03-ci-cd-baseline/SETUP.md)**
+- **[Phase 03 — Implementation Log](./03-ci-cd-baseline/IMPLEMENTATION.md)**
+- **[Phase 03 — Runbook (TL;DR)](./03-ci-cd-baseline/RUNBOOK.md)**
+- **[Phase 03 — Decision Log](./03-ci-cd-baseline/DECISIONS.md)**
 
 ---
 
 ## Phase 04 Proxmox VM Baseline (Generic Ubuntu VM Template, smoke VM, and workload-ready VM template)
-- [Phase 04 — Setup Guide](./04-proxmox-vm-baseline/SETUP.md)
-- [Phase 04 — Discovery / target audit](./04-proxmox-vm-baseline/DISCOVERY.md)
-- [Phase 04 — Implementation Log](./04-proxmox-vm-baseline/IMPLEMENTATION.md)
-- [Phase 04 — Runbook (TL;DR)](./04-proxmox-vm-baseline/RUNBOOK.md)
-- [Phase 04 — Decision Log](./04-proxmox-vm-baseline/DECISIONS.md)
+- **[Phase 04 — Setup Guide](./04-proxmox-vm-baseline/SETUP.md)**
+- **[Phase 04 — Discovery / target audit](./04-proxmox-vm-baseline/DISCOVERY.md)**
+- **[Phase 04 — Implementation Log](./04-proxmox-vm-baseline/IMPLEMENTATION.md)**
+- **[Phase 04 — Runbook (TL;DR)](./04-proxmox-vm-baseline/RUNBOOK.md)**
+- **[Phase 04 — Decision Log](./04-proxmox-vm-baseline/DECISIONS.md)**
 
 ---
 

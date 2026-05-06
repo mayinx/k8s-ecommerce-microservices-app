@@ -223,7 +223,8 @@ P09_DR_BACKUP_SCRIPT := scripts/dr/backup-k8s-namespace.sh
 	p09-dr-print-report-dev \
 	p09-dr-print-report-prod \
 	k8s-live-dev-show-pod \
-	k8s-delete-live-dev-pod	
+	k8s-delete-live-dev-pod	\
+	k8s-demo-defense-snapshot 
 
 # -----------------------------------------------------------------------------
 # Help
@@ -294,6 +295,7 @@ help:
 	@echo "  p09-dr-print-report-prod - Print the latest prod backup report, artifact list, and archive details"
 	@echo "  k8s-live-dev-show-pod 		- Show one live dev pod selected by COMPONENT=<name> using label name=<name>"
 	@echo "  k8s-delete-live-dev-pod   - Delete one live dev pod selected by COMPONENT=<name> using label name=<name>"
+	@echo "  k8s-demo-defense-snapshot     - Print a read-only k8s live target snapshot for the project defense"
 
 # -----------------------------------------------------------------------------
 # Upstream generation / verification helpers
@@ -828,3 +830,71 @@ k8s-delete-live-dev-pod:
 	fi; \
 	echo "RUN: Delete live dev pod -> name=$(COMPONENT), pod=$$pod_name" >&2; \
 	KUBECONFIG=$(REMOTE_KUBECONFIG) kubectl delete pod -n sock-shop-dev "$$pod_name"		
+
+# -----------------------------------------------------------------------------
+# Defense demo helper
+#
+# Live k8s target snapshot for the project defense.
+# This target intentionally avoids destructive actions and long-running port-forwards.
+#
+# Commands/checks run:
+# - kubectl get nodes -o wide
+# - kubectl get deploy,pods,svc,ingress -n sock-shop-dev -o wide
+# - kubectl get deploy,pods,svc,ingress -n sock-shop-prod -o wide
+# - kubectl rollout status deployment/front-end -n sock-shop-dev --timeout=30s
+# - kubectl rollout status deployment/front-end -n sock-shop-prod --timeout=30s
+# - kubectl get ingress -n sock-shop-dev -o wide
+# - kubectl get ingress -n sock-shop-prod -o wide
+# - kubectl get pods,svc -n monitoring -o wide
+# - curl -fsSI https://dev-sockshop.cdco.dev/
+# - curl -fsSI https://prod-sockshop.cdco.dev/
+# -----------------------------------------------------------------------------
+k8s-demo-defense-snapshot:
+	@echo ""
+	@echo "=== DEFENSE SNAPSHOT: PROXMOX K3S TARGET ==="
+	@echo ""
+
+	@echo "## 1) KUBERNETES NODE STATE"
+	@echo "$$ $(KUBECTL) get nodes -o wide"
+	@KUBECONFIG=$(REMOTE_KUBECONFIG) $(KUBECTL) get nodes -o wide
+	@echo ""
+
+	@echo "## 2) DEV ENVIRONMENT: WORKLOADS, SERVICES, AND INGRESS"
+	@echo "$$ $(KUBECTL) get deploy,pods,svc,ingress -n sock-shop-dev -o wide"
+	@KUBECONFIG=$(REMOTE_KUBECONFIG) $(KUBECTL) get deploy,pods,svc,ingress -n sock-shop-dev -o wide
+	@echo ""
+
+	@echo "## 3) PROD ENVIRONMENT: WORKLOADS, SERVICES, AND INGRESS"
+	@echo "$$ $(KUBECTL) get deploy,pods,svc,ingress -n sock-shop-prod -o wide"
+	@KUBECONFIG=$(REMOTE_KUBECONFIG) $(KUBECTL) get deploy,pods,svc,ingress -n sock-shop-prod -o wide
+	@echo ""
+
+	@echo "## 4) FRONT-END ROLLOUT STATUS"
+	@echo "$$ $(KUBECTL) rollout status deployment/front-end -n sock-shop-dev --timeout=30s"
+	@KUBECONFIG=$(REMOTE_KUBECONFIG) $(KUBECTL) rollout status deployment/front-end -n sock-shop-dev --timeout=30s
+	@echo "$$ $(KUBECTL) rollout status deployment/front-end -n sock-shop-prod --timeout=30s"
+	@KUBECONFIG=$(REMOTE_KUBECONFIG) $(KUBECTL) rollout status deployment/front-end -n sock-shop-prod --timeout=30s
+	@echo ""
+
+	@echo "## 5) INGRESS HOST ROUTING"
+	@echo "$$ $(KUBECTL) get ingress -n sock-shop-dev -o wide"
+	@KUBECONFIG=$(REMOTE_KUBECONFIG) $(KUBECTL) get ingress -n sock-shop-dev -o wide
+	@echo "$$ $(KUBECTL) get ingress -n sock-shop-prod -o wide"
+	@KUBECONFIG=$(REMOTE_KUBECONFIG) $(KUBECTL) get ingress -n sock-shop-prod -o wide
+	@echo ""
+
+	@echo "## 6) MONITORING NAMESPACE"
+	@echo "$$ $(KUBECTL) get pods,svc -n monitoring -o wide"
+	@KUBECONFIG=$(REMOTE_KUBECONFIG) $(KUBECTL) get pods,svc -n monitoring -o wide
+	@echo ""
+
+	@echo "## 7) PUBLIC HTTPS ENTRYPOINT SMOKE CHECKS"
+	@echo "$$ $(CURL) -fsSI https://dev-sockshop.cdco.dev/ | head -n 5"
+	@$(CURL) -fsSI https://dev-sockshop.cdco.dev/ | head -n 5
+	@echo ""
+	@echo "$$ $(CURL) -fsSI https://prod-sockshop.cdco.dev/ | head -n 5"
+	@$(CURL) -fsSI https://prod-sockshop.cdco.dev/ | head -n 5
+	@echo ""
+
+	@echo "=== DEFENSE SNAPSHOT COMPLETED ==="
+

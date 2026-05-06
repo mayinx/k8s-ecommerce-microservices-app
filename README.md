@@ -34,7 +34,7 @@
 ![Trivy](https://img.shields.io/badge/Trivy-1E5B99?style=for-the-badge&logo=aquasecurity&logoColor=white)
 ![Dependabot](https://img.shields.io/badge/Dependabot-025E8C?style=for-the-badge&logo=dependabot&logoColor=white) -->
 
-Production-grade DevOps project based on the upstream Weaveworks microservices application (aka Sock Shop). This repository demonstrates a **reproducible, phase-based delivery path** from a **local Docker Compose baseline** to a **long-lived Proxmox-based K3s target environment** with public `dev` and `prod` entrypoints.
+Production-grade DevOps project based on the upstream Weaveworks microservices application (aka Sock Shop). This repository demonstrates a **reproducible, phase-based delivery path** from a **local Docker Compose baseline** to a **long-lived Proxmox-based K3s target environment on a bare-metal virtualization host** with public `dev` and `prod` entrypoints.
 
 > **Project focus:** The goal is not just to run the application once, but to build a reproducible, phase-based DevOps delivery path with evidence-grade documentation. The project is intentionally implemented in phases so that each new capability builds on an already proven baseline, gradually covering the core capabilities expected from a modern DevOps delivery project:
 >
@@ -175,7 +175,7 @@ The following component summary defines the specific technologies and models dri
 | **CI/CD Platform** | GitHub Actions |
 | **Container Registry** | GitHub Container Registry (GHCR) for the repo-owned Ruby `healthcheck` image |
 | **Historical CI Smoke Target** | `kind` during the Phase 03 (CI/CD Baseline) |
-| **Long-lived Target Platform** | Proxmox VM `9200` running single-node K3s since Phase 05 (Target Delivery) |
+| **Long-lived Target Platform** | Proxmox VM `9200` running single-node K3s on a bare-metal-hosted Proxmox virtualization layer since Phase 05 (Target Delivery) |
 | **Environment Model** | `sock-shop-dev` and `sock-shop-prod` namespaces on the same cluster |
 | **Ingress and Public Edge** | Traefik behind Cloudflare Tunnel |
 | **Private Access Path** | Tailscale for operator and CI access to the Kubernetes API |
@@ -634,7 +634,7 @@ Phase 04 turns the Proxmox host into a reusable VM-template foundation for later
 
 ### 🔲 Phase 05 — Proxmox Target Delivery
 
-> **Scope Summary:** Real target VM `9200` cloned from `9010`, single-node K3s control plane, MongoDB compatibility fix, environment-separated `dev`/`prod` target deployments via Traefik, Tailscale private access, Cloudflare Tunnel public HTTPS, and dedicated CI/CD delivery workflows.\
+> **Scope Summary:** Real target VM `9200` cloned from `9010` on the bare-metal-hosted Proxmox target, single-node K3s control plane, MongoDB compatibility fix, environment-separated `dev`/`prod` target deployments via Traefik, Tailscale private access, Cloudflare Tunnel public HTTPS, and dedicated CI/CD delivery workflows.\
 **Docs: [Setup](project-docs/05-proxmox-target-delivery/SETUP.md) • [Implementation](project-docs/05-proxmox-target-delivery/IMPLEMENTATION.md) • [Runbook](project-docs/05-proxmox-target-delivery/RUNBOOK.md) • [Decisions](project-docs/05-proxmox-target-delivery/DECISIONS.md)**\
 **Detailed Subphase Guides: [05-A](project-docs/05-proxmox-target-delivery/implementation/PHASE-05-A.md) • [05-B](project-docs/05-proxmox-target-delivery/implementation/PHASE-05-B.md) • [05-C](project-docs/05-proxmox-target-delivery/implementation/PHASE-05-C.md) • [05-D](project-docs/05-proxmox-target-delivery/implementation/PHASE-05-D.md)**
 
@@ -1146,7 +1146,8 @@ These helper targets keep manual reruns, local validation, and GitHub Actions ex
 * 🗂️ **Project Docs Index:** [project-docs/INDEX.md](project-docs/INDEX.md)
 * 🗺️ **Project Roadmap & Planning:** [project-docs/ROADMAP.md](project-docs/ROADMAP.md)
 * ⚖️ **Summarized Project Decisions:** [project-docs/DECISIONS.md](project-docs/DECISIONS.md)
-* 🐛 **Project Debug & Incident Log:** [project-docs/DEBUG-LOG.md](project-docs/DEBUG-LOG.md)   
+* 🐛 **Project Debug & Incident Log:** [project-docs/DEBUG-LOG.md](project-docs/DEBUG-LOG.md)
+* 🖥️ **Final Project Presentation (PDF):** [Sock Shop: Production-Grade DevOps Delivery Path](project-docs/%5B2026-05-05%5D-Sock-Shop-Production-Grade-DevOps-Delivery-Path.pdf)
 
 ### Architecture Decision Records (ADRs)
 
@@ -1235,59 +1236,115 @@ To clearly distinguish between the inherited microservices demo and the custom D
 * 🟡 **`[*]`** Inherited upstream assets refactored or modified for this project
 * ⚪ **`[~]`** Inherited upstream assets kept as reference or deployment base
 
-~~~text
+~~~bash
 .
-├── .github/                          # 🟡 [*] GitHub configuration and CI/CD
-│   ├── dependabot.yml                # 🟢 [+] Phase 07 automated dependency scanning
-│   └── workflows/                    # 🟢 [+] CI/CD pipelines (Phases 03, 05, 07)
-│       ├── main.yaml                 # ⚪ [~] Legacy upstream CI (Archived)
-│       ├── phase-03-delivery-smoke.yml          # 🟢 [+] Phase 03 dev/prod smoke validation
-│       ├── phase-05-proxmox-target-delivery.yml # 🟢 [+] Phase 05 Trunk-based target cluster promotion
-│       ├── phase-07-deterministic-pr-gate.yml   # 🟢 [+] Phase 07 PR protection and static checks
-│       └── phase-07-live-smoke.yml              # 🟢 [+] Phase 07 Reusable target environment tests
-├── adr/                              # 🟢 [+] Architecture Decision Records
-├── backups/                          # 🟢 [+] Local DR artifacts generated by Phase 09 (Git-ignored)
-│   ├── sock-shop-dev_.../            # 🟢 [+] Dev namespace dumps and YAML exports
-│   └── sock-shop-prod_.../           # 🟢 [+] Prod namespace dumps and YAML exports
-├── deploy/                           # 🟡 [*] Inherited deployment root (Modified/Extended)
-│   ├── docker-compose/               # 🟡 [*] Upstream Compose base
-│   │   ├── docker-compose.yml        # ⚪ [~] Upstream baseline
-│   │   └── docker-compose.local.yml  # 🟢 [+] Custom local port override (Phase 00)
-│   └── kubernetes/                   # 🟡 [*] Upstream Kubernetes deployment path
-│       ├── manifests/                # 🟡 [*] Upstream raw manifests reused as deployment base
-│       │   ├── ...                   # ⚪/🟡 [~/*] 00 to 28 resource YAMLs, reused with selected project changes
-│       │   └── kustomization.yaml    # 🟢 [+] Base Kustomize entrypoint
-│       ├── kustomize/                # 🟢 [+] Custom overlays for dev/prod delivery (Phase 03/05)
-│       │   └── overlays/             # 🟢 [+] dev/ and prod/ patching layers
-│       ├── observability/            # 🟢 [+] Helm values for kube-prometheus-stack; local secret override is gitignored (Phase 06)
-│       │   ├── prometheus-local.secrets.yaml  # 🟢 [+] Gitignored Grafana credentials
-│       │   └── prometheus-values-minimal.yaml # 🟢 [+] Custom metric scraping configurations
-│       ├── helm-chart/               # ⚪ [~] Upstream Helm path (evaluated & deferred)
-│       └── terraform/                # ⚪ [~] Upstream legacy AWS IaC (deferred)
-├── healthcheck/                      # 🟡 [*] Inherited Ruby tool (Refactored & tested in Phase 07)
-├── infra/                            # 🟢 [+] Repo-owned IaC
-│   └── terraform/proxmox-smoke-vm/   # 🟢 [+] Terraform definitions for disposable VM 9300
-│       ├── main.tf                   # 🟢 [+] Proxmox VM resource config
-│       ├── provider.tf               # 🟢 [+] Proxmox API provider definitions
-│       └── variables.tf              # 🟢 [+] Reusable input variables
-├── project-docs/                     # 🟢 [+] Project documentation hub
-│   ├── 00-compose-baseline/          # 🟢 [+] Example phase folder
-│   │   ├── evidence/                 # 🟢 [+] Verification screenshots and command outputs
-│   │   ├── IMPLEMENTATION.md         # 🟢 [+] Execution log
-│   │   └── RUNBOOK.md                # 🟢 [+] Operational steps
-│   └── ...                           # 🟢 [+] Phase 01 through 09 docs, evidence, runbooks, decisions where applicable
-├── scripts/                          # 🟢 [+] Repo-owned automation tooling
-│   ├── dr/                           # 🟢 [+] backup-k8s-namespace.sh
-│   ├── observability/                # 🟢 [+] generate-sockshop-traffic.sh
-│   └── testing/                      # 🟢 [+] run-healthcheck-target-env.sh
-├── tests/                            # 🟢 [+] Repo-owned validation stack (Phase 07)
-│   ├── bash/                         # 🟢 [+] Traffic generator CLI tests
-│   ├── e2e/                          # 🟢 [+] Playwright browser smoke tests
-│   ├── python/                       # 🟢 [+] API contract guard + live smoke checks
-│   └── ruby/                         # 🟢 [+] Healthcheck unit and CLI tests
-├── Makefile                          # 🟢 [+] Project helper targets for repeatable local reruns and validation
-└── ...                               # ⚪ [~] Additional inherited/reference paths: internal-docs/, graphs/, install/, openapi/, staging/
-
+├── .github/                                        # 🟡 [*] GitHub configuration and CI/CD
+│   ├── dependabot.yml                              # 🟢 [+] Phase 07 automated dependency scanning
+│   └── workflows/                                  # 🟢 [+] CI/CD pipelines (Phases 03, 05, 07)
+│       ├── main.yaml                               # ⚪ [~] Legacy upstream CI (Archived)
+│       ├── phase-03-delivery-smoke.yml             # 🟢 [+] Phase 03 dev/prod smoke validation
+│       ├── phase-05-proxmox-target-delivery.yml    # 🟢 [+] Phase 05 Trunk-based target cluster promotion
+│       ├── phase-07-deterministic-pr-gate.yml      # 🟢 [+] Phase 07 PR protection and static checks
+│       └── phase-07-live-smoke.yml                 # 🟢 [+] Phase 07 Reusable target environment tests
+├── adr/                                            # 🟢 [+] Project-wide architecture decision records
+│   ├── [2026-03-17] ADR-0001 -- Git-Conventions.md # 🟢 [+] Git workflow, branches, commits
+│   └── [2026-03-18] ADR-0002 -- Docs-System.md     # 🟢 [+] Documentation structure and rules
+├── backups/                                        # 🟢 [+] Local DR artifacts generated by Phase 09 (Git-ignored)
+│   ├── sock-shop-dev_.../                          # 🟢 [+] Dev namespace dumps and YAML exports
+│   └── sock-shop-prod_.../                         # 🟢 [+] Prod namespace dumps and YAML exports
+├── deploy/                                         # 🟡 [*] Inherited deployment root (Modified/Extended)
+│   ├── docker-compose/                             # 🟡 [*] Upstream Compose base
+│   │   ├── docker-compose.yml                      # ⚪ [~] Upstream baseline
+│   │   └── docker-compose.local.yml                # 🟢 [+] Custom local port override (Phase 00)
+│   └── kubernetes/                                 # 🟡 [*] Upstream Kubernetes deployment path
+│       ├── manifests/                              # 🟡 [*] Upstream raw manifests reused as deployment base
+│       │   ├── 00-sock-shop-ns.yaml                # ⚪ [~] Upstream local baseline namespace from Phase 01
+│       │   ├── ...                                 # ⚪/🟡 [~/*] Sock Shop resource YAMLs - services, deployments, and datastores
+│       │   └── kustomization.yaml                  # 🟢 [+] Base Kustomize entrypoint for env overlays
+│       ├── manifests-local/                        # 🟢 [+] Local-only Kubernetes additions (Phase 02)
+│       │   └── phase-02-front-end-ingress.yaml     # 🟢 [+] Local Traefik ingress for sockshop.local
+│       ├── kustomize/                              # 🟢 [+] Project-owned dev/prod overlay model (Phase 03/05)
+│       │   └── overlays/                           # 🟢 [+] Environment-specific deployment overlays
+│       │       ├── dev/                            # 🟢 [+] Dev namespace, ingress, and service patch
+│       │       │   ├── namespace.yaml              # 🟢 [+] Creates sock-shop-dev
+│       │       │   ├── front-end-ingress.yaml      # 🟢 [+] Dev hostname routing via Traefik
+│       │       │   ├── kustomization.yml           # 🟢 [+] Dev overlay composition
+│       │       │   └── patches/
+│       │       │       └── front-end-svc-clusterip.yaml # 🟢 [+] Replaces NodePort with ClusterIP
+│       │       └── prod/                           # 🟢 [+] Prod namespace, ingress, and service patch
+│       │           ├── namespace.yaml              # 🟢 [+] Creates sock-shop-prod
+│       │           ├── front-end-ingress.yaml      # 🟢 [+] Prod hostname routing via Traefik
+│       │           ├── kustomization.yml           # 🟢 [+] Prod overlay composition
+│       │           └── patches/
+│       │               └── front-end-svc-clusterip.yaml # 🟢 [+] Replaces NodePort with ClusterIP
+│       ├── observability/                          # 🟢 [+] Project-owned monitoring Helm values
+│       │   ├── prometheus-values-minimal.yaml      # 🟢 [+] kube-prometheus-stack baseline values
+│       │   └── prometheus-local.secrets.yaml       # 🟢 [+] Local Grafana secret override, gitignored
+│       ├── helm-chart/                             # ⚪ [~] Upstream Helm path, evaluated and deferred
+│       ├── manifests-monitoring/                   # ⚪ [~] Upstream raw monitoring path, replaced by Helm stack
+│       ├── manifests-alerting/                     # ⚪ [~] Upstream alerting path, deferred
+│       ├── manifests-policy/                       # ⚪ [~] Upstream NetworkPolicy assets, deferred
+│       ├── manifests-loadtest/                     # ⚪ [~] Upstream load test, replaced by Bash traffic helper
+│       ├── manifests-logging/                      # ⚪ [~] Upstream logging stack, deferred
+│       ├── manifests-jaeger/                       # ⚪ [~] Upstream tracing path, deferred
+│       └── terraform/                              # ⚪ [~] Upstream legacy AWS IaC, not used for Proxmox path
+├── healthcheck/                                    # 🟡 [*] Inherited Ruby tool (Refactored & tested in Phase 07)
+├── infra/                                          # 🟢 [+] Repo-owned IaC
+│   └── terraform/proxmox-smoke-vm/                 # 🟢 [+] Terraform definitions for disposable VM 9300
+│       ├── main.tf                                 # 🟢 [+] Proxmox VM resource config
+│       ├── provider.tf                             # 🟢 [+] Proxmox API provider definitions
+│       └── variables.tf                            # 🟢 [+] Reusable input variables
+├── project-docs/                                   # 🟢 [+] Project documentation hub
+│   ├── 00-compose-baseline/                        # 🟢 [+] Compose baseline, minimal doc pattern
+│   │   ├── evidence/                               # 🟢 [+] Screenshots and command proof
+│   │   ├── IMPLEMENTATION.md                       # 🟢 [+] Detailed build diary
+│   │   └── RUNBOOK.md                              # 🟢 [+] Short rerun guide
+│   ├── 01-k8s-nodeport-baseline/                   # 🟢 [+] Local K3s NodePort baseline
+│   ├── 02-k8s-ingress-baseline/                    # 🟢 [+] Local Traefik ingress baseline
+│   ├── 03-ci-cd-baseline/                          # 🟢 [+] CI/CD smoke delivery baseline
+│   ├── 04-proxmox-vm-baseline/                     # 🟢 [+] Proxmox VM baseline, full doc pattern
+│   │   ├── evidence/                               # 🟢 [+] VM screenshots and proof
+│   │   ├── SETUP.md                                # 🟢 [+] Prerequisites and setup steps
+│   │   ├── DISCOVERY.md                            # 🟢 [+] Target-host audit
+│   │   ├── IMPLEMENTATION.md                       # 🟢 [+] Detailed build diary
+│   │   ├── RUNBOOK.md                              # 🟢 [+] Short rerun guide
+│   │   └── DECISIONS.md                            # 🟢 [+] Phase-local decisions
+│   ├── 05-proxmox-target-delivery/                 # 🟢 [+] Real target delivery platform
+│   ├── 06-observability/                           # 🟢 [+] Prometheus/Grafana monitoring
+│   ├── 07-security-testing/                        # 🟢 [+] Testing, security, governance
+│   ├── 08-proxmox-iac/                             # 🟢 [+] Terraform Proxmox IaC baseline
+│   ├── 09-dr-rollback/                             # 🟢 [+] DR backup and rollback readiness
+│   ├── final-presentation/                         # 🟢 [+] Final defense presentation export
+│   ├── DEBUG-LOG.md                                # 🟢 [+] Cross-phase incident log
+│   ├── DECISIONS.md                                # 🟢 [+] Global ADR-lite decisions
+│   ├── INDEX.md                                    # 🟢 [+] Documentation navigation hub
+│   ├── ROADMAP.md                                  # 🟢 [+] Phase plan and follow-ups
+│   └── _templates/                                 # 🟢 [+] Reusable doc templates
+├── scripts/                                        # 🟢 [+] Repo-owned automation tooling
+│   ├── dr/                                         # 🟢 [+] Disaster recovery helpers
+│   │   └── backup-k8s-namespace.sh                 # 🟢 [+] Namespace export + Mongo-compatible dump helper
+│   ├── observability/                              # 🟢 [+] Monitoring support automation
+│   │   └── generate-sockshop-traffic.sh            # 🟢 [+] Dev/prod traffic generator for Grafana/Prometheus proof
+│   └── testing/                                    # 🟢 [+] Live validation helpers
+│       └── run-healthcheck-target-env.sh           # 🟢 [+] Runs healthcheck against selected target environment
+├── tests/                                          # 🟢 [+] Repo-owned validation stack
+│   ├── bash/                                       # 🟢 [+] Bash helper test coverage
+│   │   └── test_generate_sockshop_traffic.sh       # 🟢 [+] Traffic generator CLI/function tests
+│   ├── e2e/                                        # 🟢 [+] Playwright browser smoke suite
+│   │   ├── package.json                            # 🟢 [+] Playwright test dependency definition
+│   │   ├── package-lock.json                       # 🟢 [+] Locked npm dependency graph
+│   │   ├── playwright.config.js                    # 🟢 [+] Browser smoke test configuration
+│   │   └── smoke.spec.js                           # 🟢 [+] Live storefront rendering checks
+│   ├── python/                                     # 🟢 [+] Python API contract validation
+│   │   ├── requirements-p07.txt                    # 🟢 [+] Python test/runtime dependencies
+│   │   ├── sockshop_contract_guard.py              # 🟢 [+] /catalogue response-shape guard
+│   │   ├── test_contract_guard.py                  # 🟢 [+] Deterministic local contract tests
+│   │   └── test_contract_guard_live.py             # 🟢 [+] Live dev/prod API smoke checks
+│   └── ruby/                                       # 🟢 [+] Ruby healthcheck validation
+│       ├── test_healthcheck.rb                     # 🟢 [+] Healthcheck unit tests
+│       └── test_healthcheck_cli.rb                 # 🟢 [+] CLI characterization tests
+├── Makefile                                        # 🟢 [+] Project helper targets for repeatable local reruns and validation
+└── ...                                             # ⚪ [~] Additional inherited/reference paths: internal-docs/, graphs/, install/, openapi/, staging/
 ~~~
 
 ---
