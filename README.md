@@ -34,7 +34,7 @@
 ![Trivy](https://img.shields.io/badge/Trivy-1E5B99?style=for-the-badge&logo=aquasecurity&logoColor=white)
 ![Dependabot](https://img.shields.io/badge/Dependabot-025E8C?style=for-the-badge&logo=dependabot&logoColor=white) -->
 
-Production-grade DevOps project based on the upstream Weaveworks microservices application (aka Sock Shop). This repository demonstrates a **reproducible, phase-based delivery path** from a **local Docker Compose baseline** to a **long-lived Proxmox-based K3s target environment** with public `dev` and `prod` entrypoints.
+Production-grade DevOps project based on the upstream Weaveworks microservices application (aka Sock Shop). This repository demonstrates a **reproducible, phase-based delivery path** from a **local Docker Compose baseline** to a **long-lived Proxmox-based K3s target environment on a bare-metal virtualization host** with public `dev` and `prod` entrypoints.
 
 > **Project focus:** The goal is not just to run the application once, but to build a reproducible, phase-based DevOps delivery path with evidence-grade documentation. The project is intentionally implemented in phases so that each new capability builds on an already proven baseline, gradually covering the core capabilities expected from a modern DevOps delivery project:
 >
@@ -175,7 +175,7 @@ The following component summary defines the specific technologies and models dri
 | **CI/CD Platform** | GitHub Actions |
 | **Container Registry** | GitHub Container Registry (GHCR) for the repo-owned Ruby `healthcheck` image |
 | **Historical CI Smoke Target** | `kind` during the Phase 03 (CI/CD Baseline) |
-| **Long-lived Target Platform** | Proxmox VM `9200` running single-node K3s since Phase 05 (Target Delivery) |
+| **Long-lived Target Platform** | Proxmox VM `9200` running single-node K3s on a bare-metal-hosted Proxmox virtualization layer since Phase 05 (Target Delivery) |
 | **Environment Model** | `sock-shop-dev` and `sock-shop-prod` namespaces on the same cluster |
 | **Ingress and Public Edge** | Traefik behind Cloudflare Tunnel |
 | **Private Access Path** | Tailscale for operator and CI access to the Kubernetes API |
@@ -634,7 +634,7 @@ Phase 04 turns the Proxmox host into a reusable VM-template foundation for later
 
 ### 🔲 Phase 05 — Proxmox Target Delivery
 
-> **Scope Summary:** Real target VM `9200` cloned from `9010`, single-node K3s control plane, MongoDB compatibility fix, environment-separated `dev`/`prod` target deployments via Traefik, Tailscale private access, Cloudflare Tunnel public HTTPS, and dedicated CI/CD delivery workflows.\
+> **Scope Summary:** Real target VM `9200` cloned from `9010` on the bare-metal-hosted Proxmox target, single-node K3s control plane, MongoDB compatibility fix, environment-separated `dev`/`prod` target deployments via Traefik, Tailscale private access, Cloudflare Tunnel public HTTPS, and dedicated CI/CD delivery workflows.\
 **Docs: [Setup](project-docs/05-proxmox-target-delivery/SETUP.md) • [Implementation](project-docs/05-proxmox-target-delivery/IMPLEMENTATION.md) • [Runbook](project-docs/05-proxmox-target-delivery/RUNBOOK.md) • [Decisions](project-docs/05-proxmox-target-delivery/DECISIONS.md)**\
 **Detailed Subphase Guides: [05-A](project-docs/05-proxmox-target-delivery/implementation/PHASE-05-A.md) • [05-B](project-docs/05-proxmox-target-delivery/implementation/PHASE-05-B.md) • [05-C](project-docs/05-proxmox-target-delivery/implementation/PHASE-05-C.md) • [05-D](project-docs/05-proxmox-target-delivery/implementation/PHASE-05-D.md)**
 
