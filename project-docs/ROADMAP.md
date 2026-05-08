@@ -22,17 +22,21 @@
 
 ## Current position
 
-- Current proven phase:
-  - Phase 09 — Disaster Recovery & Rollback
+- Current implemented phase:
+  - Phase 10 — Proxmox Exit Evidence and Migration Readiness
 - Primary next target:
-  - ...
+  - Phase 11 — AWS Target Migration
+- Current strategic constraint:
+  - The original Proxmox environment has a fixed remaining lifetime and will no longer be available as a long-lived target.
+- Current project direction:
+  - Preserve the completed Proxmox/K3s target platform story, then migrate the target architecture to AWS while reusing the proven delivery model where practical.
 
 ---
-
 ## Planning tiers
 
-### Tier A — Must complete before evaluation
-- Target deployment on the primary long-lived environment
+### Tier A — Completed core delivery scope
+
+- Target deployment on the primary Proxmox-backed environment
   - status: done in Phase 05
 - Observability baseline
   - status: done in Phase 06
@@ -44,30 +48,43 @@
   - status: done in Phase 08
 - DR / rollback baseline
   - status: done in Phase 09
-- Clean final project documentation
-  - status: ongoing final polish
+- Final Proxmox exit evidence and migration-readiness capture
+  - status: done in Phase 10
 
-### Tier B — Strong stretch goals before evaluation, if time allows
+### Tier B — Active next migration track
+
+- AWS target migration
+  - status: next core phase
+- Terraform-based AWS target provisioning
+  - status: planned for Phase 11
+- K3s target bootstrap on AWS EC2
+  - status: planned for Phase 11
+- CI/CD retargeting from Proxmox to AWS
+  - status: planned for Phase 11
+- Public edge continuity through Cloudflare routing
+  - status: planned for Phase 11 where practical
+- Recovery from Phase 10 / Phase 09 backup artifacts
+  - status: planned for Phase 11 where practical
+
+### Tier C — Post-migration hardening
+
+- Remote Terraform state with S3 and DynamoDB locking
+- Keyless GitHub Actions authentication to AWS through OIDC
+- Optional Amazon ECR migration for repo-owned images
+- Broader Terraform coverage for target recreation and bootstrap steps
+- Full restore drill in a disposable namespace or throwaway cluster
+- Stronger secret-management integration
+
+### Tier D — Portfolio extension tracks
+
 - Deeper Playwright storefront checks beyond the current smoke baseline
+- Synthetic monitoring based on the existing live-smoke workflow
 - Optional custom Python microservice:
   - Order Guard / Policy Service
-- Unit tests for the optional Python service if it is added
-- Optional SBOM generation or signing / verification follow-up
-- Optional selective hardening of broader Trivy findings outside the already remediated `healthcheck` path
-
-### Tier C — Post-evaluation portfolio extensions
-- Broader Terraform coverage for target VM recreation and bootstrap steps
-- Full restore drill in a disposable namespace or throwaway cluster
 - GitOps layer, for example Argo CD
-- stronger secret-management integration
-- optional AWS target as an additional Terraform-driven deployment track
-- recruiter-facing live dashboard / situation-room style proof layer
-
-### Tier D — Optional experimental ideas
-- Compose Bridge experiment
-- AI/agent sidecar ideas
-- broader image-modernization pass
-- Helm rehabilitation / modernization
+- Optional SBOM generation or signing / verification follow-up
+- Recruiter-facing live dashboard / situation-room style proof layer
+- Agentic runbook assistant / AI operations helper
 
 ---
 
@@ -256,9 +273,63 @@
   - [Runbook](./09-dr-rollback/RUNBOOK.md)
   - [Decisions](./09-dr-rollback/DECISIONS.md)
 
+### Phase 10 — Proxmox Exit Evidence and Migration Readiness
+- status:
+  - done
+- purpose:
+  - preserve the final proven Proxmox-backed K3s target state before the original environment becomes unavailable
+- already proven:
+  - final public `dev` and `prod` storefront evidence captured
+  - final terminal endpoint verification for both public endpoints
+  - final Proxmox UI and host-side VM `9200` evidence captured
+  - final Kubernetes target-state snapshot captured
+  - final Grafana and Prometheus evidence captured
+  - final GitHub Actions CI/CD and live-smoke evidence captured
+  - final local DR backup artifacts created for `sock-shop-dev` and `sock-shop-prod`
+  - historical Proxmox-era README snapshot archived
+  - migration boundary documented before AWS follow-up work starts
+- docs:
+  - [Implementation](./10-proxmox-exit-evidence/IMPLEMENTATION.md)
+  - [Runbook](./10-proxmox-exit-evidence/RUNBOOK.md)
+  - [Decisions](./10-proxmox-exit-evidence/DECISIONS.md)
+  - [Archived Proxmox-era README](./10-proxmox-exit-evidence/archive/%5B2026-05-06%5D-README-proxmox-phases-00-09.md)
+
+### Phase 11 — AWS Target Migration
+- status:
+  - next core phase
+- purpose:
+  - migrate the proven Proxmox/K3s target model to an AWS-backed target before the original Proxmox environment becomes unavailable
+- likely work:
+  - provision an AWS EC2-based target using Terraform
+  - bootstrap K3s on the AWS target
+  - preserve private operator / CI access where practical
+  - retarget GitHub Actions delivery from Proxmox to AWS
+  - restore or reseed application state from existing backup artifacts where practical
+  - preserve public `dev` / `prod` entrypoints through updated routing
+- intended result:
+  - the project remains live after Proxmox decommissioning
+  - the existing delivery story evolves into a concrete cloud migration story
+
 ---
 
 ## Extension tracks
+
+### AWS migration and hardening track
+- priority:
+  - active next track
+- purpose:
+  - keep the project live after Proxmox decommissioning and turn the infrastructure change into a cloud migration story
+- likely additions:
+  - Terraform AWS target provisioning
+  - K3s bootstrap on EC2
+  - CI/CD retargeting to the AWS-backed cluster
+  - later remote Terraform state with S3 and DynamoDB
+  - later GitHub Actions OIDC for keyless AWS access
+  - optional Amazon ECR integration for repo-owned images
+- Relevance:
+  - strengthens AWS / SAA alignment
+  - demonstrates migration thinking
+  - adds cloud-platform signal without discarding the proven Proxmox/K3s work
 
 ### Testing track
 - priority:
@@ -323,28 +394,23 @@
 - Relevance:
   - strengthens the operational/security story
 
-### Optional AWS target
-- priority:
-  - post-bootcamp portfolio extension
-- purpose:
-  - add AWS relevance without replacing the primary Proxmox-first path
-- likely shape:
-  - secondary Terraform-driven deployment track
-- Relevance:
-  - strengthens AWS / SAA alignment
-  - adds additional platform signal for job search
-
 ---
 
 ## Cross-phase backlog
 
-- item:
-- item:
-- item:
+- Keep the completed Proxmox/K3s path reviewable through archived README, final presentation, Phase 10 evidence, and phase docs.
+- Retarget the live platform to AWS before the original Proxmox environment becomes unavailable.
+- Preserve the existing delivery model where practical:
+  - Kustomize overlays
+  - namespace-based `dev` / `prod`
+  - GitHub Actions promotion model
+  - live smoke validation
+  - DR / rollback documentation
+- After AWS migration, harden the platform with remote Terraform state, keyless CI/CD, and stronger AWS-native security controls.
 
 ---
 
-## Deferred follow-ups already known
+## Deferred Follow-Ups 
 
 - `openapi` remains excluded from the workflow because it still depends on legacy Node 6 / npm 3
 - GitHub Actions runtime warnings around Node.js 20 deprecation still need a later cleanup pass
@@ -368,27 +434,34 @@
 - Phase 08 deliberately proves a disposable Proxmox smoke-VM lifecycle only; broader target recreation and bootstrap automation remain later IaC hardening
 - Phase 09 deliberately records `session-db` and `catalogue-db` backup gaps as follow-up hardening instead of hiding them as completed work
 - A full restore drill should later run against a disposable namespace or throwaway cluster before any production-style restore claim is made
+- Phase 10 captures the final Proxmox state, but the original Proxmox target is expected to become unavailable later.
+- Phase 11 should prioritize AWS migration before broader polish or optional feature work.
+- The archived Proxmox-era README should remain stable as a historical snapshot; later README changes should describe the AWS migration without overwriting the completed Proxmox story.
+- Final DR backup artifacts from Phase 10 remain local and should not be committed to Git.
 
 ---
 
 ## Open planning questions
 
-- Which broader Terraform extension gives the strongest portfolio value next:
-  - target VM recreation
-  - K3s bootstrap
-  - Cloudflare / Tailscale setup documentation-to-automation bridge
-  - monitoring stack codification
-- Should the next recovery hardening step be a full restore drill in a disposable namespace or better data-store-specific backup coverage first?
-- Should `session-db` Redis backup handling or `catalogue-db` image-specific backup handling be prioritized first?
-- Should the Phase 07 live-smoke workflow be called automatically after deployment workflows, or remain manually triggered for now?
-- Which broader Trivy findings outside the remediated `healthcheck` path should be prioritized first?
-- Should monitoring remain private-only, or is there a later justified case for stronger controlled exposure?
-- Which later extension gives the strongest hiring signal per hour of effort:
-  - broader Terraform automation
-  - Argo CD
-  - Python microservice
-  - stronger E2E coverage
-  - AWS target
+- What is the safest AWS target shape for the migration timeline:
+  - single EC2 instance with K3s
+  - later split dev/prod VMs
+  - later managed Kubernetes only if cost and complexity are justified
+- How much of the Proxmox target bootstrap should Phase 11 automate immediately through Terraform and user data?
+- Which access model should be retained or adapted on AWS:
+  - Tailscale for private Kubernetes API access
+  - Cloudflare Tunnel for public storefront access
+  - direct AWS security-group controlled access only where necessary
+- Which backup artifacts from Phase 10 should be restored into the AWS target, and which should remain documentation-only proof?
+- Should the first AWS migration prioritize public reachability first, or CI/CD retargeting first?
+- After the AWS target is stable, which hardening step gives the strongest portfolio value:
+  - remote Terraform state with S3 and DynamoDB
+  - GitHub OIDC and keyless CI/CD
+  - Amazon ECR integration
+  - synthetic monitoring
+  - full restore drill
+  - deeper Playwright coverage
+  - Agentic runbook assistant
 
 ---
 
