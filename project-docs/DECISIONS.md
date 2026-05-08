@@ -19,6 +19,8 @@ Decisions in this project are made along an explicit, **phase-based delivery pat
 - [**Phase 07 — Security Testing: Deterministic validation, Security Scanning, Live Smoke Tests, Branch Governance**](#phase-07--security-testing-deterministic-validation-security-scanning-live-smoke-tests-branch-governance)
 - [**Phase 08 — Proxmox IaC Baseline: Terraform smoke-VM provisioning proof**](#phase-08--proxmox-iac-baseline-terraform-smoke-vm-provisioning-proof)
 - [**Phase 09 — Disaster Recovery & Rollback: backup baseline, restore validation, recovery proof, and rollback readiness**](#phase-09--disaster-recovery--rollback-backup-baseline-restore-validation-recovery-proof-and-rollback-readiness)
+- [**Phase 10 — Proxmox Exit Evidence and Migration Readiness**](#phase-10--proxmox-exit-evidence-and-migration-readiness)
+
 ---
 
 
@@ -951,5 +953,90 @@ Use Git revert plus protected validation and redeploy as the normal rollback pat
 Keep `kubectl rollout undo` documented as an emergency runtime rollback command for Deployment revisions.
 
 ---
+
+---
+
+## Phase 10 — Proxmox Exit Evidence and Migration Readiness
+
+Phase 10 preserved the final proven state of the completed Proxmox-backed K3s target platform before the environment becomes unavailable and before the project moves into the AWS migration track.
+
+### Quick recap (Phase 10)
+
+#### Starting point: The Proxmox platform was complete, but no longer a long-lived target
+
+After Phase 09, the project had already proven the full Proxmox-backed delivery path:
+
+- local Docker Compose and K3s baselines
+- CI/CD with `dev` / `prod` promotion
+- reusable Proxmox VM templates
+- real Proxmox target VM `9200`
+- single-node K3s target delivery
+- Cloudflare-routed public `dev` / `prod` entrypoints
+- Tailscale-based private operator and CI/CD access
+- Prometheus/Grafana observability
+- deterministic test and security gates
+- Terraform Proxmox IaC proof
+- disaster-recovery and rollback baseline
+
+The new constraint was that the original Proxmox environment had a fixed remaining lifetime and would no longer be available as a long-lived project target.
+
+#### Chosen path: Preserve the final state instead of adding new runtime scope
+
+Phase 10 was deliberately kept short and evidence-focused.
+
+It did not add a new runtime capability. Instead, it captured the final Proxmox state while the original platform was still reachable.
+
+The phase preserved:
+
+- final public `dev` and `prod` storefront evidence
+- final terminal endpoint verification
+- final Proxmox UI and host-side VM `9200` evidence
+- final Kubernetes target-state evidence
+- final Grafana and Prometheus evidence
+- final GitHub Actions validation and delivery evidence
+- final local DR backup artifacts for `sock-shop-dev` and `sock-shop-prod`
+- a historical README snapshot for the completed Proxmox Phase 00-09 state
+- the final project presentation PDF as a high-level review artifact
+
+#### Verified result: The completed Proxmox project state remains reviewable
+
+By the end of Phase 10, the Proxmox-backed target platform remained reviewable through committed documentation, screenshots, terminal evidence, archived README content, and local backup artifacts.
+
+The original live target may disappear later, but the completed Proxmox track remains documented as a coherent platform milestone.
+
+#### Why this matters next
+
+Phase 10 creates the clean boundary for Phase 11.
+
+The next phase can now be framed as an AWS migration from a proven Proxmox/K3s platform, not as a rebuild that silently replaces the earlier project state.
+
+### Key decisions
+
+#### P10-D01 — Phase scope = Evidence and migration readiness, not new runtime functionality
+
+Keep Phase 10 focused on final evidence capture, backup readiness, and documentation preservation.
+
+The immediate priority was preserving the proven platform state before the original Proxmox environment becomes unavailable, not adding new application or infrastructure features.
+
+#### P10-D02 — Historical README snapshot = Preserve the completed Proxmox-era project narrative
+
+Archive the current root README under `project-docs/10-proxmox-exit-evidence/archive/`.
+
+The root README can now evolve toward the AWS migration path later without losing the completed Proxmox/K3s evidence narrative.
+
+#### P10-D03 — DR artifacts = Keep raw backup payloads local and out of Git
+
+Create final DR backup artifacts for migration readiness, but do not commit raw backup archives to the repository.
+
+The repository preserves proof, structure, screenshots, and documentation. Raw backup payloads remain local because they can contain runtime data, metadata, or environment-specific details.
+
+#### P10-D04 — Migration boundary = Preserve Proxmox before starting AWS
+
+Document Phase 10 as the transition boundary from Proxmox-backed delivery to AWS-backed target migration.
+
+This keeps the project story clear: the platform was first proven on Proxmox, then moved toward AWS because the original target environment became time-limited.
+
+---
+
 
 ## (Further entries will be added to record technical choices)

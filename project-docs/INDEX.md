@@ -2,11 +2,11 @@
 
 Documentation is iterative and phase-aligned: baseline notes first, then milestone implementation notes, setup guides when needed, runbooks, and decision logs.
 
-## Cross-phase docs
+## Cross-phase Docs
 - **[Project roadmap / planning](./ROADMAP.md)**
 - **[Project-wide decision summary](./DECISIONS.md)**
 - **[Project Debug Log](./DEBUG-LOG.md)**  
-- **[Final Project Presentation](./final-presentation/%5B2026-05-05%5D-Sock-Shop-Production-Grade-DevOps-Delivery-Path.pd)**
+- **[Final Project Presentation](./final-presentation/%5B2026-05-05%5D-Sock-Shop-Production-Grade-DevOps-Delivery-Path.pdf)**
 
 ---
 
@@ -98,6 +98,15 @@ Documentation is iterative and phase-aligned: baseline notes first, then milesto
 
 ---
 
+## Phase 10 — Proxmox Exit Evidence and Migration Readiness
+
+- **[Phase 10 — Implementation Log](./10-proxmox-exit-evidence/IMPLEMENTATION.md)**
+- **[Phase 10 — Runbook (TL;DR)](./10-proxmox-exit-evidence/RUNBOOK.md)**
+- **[Phase 10 — Decision Log](./10-proxmox-exit-evidence/DECISIONS.md)**
+- **[Phase 10 — Archived Proxmox-era README](./10-proxmox-exit-evidence/archive/%5B2026-05-06%5D-README-proxmox-phases-00-09.md)**
+
+---
+
 ## Later hardening / optional future phases
 - Broader Terraform coverage for target VM recreation and bootstrap steps
 - Full restore drill in a disposable namespace or throwaway cluster
@@ -105,8 +114,8 @@ Documentation is iterative and phase-aligned: baseline notes first, then milesto
   - Argo CD or similar
 - Secret-management extension:
   - external secrets integration
-- Optional AWS target:
-  - Terraform-driven secondary deployment track
+- AWS migration track:
+  - Terraform-driven AWS target migration from the completed Proxmox/K3s baseline
 
 ---
 
@@ -121,5 +130,7 @@ Documentation is iterative and phase-aligned: baseline notes first, then milesto
   - Argo CD or similar
 - Secret-management extension:
   - external secrets integration
-- Optional AWS target:
-  - Terraform-driven secondary deployment track
+- AWS hardening track:
+  - remote Terraform state
+  - keyless CI/CD with GitHub OIDC
+  - optional AWS-native registry and platform hardening
