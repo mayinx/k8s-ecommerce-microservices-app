@@ -2,7 +2,7 @@
   "name": "p07-e2e-smoke",
   "private": true,
   "devDependencies": {
-    "@playwright/test": "^1.55.0"
+    "@playwright/test": "^1.60.0"
   },
   "scripts": {
     "test:e2e": "playwright test",
